@@ -1,0 +1,157 @@
+# GitHub Copilot Instructions for Ziwei Doushu WordPress Plugin
+
+## Project Overview
+
+**Ziwei Doushu (紫微斗數) Calculator** - A WordPress plugin for real-time astrology chart generation. Frontend uses Vanilla JavaScript modules (no frameworks/npm), backend uses REST API with PHP. Emphasis on modularity and gradual feature expansion across 8 phases. All UI explanations in Traditional Chinese; code comments in English.
+
+**Key constraint**: Desktop-first layout with vertical writing mode (`writing-mode: vertical-rl`) for traditional aesthetic.
+
+## Architecture Patterns
+
+### Frontend Module System (`assets/astrology/` & `assets/js/`)
+
+Each calculation layer is a **separate JavaScript file** exposing functions via `window.ziweiXXX` namespace.
+
+**Config for different schools** (future development): Located in `assets/data/` - currently supports 中州派 (Zhongzhou School)
+
+```javascript
+// Pattern: assets/astrology/{module}.js
+window.ziweiBasic = { getMonthIndex(), getBasicIndices(), isClockwise() };
+window.ziweiPalaces = { calculatePalacePositions() };
+window.ziweiPrimary = { placePrimaryStars() };
+window.ziweiSecondary = { calculateAllSecondaryStars() };
+window.ziweiLifeCycle = { calculateMajorCycles(), calculateTwelveLongLifePositions() };
+```
+
+**Script loading order** (registered in `ziwei-cal.php` lines 220-310):
+1. Data modules first (palaces-name.js, nayin.js)
+2. Core calculators (basic.js, palaces.js, primary.js, secondary.js, life-cycle.js)
+3. Display/form modules (form.js, chart.js, calculator.js)
+
+Each module **self-documents via console.log** during calculation for debugging.
+
+### Data Structure Conventions
+
+- **Palace indices**: 0-11 (0=子, 11=亥, mapped to grid positions)
+- **Month indices**: 0-11 (0=正月, adjusted for leap months in basic.js line 25)
+- **Time indices**: 0-11 (military hours 子-亥, calculated by lunar-converter.js)
+- **Star positions**: `{ starName: palaceIndex }` objects (see secondary.js line 137)
+- **Palace data**: `{ index, name, stem, branchZhi, stemIndex, isMing, isShen }`
+
+### Chart Display Logic (`assets/js/chart.js`)
+
+**Data flow**: Form input → REST API → Chart rendering via `draw()` function
+
+```
+draw(chartData)
+├─ calculatePalacePositions() → palaceData
+├─ placePrimaryStars() → primaryStarsData  
+├─ calculateAllSecondaryStars() → secondaryStarsData
+├─ calculateMajorCycles() → lifeCycleData
+└─ createPalaceCell() for each of 12 positions
+   ├─ .ziwei-stars-container (primary + secondary stars together)
+   ├─ .ziwei-palace-container (name + stem-branch, vertical)
+   └─ .ziwei-life-cycle-container (cycles, bottom)
+```
+
+**Star display**: Primary stars (red, 18px, 700 weight) and secondary stars (gray #6b7a87, same size/weight) in **same vertical container**, not separate. See chart.js line 510.
+
+### CSS Grid & Vertical Writing
+
+**Layout**: 4×4 CSS Grid, center 2×2 merged into info box. Palace cells use `writing-mode: vertical-rl` for Chinese text.
+
+```css
+.ziwei-4x4-grid { grid-template-columns: repeat(4, 1fr); }
+.ziwei-cell { writing-mode: vertical-rl; position: relative; }
+.ziwei-stars-container { position: absolute; top: 4px; left: 50%; }
+.ziwei-life-cycle-container { position: absolute; bottom: 3px; }
+```
+
+Main stars positioned at **top-center**, Other stars at **mid-left**, palace name at **bottom-right**, life cycles at **bottom-center**, palace characteristics at **bottom-left** of each cell.
+
+## Development Workflow
+
+### Adding New Star Types
+
+1. **Create calculation function** in `assets/astrology/[module].js`
+   - Follow pattern: `calculate[StarName](index)` returns `{ star1: palaceIndex, star2: palaceIndex }`
+   - Add to star data structure in `calculateAllSecondaryStars()` (secondary.js line 137)
+
+2. **Integrate into chart.js `draw()`** function
+   - Call calculation function with extracted indices (month, time, year, body palace)
+   - Pass data to `createPalaceCell()` via function parameter
+
+3. **Display logic in `createPalaceCell()`**
+   - Loop through returned star map, add `.ziwei-[type]-star` elements to `.ziwei-stars-container`
+   - Apply CSS class for styling
+
+4. **Add CSS styling** in `chart.css`
+   - Use `.ziwei-[type]-star` class with `writing-mode: vertical-rl`, `text-orientation: upright`
+   - Primary stars: red (#e74c3c), secondary: gray (#6b7a87), both 18px/700 weight
+
+### Example: Adding 四化 (Four Mutations)
+
+1. Create `assets/astrology/mutations.js` with `calculateFourMutations(lunarYear)`
+2. Register script in ziwei-cal.php with dependency on `ziwei-cal-nayin` (needs five elements loci)
+3. In chart.js `draw()`, call: `const mutationsData = window.ziweiMutations.calculateFourMutations(meta.lunar.lunarYear)`
+4. Pass `mutationsData` to `createPalaceCell()`, display mutations in same container as stars
+
+## PHP Backend (`ziwei-cal.php`)
+
+**Pattern**: Single REST endpoint `/ziwei-cal/v1/calculate` (POST) handles all computation:
+
+```php
+register_rest_route('ziwei-cal/v1', '/calculate', [
+    'methods' => WP_REST_Server::CREATABLE,
+    'callback' => 'ziwei_cal_calculate_chart',
+    'permission_callback' => fn() => true,  // Public access
+    'args' => [ /* strict sanitization for each parameter */ ]
+]);
+```
+
+**No database storage** - all calculations in real-time. Use `sanitize_text_field()` and `absint()` for inputs, always escape outputs with `wp_json_encode()`.
+
+## Code Organization Standards
+
+- **Naming**: Camel case for functions (`calculateMingPalace`), hyphen for file/directory names (`life-cycle.js`)
+- **Comments**: English block comments for functions with JSDoc format `@param`, `@returns`, inline for complex logic
+- **Console logging**: Extensive for debugging - never remove, helps track data flow (e.g., `console.log('Calculation result:', data)`)
+- **No external dependencies**: Use vanilla JavaScript only (no jQuery, no npm packages)
+- **Helper functions**: Extract shared logic (e.g., `isClockwise()` in basic.js for yin/yang direction)
+- **Module structure**: 'use strict'; at top, then calculations, then `window.ziweiXXX = { ...functions };` at end
+- **Object handling**: Always check for undefined/null before accessing nested properties (e.g., `lunar?.lunarMonth`)
+- **Data validation**: Log warnings for invalid inputs, return safe defaults (empty array/object)
+
+### Code Quality Checklist
+
+✅ **Verified in current codebase:**
+- All astrology modules use `'use strict'` mode
+- All functions documented with JSDoc comments including @param and @returns
+- Console.log extensively used for debugging (search flow: secondary stars → chart display)
+- No npm dependencies - only vanilla ES6 JavaScript
+- All star types (primary, secondary) display in unified `.ziwei-stars-container`
+- Shared logic extracted: `isClockwise()` in basic.js, `getMilitaryHourIndex()` in chart.js
+- Proper null/undefined checks: `lunar?.lunarMonth`, `isLeapMonth || false`, `|| 0` defaults
+
+## Progressive Development Strategy
+ Current phase: **Phase 6 (Four Mutations)** - Four mutations (✅ complete)
+ 
+ - Phase 1-3: Form + palaces + basic information display (✅ complete)
+ - Phase 4: Primary stars (✅ complete)
+ - Phase 5: Secondary stars (✅ complete)
+ - Phase 6: Four mutations (✅ complete)
+ - Phase 7: other smaller stars (not started)
+ - Phase 8: Big cycles and year's horoscope (not started)
+ - Phase 9: Cycles & UI (not started)
+ - Phase 10: school Config systems (not started)
+ - Phase 11: Export as PNG and PDF (not started)
+ - Phase 12: Star explanations & tooltips (may not be included)
+ - Phase 13: Star combination explanations (may not be included)
+ 
+
+Generate code in **focused chunks** - one calculation function + one display integration per request. Test with console.log output before moving to next phase.
+
+---
+
+**Key principle**: Keep frontend stateless (all data via API), prefer modular functions over classes, maintain data flow transparency via console logging.
+

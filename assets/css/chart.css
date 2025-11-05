@@ -1,0 +1,421 @@
+/* ========================================
+   Ziwei Chart Styles
+   ======================================== */
+
+/* Chart container styles (no extra wrapper) */
+.ziwei-cal {
+    width: 100% !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.ziwei-chart-controls {
+    display: flex !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    margin-bottom: 20px !important;
+    margin-top: 0 !important;
+    gap: 10px !important;
+    background: transparent !important;
+    padding: 0 !important;
+    border: none !important;
+}
+
+/* Back button - override all theme styles */
+.ziwei-back-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    padding: 10px 20px !important;
+    background: #ecf0f1 !important;
+    color: #34495e !important;
+    border: 1px solid #bdc3c7 !important;
+    border-radius: 8px !important;
+    cursor: pointer !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
+    text-decoration: none !important;
+    height: auto !important;
+    min-height: 40px !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+    font-family: inherit !important;
+}
+
+.ziwei-back-btn:hover {
+    background: #bdc3c7 !important;
+    color: #2c3e50 !important;
+    border-color: #95a5a6 !important;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+}
+
+.ziwei-back-btn:focus {
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(236, 240, 241, 0.5) !important;
+}
+
+/* Chart grid */
+.ziwei-4x4-grid {
+    width: 640px !important;
+    height: 640px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    grid-template-rows: repeat(4, 1fr) !important;
+    gap: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    outline: 3px solid #333 !important;
+    outline-offset: 0 !important;
+}
+
+/* Palace cells */
+.ziwei-cell {
+    background: #fff !important;
+    padding: 15px 10px !important;
+    aspect-ratio: 1 / 1 !important;
+    width: 100% !important;
+    height: 100% !important;
+    writing-mode: vertical-rl !important;
+    text-orientation: upright !important;
+    position: relative !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    margin: 0 !important;
+}
+
+/* Remove borders from edge cells to avoid overlap with outline */
+/* Top row (grid-row: 1) */
+.ziwei-4x4-grid > .ziwei-cell:nth-child(1),
+.ziwei-4x4-grid > .ziwei-cell:nth-child(2),
+.ziwei-4x4-grid > .ziwei-cell:nth-child(3),
+.ziwei-4x4-grid > .ziwei-cell:nth-child(4) {
+    border-top: none !important;
+}
+
+/* Bottom row (grid-row: 4) */
+.ziwei-4x4-grid > .ziwei-cell:nth-child(9),
+.ziwei-4x4-grid > .ziwei-cell:nth-child(10),
+.ziwei-4x4-grid > .ziwei-cell:nth-child(11),
+.ziwei-4x4-grid > .ziwei-cell:nth-child(12) {
+    border-bottom: none !important;
+}
+
+/* Left column (grid-col: 1) */
+.ziwei-4x4-grid > .ziwei-cell:nth-child(1),
+.ziwei-4x4-grid > .ziwei-cell:nth-child(5),
+.ziwei-4x4-grid > .ziwei-cell:nth-child(7),
+.ziwei-4x4-grid > .ziwei-cell:nth-child(9) {
+    border-left: none !important;
+}
+
+/* Right column (grid-col: 4) */
+.ziwei-4x4-grid > .ziwei-cell:nth-child(4),
+.ziwei-4x4-grid > .ziwei-cell:nth-child(6),
+.ziwei-4x4-grid > .ziwei-cell:nth-child(8),
+.ziwei-4x4-grid > .ziwei-cell:nth-child(12) {
+    border-right: none !important;
+}
+
+/* Center cell */
+.ziwei-cal .ziwei-4x4-grid .ziwei-center-big {
+    /* Stronger selector to outrank theme rules */
+    grid-column: 2 / span 2 !important;
+    grid-row: 2 / span 2 !important;
+    background: #f6f8fb !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: flex-start !important;
+    padding: 12px 12px !important;
+    gap: 12px !important;
+    aspect-ratio: 1 / 1 !important;
+    width: 100% !important;
+    height: 100% !important;
+    font-family: "PingFang TC", "Microsoft JhengHei", sans-serif !important;
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    margin: 0 !important;
+}
+
+.ziwei-center-left {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    width: 100%;
+}
+
+/* Name and Gender Classification row */
+.ziwei-name-gender-row {
+    display: flex;
+    gap: 12px;
+    align-items: baseline;
+    margin-bottom: 12px;
+    writing-mode: horizontal-tb;  /* Horizontal writing mode */
+}
+
+/* Center cell content */
+.ziwei-name {
+    font-size: 28px;
+    font-weight: 700;
+    color: #2c3e50;
+    writing-mode: horizontal-tb;  /* Horizontal writing mode */
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.ziwei-gender-classification {
+    font-size: 16px;
+    font-weight: 600;
+    color: #7f8c8d;
+    writing-mode: horizontal-tb;  /* Horizontal writing mode */
+}
+
+.ziwei-nayin {
+    font-size: 16px;
+    font-weight: 600;
+    color: #7f8c8d;
+    writing-mode: horizontal-tb;  /* Horizontal writing mode */
+}
+
+.ziwei-datetime {
+    font-size: 18px;
+    color: #34495e;
+    line-height: 1.8;
+    text-align: center;
+    writing-mode: horizontal-tb;  /* Horizontal writing mode */
+}
+
+/* Master and Body palace information - same style as datetime */
+.ziwei-master-body-row {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+    justify-content: center;
+    writing-mode: horizontal-tb;
+    font-size: 18px;
+    color: #34495e;
+    line-height: 1.8;
+}
+
+.ziwei-master-info,
+.ziwei-body-info {
+    writing-mode: horizontal-tb;
+    font-size: 18px;
+    color: #34495e;
+}
+
+/* Palace content - container for name and branch */
+.ziwei-palace-container {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    display: flex;
+    flex-direction: column;  /* Vertical stacking */
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0;
+}
+
+/* Primary stars container - positioned at top of palace cell */
+.ziwei-stars-container {
+    position: absolute;
+    top: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0px;
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+}
+
+/* Primary star display */
+.ziwei-primary-star {
+    font-size: 20px;  /* Larger font */
+    font-weight: 700;
+    color: #e74c3c;
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    line-height: 1;
+    letter-spacing: 0px;
+    padding: 0;
+    margin: 0;
+}
+
+/* Secondary star display - same size and weight as primary stars, different color only */
+.ziwei-secondary-star {
+    font-size: 20px;  /* Larger font */
+    font-weight: 700;
+    color: #6b7a87;
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    line-height: 1;
+    letter-spacing: 0px;
+    padding: 0;
+    margin: 0;
+}
+
+/* Star and mutation group wrapper */
+.ziwei-star-mutation-group {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 0;
+    padding: 1px 1px;
+    margin: 0;
+    border-radius: 4px;
+    writing-mode: horizontal-tb;
+}
+
+.ziwei-star-no-mutation {
+    background-color: transparent;
+}
+
+.ziwei-star-with-mutation {
+    background-color: #fffacd;  /* Light yellow background */
+}
+
+.ziwei-mutations-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    width: 14px;
+    justify-content: flex-start;
+    flex-shrink: 0;
+}
+
+/* Mutation character base style - traditional Chinese seal appearance */
+/* Size: 3 mutations should stack to equal 2 Chinese characters (2 * 24px ≈ 48px, so each mutation ~16px) */
+.ziwei-mutation {
+    font-size: 12px;
+    font-weight: 700;
+    writing-mode: horizontal-tb;
+    text-align: center;
+    line-height: 1;
+    letter-spacing: 0px;
+    padding: 0;
+    margin: 0;
+    border-radius: 2px;
+    width: 14px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    /* White text with colored border/background - seal style */
+    color: #ffffff;
+    text-shadow: 
+        -0.5px -0.5px 0 currentColor,
+        0.5px -0.5px 0 currentColor,
+        -0.5px 0.5px 0 currentColor,
+        0.5px 0.5px 0 currentColor;
+}
+
+/* Birth year mutation (生年四化) - red seal style */
+.ziwei-mutation-birth {
+    background-color: #e74c3c;
+    border: 1px solid #c0392b;
+    text-shadow: 
+        -0.5px -0.5px 0 #c0392b,
+        0.5px -0.5px 0 #c0392b,
+        -0.5px 0.5px 0 #c0392b,
+        0.5px 0.5px 0 #c0392b;
+}
+
+/* Major cycle mutation (大運四化) - green seal style */
+.ziwei-mutation-major {
+    background-color: #27ae60;
+    border: 1px solid #1e8449;
+    text-shadow: 
+        -0.5px -0.5px 0 #1e8449,
+        0.5px -0.5px 0 #1e8449,
+        -0.5px 0.5px 0 #1e8449,
+        0.5px 0.5px 0 #1e8449;
+}
+
+/* Annual mutation (流年四化) - blue seal style */
+.ziwei-mutation-annual {
+    background-color: #3498db;
+    border: 1px solid #2471a3;
+    text-shadow: 
+        -0.5px -0.5px 0 #2471a3,
+        0.5px -0.5px 0 #2471a3,
+        -0.5px 0.5px 0 #2471a3,
+        0.5px 0.5px 0 #2471a3;
+}
+
+/* Major cycles (大運) and life stages display - positioned at bottom inside palace cell */
+.ziwei-life-cycle-container {
+    position: absolute;
+    bottom: 3px;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    writing-mode: horizontal-tb;
+    font-size: 14px;
+    color: #5a6c7d;
+    font-weight: 500;
+    padding: 2px 4px;
+}
+
+/* Child elements inherit from container - no need for separate styles */
+.ziwei-major-cycle,
+.ziwei-life-stage {
+    line-height: 1;
+}
+
+/* Palace name with vertical writing */
+.ziwei-palace-name {
+    font-weight: 500;
+    font-size: 16px;
+    color: #34495e;
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    line-height: 1.1;
+    letter-spacing: 0px;
+    height: auto;
+}
+
+/* Palace branch name (地支) with vertical writing - same size as name */
+.ziwei-palace-branch {
+    font-size: 16px;
+    font-weight: 500;
+    color: #34495e;
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    line-height: 1.1;
+}
+
+/* ========================================
+   Responsive Design
+   ======================================== */
+
+/* Keep fixed size - do not scale the chart */
+
+/* Hidden class */
+.hidden {
+    display: none !important;
+}
+

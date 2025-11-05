@@ -1,0 +1,477 @@
+/* ========================================
+   Ziwei Doushu Chart Calculator - Form Styles
+   ======================================== */
+
+/* ========================================
+   Global Styles
+   ======================================== */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", "微軟正黑體", Arial, sans-serif;
+    line-height: 1.6;
+    color: #2c3e50;
+}
+
+/* ========================================
+   Main Container
+   ======================================== */
+
+.ziwei-cal {
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 40px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+/* ========================================
+   Title Styles
+   ======================================== */
+
+.ziwei-cal-title {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.ziwei-cal-title h1 {
+    font-size: 32px;
+    color: #2c3e50;
+    margin-bottom: 12px;
+    font-weight: 700;
+}
+
+.ziwei-cal-title p {
+    font-size: 16px;
+    color: #7f8c8d;
+}
+
+/* ========================================
+   Form Styles
+   ======================================== */
+
+.ziwei-cal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Form group */
+.ziwei-cal-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Label */
+.ziwei-cal-form-group label {
+    font-size: 15px;
+    font-weight: 600;
+    color: #34495e;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ziwei-cal-form-group label .required {
+    color: #e74c3c;
+    font-size: 14px;
+}
+
+/* Common input field styles */
+.ziwei-cal-form-group input[type="text"],
+.ziwei-cal-form-group input[type="date"],
+.ziwei-cal-form-group input[type="time"],
+.ziwei-cal-form-group select {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    font-family: inherit;
+    background: white;
+}
+
+.ziwei-cal-form-group input[type="text"]:focus,
+.ziwei-cal-form-group input[type="date"]:focus,
+.ziwei-cal-form-group input[type="time"]:focus,
+.ziwei-cal-form-group select:focus {
+    outline: none;
+    border-color: #5dade2;
+    box-shadow: 0 0 0 3px rgba(93, 173, 226, 0.1);
+}
+
+/* First row: Name and Gender */
+.ziwei-cal-row-name-gender {
+    display: flex;
+    align-items: flex-end;
+    gap: 40px;
+    margin-bottom: 20px;
+}
+
+.ziwei-cal-name-group {
+    width: 300px;
+}
+
+.ziwei-cal-gender-group {
+    flex: 1;
+}
+
+/* ========================================
+   Label Styles
+   ======================================== */
+
+.ziwei-cal-label {
+    display: block;
+    font-size: 16px;
+    font-weight: 600;
+    color: #34495e;
+    margin-bottom: 10px;
+}
+
+/* Required asterisk - small and red */
+.ziwei-cal-required {
+    color: #e74c3c;
+    font-size: 12px;
+    font-weight: normal;
+    margin-left: 2px;
+}
+
+.ziwei-cal-optional {
+    color: #95a5a6;
+    font-size: 14px;
+    font-weight: normal;
+}
+
+/* ========================================
+   Date and Time Input Area
+   ======================================== */
+
+.ziwei-cal-datetime-group {
+    margin-bottom: 20px;
+}
+
+.ziwei-cal-datetime-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* Date section */
+.ziwei-cal-date-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 300px;
+}
+
+/* Time section - hour and minute always together, not allowed to separate */
+.ziwei-cal-time-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+}
+
+/* Year input field */
+.ziwei-cal-year-input {
+    width: 140px;
+    min-width: 100px;
+    flex-shrink: 0;
+}
+
+/* Month and day input fields */
+.ziwei-cal-md-input {
+    width: 90px;
+    min-width: 70px;
+    flex-shrink: 0;
+}
+
+/* Time selection */
+.ziwei-cal-time-select {
+    width: 100px;
+    min-width: 90px;
+    cursor: pointer;
+    background-color: white;
+    flex-shrink: 0;
+}
+
+/* Unit text */
+.ziwei-cal-unit {
+    color: #7f8c8d;
+    font-size: 15px;
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Spacer */
+.ziwei-cal-spacer {
+    width: 20px;
+    flex-shrink: 0;
+}
+
+/* ========================================
+   Button Styles - Override OceanWP Theme
+   ======================================== */
+
+.ziwei-cal-form-actions {
+    display: flex;
+    gap: 16px;
+    margin-top: 30px;
+}
+
+/* Use multiple selectors + !important to override theme */
+.ziwei-cal .ziwei-cal-form-actions .ziwei-cal-btn,
+.ziwei-cal button.ziwei-cal-btn,
+form.ziwei-cal-form .ziwei-cal-btn,
+button.ziwei-cal-btn.ziwei-cal-btn-primary,
+button.ziwei-cal-btn.ziwei-cal-btn-secondary {
+    flex: 1 !important;
+    padding: 16px 32px !important;
+    font-size: 17px !important;
+    font-weight: 600 !important;
+    line-height: 1.5 !important;
+    border: none !important;
+    border-radius: 8px !important;
+    cursor: pointer !important;
+    transition: background-color 0.3s ease !important;
+    text-align: center !important;
+    display: inline-block !important;
+    box-sizing: border-box !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    min-height: auto !important;
+}
+
+/* Primary button - light blue */
+.ziwei-cal .ziwei-cal-form-actions .ziwei-cal-btn-primary,
+.ziwei-cal button.ziwei-cal-btn-primary,
+form.ziwei-cal-form button.ziwei-cal-btn-primary {
+    background: #5dade2 !important;
+    color: white !important;
+}
+
+.ziwei-cal .ziwei-cal-form-actions .ziwei-cal-btn-primary:hover,
+.ziwei-cal button.ziwei-cal-btn-primary:hover,
+form.ziwei-cal-form button.ziwei-cal-btn-primary:hover {
+    background: #2e86c1 !important;
+}
+
+/* Secondary button - gray */
+.ziwei-cal .ziwei-cal-form-actions .ziwei-cal-btn-secondary,
+.ziwei-cal button.ziwei-cal-btn-secondary,
+form.ziwei-cal-form button.ziwei-cal-btn-secondary {
+    background: #ecf0f1 !important;
+    color: #34495e !important;
+}
+
+.ziwei-cal .ziwei-cal-form-actions .ziwei-cal-btn-secondary:hover,
+.ziwei-cal button.ziwei-cal-btn-secondary:hover,
+form.ziwei-cal-form button.ziwei-cal-btn-secondary:hover {
+    background: #bdc3c7 !important;
+}
+
+/* ========================================
+   Responsive Design
+   ======================================== */
+
+@media (max-width: 768px) {
+    .ziwei-cal {
+        margin: 20px;
+        padding: 24px;
+    }
+
+    .ziwei-cal-title h1 {
+        font-size: 24px;
+    }
+
+    /* Name and gender stacked vertically */
+    .ziwei-cal-row-name-gender {
+        flex-direction: column;
+        gap: 20px;
+        align-items: stretch;
+    }
+
+    .ziwei-cal-name-group {
+        width: 100%;
+    }
+
+    /* Date and time: ensure hour and minute wrap together */
+    .ziwei-cal-datetime-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .ziwei-cal-date-section {
+        width: 100%;
+        min-width: auto;
+    }
+
+    .ziwei-cal-time-section {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    /* Buttons stacked vertically */
+    .ziwei-cal-form-actions {
+        flex-direction: column;
+    }
+    
+    .ziwei-cal .ziwei-cal-form-actions .ziwei-cal-btn,
+    .ziwei-cal button.ziwei-cal-btn,
+    form.ziwei-cal-form .ziwei-cal-btn {
+        width: 100% !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .ziwei-cal {
+        margin: 10px;
+        padding: 20px;
+    }
+
+    .ziwei-cal-title h1 {
+        font-size: 20px;
+    }
+
+    .ziwei-cal-title p {
+        font-size: 14px;
+    }
+
+    .ziwei-cal-form-group label {
+        font-size: 14px;
+    }
+
+    .ziwei-cal-form-group input[type="text"],
+    .ziwei-cal-form-group input[type="date"],
+    .ziwei-cal-form-group input[type="time"],
+    .ziwei-cal-form-group select {
+        font-size: 14px;
+        padding: 10px 14px;
+    }
+
+    /* Small screen: hour and minute remain on same line */
+    .ziwei-cal-time-section {
+        flex-wrap: nowrap !important;
+    }
+}
+
+/* ========================================
+   Utility Styles
+   ======================================== */
+
+/* Hidden elements */
+.hidden {
+    display: none !important;
+}
+
+/* Title style */
+.ziwei-cal-title {
+    text-align: center;
+    font-size: 28px;
+    color: #2c3e50;
+    margin-bottom: 30px;
+    font-weight: 700;
+}
+
+/* Error state */
+.ziwei-cal-field-error input[type="text"]:not(:focus) {
+    border-color: #e74c3c;
+}
+
+.ziwei-cal-error-message {
+    font-size: 13px;
+    color: #e74c3c;
+    margin-top: 4px;
+    margin-bottom: 8px;
+    display: block;
+    font-weight: 500;
+}
+
+/* Focus state overrides error state */
+.ziwei-cal-field-error input:focus {
+    border-color: #5dade2;
+    box-shadow: 0 0 0 3px rgba(93, 173, 226, 0.1);
+}
+
+/* Gender group error state */
+.ziwei-cal-gender-group.ziwei-cal-field-error {
+    padding: 8px;
+    border-radius: 8px;
+    background-color: rgba(231, 76, 60, 0.05);
+}
+
+/* DateTime group error state */
+.ziwei-cal-datetime-group.has-error .ziwei-cal-error-message {
+    margin-top: 8px;
+    margin-bottom: 0;
+}
+
+/* Remove error styles during focus/active state */
+.ziwei-cal-form-group input:focus,
+.ziwei-cal-form-group select:focus,
+.ziwei-cal-form-group input:active,
+.ziwei-cal-form-group select:active {
+    border-color: #5dade2 !important;
+    box-shadow: 0 0 0 3px rgba(93, 173, 226, 0.1) !important;
+}
+
+/* Loading state */
+.ziwei-cal-btn.loading {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* API Error Message */
+.ziwei-cal-api-error {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+.ziwei-cal-api-error strong {
+    font-weight: bold;
+}
+
+/* ========================================
+   Form Transitions
+   ======================================== */
+
+.ziwei-cal-form,
+.ziwei-4x4-grid {
+    opacity: 1;
+    transition: opacity 200ms ease;
+}
+
+/* ========================================
+   Print Styles
+   ======================================== */
+
+@media print {
+    .ziwei-cal-form-actions {
+        display: none;
+    }
+
+    .ziwei-cal {
+        box-shadow: none;
+        padding: 0;
+    }
+}
