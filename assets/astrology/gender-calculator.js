@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Gender and Yin-Yang Calculator for Ziwei Doushu Chart Display
  * 
@@ -37,6 +39,6 @@ function getGenderClassification(gender, lunarYear) {
 }
 
 // Expose public API
-window.genderCalculator = {
+window.ziweiGender = {
     getGenderClassification
 };

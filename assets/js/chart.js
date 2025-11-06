@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * Chart rendering module for Ziwei Calculator
  */
@@ -258,11 +260,72 @@ function draw(chartData) {
         });
     }
     
+    // Calculate minor stars (雜曜)
+    let minorStarsData = {};
+    if (window.ziweiMinorStars && meta.lunar) {
+        try {
+            console.log('Calculating minor stars positions...');
+            
+            // Get required indices for minor stars calculation
+            const monthIndex = meta.lunar.lunarMonth - 1; // Convert to 0-based index
+            const timeIndex = getMilitaryHourIndex(meta.birthtime);
+            const lunarYear = meta.lunar.lunarYear;
+            const yearBranchIndex = window.ziweiBasic.getEarthlyBranchIndex(lunarYear);
+            const yearStemIndex = window.ziweiBasic.getHeavenlyStemIndex(lunarYear);
+            
+            // For day branch, we need the lunar day
+            const lunarDay = meta.lunar.lunarDay;
+            const dayBranchIndex = (lunarDay - 1) % 12; // Simple calculation, may need refinement
+            
+            // Get Ming Palace, Shen Palace, and Migration Palace indices
+            const mingPalaceData = Object.values(palaceData).find(p => p.isMing);
+            const shenPalaceData = Object.values(palaceData).find(p => p.isShen);
+            const migrationPalaceData = Object.values(palaceData).find(p => p.name === '遷移');
+            
+            const mingPalaceIndex = mingPalaceData ? mingPalaceData.index : 0;
+            const shenPalaceIndex = shenPalaceData ? shenPalaceData.index : 0;
+            const migrationPalaceIndex = migrationPalaceData ? migrationPalaceData.index : (mingPalaceIndex + 6) % 12;
+            
+            // Get secondary star positions (文曲, 左輔, 右弼, 文昌) from secondary stars data
+            const literaryCraftIndex = secondaryStarsData['文曲'] !== undefined ? secondaryStarsData['文曲'] : 0;
+            const leftAssistantIndex = secondaryStarsData['左輔'] !== undefined ? secondaryStarsData['左輔'] : 0;
+            const rightAssistIndex = secondaryStarsData['右弼'] !== undefined ? secondaryStarsData['右弼'] : 0;
+            const literaryTalentIndex = secondaryStarsData['文昌'] !== undefined ? secondaryStarsData['文昌'] : 0;
+            
+            minorStarsData = window.ziweiMinorStars.calculateMinorStars(
+                monthIndex,
+                timeIndex,
+                yearBranchIndex,
+                dayBranchIndex,
+                yearStemIndex,
+                mingPalaceIndex,
+                shenPalaceIndex,
+                meta.gender,
+                lunarYear,
+                migrationPalaceIndex,
+                literaryCraftIndex,
+                leftAssistantIndex,
+                rightAssistIndex,
+                literaryTalentIndex,
+                lunarDay
+            );
+            console.log('Minor stars calculation complete:', minorStarsData);
+        } catch (e) {
+            console.warn('Minor stars calculation failed:', e);
+            console.error(e);
+        }
+    } else {
+        console.warn('Minor stars calculation skipped:', {
+            hasMinorStarsModule: !!window.ziweiMinorStars,
+            hasLunar: !!meta.lunar
+        });
+    }
+    
     // Add all 12 palace cells (skip center positions)
     for (let row = 1; row <= 4; row++) {
         for (let col = 1; col <= 4; col++) {
             if ((row === 2 || row === 3) && (col === 2 || col === 3)) continue; // Skip center
-            grid.appendChild(createPalaceCell(row, col, palaceData, primaryStarsData, secondaryStarsData, lifeCycleData, mutationsData));
+            grid.appendChild(createPalaceCell(row, col, palaceData, primaryStarsData, secondaryStarsData, lifeCycleData, mutationsData, minorStarsData));
         }
     }
 
@@ -310,8 +373,8 @@ function createCenterCell(meta, palaceData = {}) {
 
     // Calculate gender classification (陽男/陰男/陽女/陰女)
     let genderClassEl = null;
-    if (meta.lunar && window.genderCalculator) {
-        const classification = window.genderCalculator.getGenderClassification(
+    if (meta.lunar && window.ziweiGender) {
+        const classification = window.ziweiGender.getGenderClassification(
             meta.gender,
             meta.lunar.lunarYear
         );
@@ -510,9 +573,11 @@ function hourToChinese(hour) {
  * @param {Object} primaryStarsData Primary stars positions from placePrimaryStars
  * @param {Object} secondaryStarsData Secondary stars positions from calculateAllSecondaryStars
  * @param {Object} lifeCycleData Life cycle information for all 12 palaces
+ * @param {Object} mutationsData Four mutations data from calculateBirthYearMutations
+ * @param {Object} minorStarsData Minor stars positions from calculateMinorStars
  * @returns {HTMLElement} The palace cell element
  */
-function createPalaceCell(row, col, palaceData = {}, primaryStarsData = {}, secondaryStarsData = {}, lifeCycleData = {}, mutationsData = null) {
+function createPalaceCell(row, col, palaceData = {}, primaryStarsData = {}, secondaryStarsData = {}, lifeCycleData = {}, mutationsData = null, minorStarsData = {}) {
     const cell = document.createElement('div');
     cell.className = 'ziwei-cell';
     cell.style.gridColumnStart = String(col);
@@ -634,6 +699,32 @@ function createPalaceCell(row, col, palaceData = {}, primaryStarsData = {}, seco
                 
                 if (starsContainer.children.length > 0) {
                     cell.appendChild(starsContainer);
+                }
+                
+                // Add minor stars (雜曜) on the left side, vertically centered
+                if (Object.keys(minorStarsData).length > 0) {
+                    const minorStarsContainer = document.createElement('div');
+                    minorStarsContainer.className = 'ziwei-minor-stars-container';
+                    
+                    for (const [starName, starPalaceIndex] of Object.entries(minorStarsData)) {
+                        // Check if star appears in this palace
+                        // starPalaceIndex can be a single number or an array (for stars like 截空)
+                        const isInThisPalace = Array.isArray(starPalaceIndex) 
+                            ? starPalaceIndex.includes(branchIndex)
+                            : starPalaceIndex === branchIndex;
+                        
+                        if (isInThisPalace) {
+                            const minorStarEl = document.createElement('div');
+                            minorStarEl.className = 'ziwei-minor-star';
+                            minorStarEl.textContent = starName;
+                            minorStarsContainer.appendChild(minorStarEl);
+                            console.log(`Minor star "${starName}" placed at palace ${branchIndex}`);
+                        }
+                    }
+                    
+                    if (minorStarsContainer.children.length > 0) {
+                        cell.appendChild(minorStarsContainer);
+                    }
                 }
                 
                 // Create a container for palace name and stem-branch (vertical writing)

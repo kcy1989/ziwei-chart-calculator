@@ -21,6 +21,7 @@ window.ziweiPalaces = { calculatePalacePositions() };
 window.ziweiPrimary = { placePrimaryStars() };
 window.ziweiSecondary = { calculateAllSecondaryStars() };
 window.ziweiLifeCycle = { calculateMajorCycles(), calculateTwelveLongLifePositions() };
+window.ziweiMinorStars = { calculateMinorStars() };  // 43 minor stars (雜曜)
 ```
 
 **Script loading order** (registered in `ziwei-cal.php` lines 220-310):
@@ -47,9 +48,11 @@ draw(chartData)
 ├─ calculatePalacePositions() → palaceData
 ├─ placePrimaryStars() → primaryStarsData  
 ├─ calculateAllSecondaryStars() → secondaryStarsData
+├─ calculateMinorStars() → minorStarsData (43 stars)
 ├─ calculateMajorCycles() → lifeCycleData
 └─ createPalaceCell() for each of 12 positions
    ├─ .ziwei-stars-container (primary + secondary stars together)
+   ├─ .ziwei-minor-stars-container (43 minor stars, left side)
    ├─ .ziwei-palace-container (name + stem-branch, vertical)
    └─ .ziwei-life-cycle-container (cycles, bottom)
 ```
@@ -134,16 +137,16 @@ register_rest_route('ziwei-cal/v1', '/calculate', [
 - Proper null/undefined checks: `lunar?.lunarMonth`, `isLeapMonth || false`, `|| 0` defaults
 
 ## Progressive Development Strategy
- Current phase: **Phase 6 (Four Mutations)** - Four mutations (✅ complete)
+ Current phase: **Phase 7 (Minor Stars/雜曜)** - All 43 minor stars (✅ complete)
  
  - Phase 1-3: Form + palaces + basic information display (✅ complete)
  - Phase 4: Primary stars (✅ complete)
  - Phase 5: Secondary stars (✅ complete)
  - Phase 6: Four mutations (✅ complete)
- - Phase 7: other smaller stars (not started)
- - Phase 8: Big cycles and year's horoscope (not started)
- - Phase 9: Cycles & UI (not started)
- - Phase 10: school Config systems (not started)
+ - Phase 7: Minor stars/雜曜 (✅ complete) - 43 stars fully implemented
+ - Phase 8: Major cycles (大運) and annual cycles (流年) (not started)
+ - Phase 9: UI refinement & responsiveness (not started)
+ - Phase 10: School/Config systems (not started)
  - Phase 11: Export as PNG and PDF (not started)
  - Phase 12: Star explanations & tooltips (may not be included)
  - Phase 13: Star combination explanations (may not be included)

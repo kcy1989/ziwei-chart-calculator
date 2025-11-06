@@ -2,9 +2,9 @@
 Contributors: kcy1989
 Tags: 紫微斗數, 命理, 排盤, 中州派, astrology
 Requires at least: 5.0
-Tested up to: 6.4
+Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 0.1.3
+Stable tag: 0.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -35,13 +35,14 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 4. 安主星（✅ 完成）
 5. 安輔星（✅ 完成）
 6. 四化（祿權科忌）顯示（✅ 完成）
-7. 大運流年（未開始）
-8. 美化與優化（未開始）
-9. 流年流月流日（未開始）
-10. 派別/流派設定系統（未開始）
-11. 匯出 PNG/PDF（未開始）
-12. 星曜說明與提示（未開始）
-13. 星曜組合解釋（未開始）
+7. 雜曜（其他星曜）（✅ 完成）
+8. 神煞（未開始）
+9. 大運流年（未開始）
+10. 美化與優化（未開始）
+11. 派別/流派設定系統（未開始）
+12. 匯出 PNG/PDF（未開始）
+13. 星曜說明與提示（未開始）
+14. 星曜組合解釋（未開始）
 
 == Installation ==
 
@@ -50,28 +51,13 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 3. 在頁面或文章中插入短代碼 `[ziwei_cal]`
 4. 發佈頁面即可使用
 
-== Usage ==
-
-**基本使用：**
-
-在任何頁面或文章中加入短代碼：
-
-`[ziwei_cal]`
-
-**範例頁面設置：**
-
-1. 建立新頁面：「紫微排盤」
-2. 在編輯器中加入短代碼 `[ziwei_cal]`
-3. 發佈頁面
-4. 訪問該頁面即可使用排盤工具
-
 == Technical Details ==
 
 **程式架構：**
 
-```
 ziwei-cal/
 ├── ziwei-cal.php          # 主插件文件（PHP）
+├── readme.txt             # WordPress 插件說明文件
 ├── templates/
 │   └── form.php           # 表單模板
 ├── assets/
@@ -84,12 +70,25 @@ ziwei-cal/
 │   │   ├── chart.js       # 命盤渲染
 │   │   └── lunar-converter.js  # 農曆轉換
 │   ├── astrology/
-│   │   └── gender-calculator.js  # 陰陽性別計算
+│   │   ├── basic.js             # 基本索引與方向計算
+│   │   ├── palaces.js           # 宮位計算
+│   │   ├── primary.js           # 主星安置
+│   │   ├── secondary.js         # 輔星安置
+│   │   ├── minor.js             # 雜曜計算
+│   │   ├── life-cycle.js        # 大運與十二長生計算
+│   │   └── gender-calculator.js # 陰陽性別計算
 │   └── data/
-│       └── mutation-zhongzhou.js  # 中州派四化表（待實現）
+│       ├── palaces-name.js      # 宮位名稱資料
+│       ├── nayin.js             # 納音五行局資料
+│       └── mutation-zhongzhou.js  # 中州派四化表
+└── .github/
+    └── copilot-instructions.md  # 開發規範與架構文件
+│   │   ├── life-cycle.js        # 大運與十二長生計算
+│   │   └── gender-calculator.js # 陰陽性別計算
+│   └── data/
+│       └── mutation-zhongzhou.js  # 中州派四化表（已實現）
 └── .github/
     └── copilot-instructions.md  # 開發規範
-```
 
 **技術規範：**
 
@@ -131,6 +130,9 @@ ziwei-cal/
 此功能將在階段 11 開發。
 
 == Changelog ==
+
+= 0.2.0 - 2025-11-07 =
+* 完成：雜曜（Minor Stars）第 1 套共 43 顆星曜全面實現
 
 = 0.1.3 - 2025-11-05 =
 * 完成：輔星（左輔右弼、文昌文曲、天魁天鉞等）顯示與排盤
