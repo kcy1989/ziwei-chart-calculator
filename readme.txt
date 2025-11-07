@@ -4,7 +4,7 @@ Tags: 紫微斗數, 命理, 排盤, 中州派, astrology
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 0.2.0
+Stable tag: 0.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -36,7 +36,7 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 5. 安輔星（✅ 完成）
 6. 四化（祿權科忌）顯示（✅ 完成）
 7. 雜曜（其他星曜）（✅ 完成）
-8. 神煞（未開始）
+8. 神煞（太歲、將前、博士）（✅ 完成）
 9. 大運流年（未開始）
 10. 美化與優化（未開始）
 11. 派別/流派設定系統（未開始）
@@ -74,21 +74,17 @@ ziwei-cal/
 │   │   ├── palaces.js           # 宮位計算
 │   │   ├── primary.js           # 主星安置
 │   │   ├── secondary.js         # 輔星安置
-│   │   ├── minor.js             # 雜曜計算
+│   │   ├── minor-stars.js       # 雜曜計算（43 顆星曜）
+│   │   ├── attributes.js        # 神煞計算（太歲、將前、博士）
 │   │   ├── life-cycle.js        # 大運與十二長生計算
-│   │   └── gender-calculator.js # 陰陽性別計算
+│   │   ├── gender-calculator.js # 陰陽性別計算
+│   │   └── mutations.js         # 生年四化（祿權科忌）
 │   └── data/
 │       ├── palaces-name.js      # 宮位名稱資料
 │       ├── nayin.js             # 納音五行局資料
 │       └── mutation-zhongzhou.js  # 中州派四化表
 └── .github/
     └── copilot-instructions.md  # 開發規範與架構文件
-│   │   ├── life-cycle.js        # 大運與十二長生計算
-│   │   └── gender-calculator.js # 陰陽性別計算
-│   └── data/
-│       └── mutation-zhongzhou.js  # 中州派四化表（已實現）
-└── .github/
-    └── copilot-instructions.md  # 開發規範
 
 **技術規範：**
 
@@ -127,9 +123,15 @@ ziwei-cal/
 
 = 可以列印命盤嗎？ =
 
-此功能將在階段 11 開發。
+此功能將在階段 12 開發。
 
 == Changelog ==
+
+= 0.3.0 - 2025-11-07 =
+* 完成：神煞（太歲、將前、博士）
+* 優化：命盤左-中-右三層布局（神煞 | 大運/十二長生 | 宮位名稱），精準間距計算
+* 優化：代碼重構，移除 10+ 條冗餘計算，統一使用預計算的索引值
+* 優化：清除 20+ 條調試日誌，保留錯誤處理用的 console.error
 
 = 0.2.0 - 2025-11-07 =
 * 完成：雜曜（Minor Stars）第 1 套共 43 顆星曜全面實現

@@ -64,29 +64,36 @@ function draw(chartData) {
     // Get metadata from API response
     const meta = chartData?.data || {};
     
-    console.log('Chart draw - Metadata:', meta);
-    console.log('Chart draw - Lunar data:', meta.lunar);
-    console.log('Chart draw - Gender:', meta.gender);
+    // === Pre-calculate shared indices (used by multiple calculations) ===
+    let lunarYear, yearBranchIndex, yearStemIndex, monthIndex, timeIndex;
+    
+    if (meta.lunar && window.ziweiBasic) {
+        lunarYear = meta.lunar.lunarYear;
+        yearBranchIndex = window.ziweiBasic.getEarthlyBranchIndex(lunarYear);
+        yearStemIndex = window.ziweiBasic.getHeavenlyStemIndex(lunarYear);
+        monthIndex = window.ziweiBasic.getMonthIndex(
+            meta.lunar.lunarMonth,
+            meta.lunar.lunarDay,
+            meta.lunar.isLeapMonth
+        );
+    } else {
+        lunarYear = 0;
+        yearBranchIndex = 0;
+        yearStemIndex = 0;
+        monthIndex = 0;
+    }
+    timeIndex = getMilitaryHourIndex(meta.birthtime);
     
     // Calculate palace positions (Ming Palace, Shen Palace, others)
     let palaceData = {};
     if (window.ziweiPalaces && meta.lunar && meta.gender) {
-        console.log('Calculating palace positions...');
         palaceData = window.ziweiPalaces.calculatePalacePositions(meta);
-        console.log('Palace calculation complete:', palaceData);
-    } else {
-        console.warn('Palace calculation skipped - Missing dependencies:', {
-            hasPalacesModule: !!window.ziweiPalaces,
-            hasLunar: !!meta.lunar,
-            hasGender: !!meta.gender
-        });
     }
     
     // Calculate primary stars placement
     let primaryStarsData = {};
     if (window.ziweiPrimary && window.ziweiNayin && meta.lunar) {
         try {
-            console.log('Calculating primary stars positions...');
             // Get nayin loci from Ming Palace stem and branch
             const mingPalaceData = Object.values(palaceData).find(p => p.isMing);
             if (mingPalaceData) {
@@ -102,10 +109,9 @@ function draw(chartData) {
                 };
                 
                 primaryStarsData = window.ziweiPrimary.placePrimaryStars(chartDataForStars);
-                console.log('Primary stars calculation complete:', primaryStarsData);
             }
         } catch (e) {
-            console.warn('Primary stars calculation failed:', e);
+            console.error('Primary stars calculation failed:', e);
         }
     }
     
@@ -113,8 +119,6 @@ function draw(chartData) {
     let lifeCycleData = {};
     if (window.ziweiLifeCycle && meta.lunar) {
         try {
-            console.log('Calculating life cycles...');
-            
             // Get Ming Palace data (where first major cycle starts)
             let mingPalaceIndex = 0;  // Default to palace 0 (子)
             let nayinLoci = null;
@@ -126,10 +130,9 @@ function draw(chartData) {
                         mingPalaceIndex = mingPalaceData.index;
                         const stemIndex = mingPalaceData.stemIndex;
                         nayinLoci = window.ziweiNayin.getNayin(stemIndex, mingPalaceIndex);
-                        console.log(`Ming Palace: index=${mingPalaceIndex}, nayin=${nayinLoci}`);
                     }
                 } catch (e) {
-                    console.warn('Ming Palace or Nayin calculation failed:', e);
+                    console.error('Ming Palace or Nayin calculation failed:', e);
                 }
             }
             
@@ -143,9 +146,8 @@ function draw(chartData) {
                         meta.lunar.lunarYear,
                         mingPalaceIndex
                     );
-                    console.log('Major cycles calculated:', majorCycles);
                 } catch (e) {
-                    console.warn('Major cycles calculation failed:', e);
+                    console.error('Major cycles calculation failed:', e);
                 }
             }
             
@@ -158,9 +160,8 @@ function draw(chartData) {
                         meta.gender,
                         meta.lunar.lunarYear
                     );
-                    console.log('Twelve life stages positions:', twelveLongLifePositions);
                 } catch (e) {
-                    console.warn('Twelve life stages calculation failed:', e);
+                    console.error('Twelve life stages calculation failed:', e);
                 }
             }
             
@@ -175,21 +176,15 @@ function draw(chartData) {
             majorCycles.forEach((cycle) => {
                 lifeCycleData[cycle.palaceIndex] = cycle;
             });
-            
-            console.log('Life cycle calculation complete:', lifeCycleData);
         } catch (e) {
-            console.warn('Life cycle calculation failed:', e);
+            console.error('Life cycle calculation failed:', e);
         }
     }
-    
-    // Get lunar year for use in multiple calculations
-    const lunarYear = meta.lunar?.lunarYear;
     
     // Calculate secondary stars (13 auxiliary stars)
     let secondaryStarsData = {};
     if (window.ziweiSecondary && meta.lunar && palaceData && Object.keys(palaceData).length > 0) {
         try {
-            console.log('Calculating secondary stars...');
             
             // Get body palace index for secondary star calculations
             let bodyPalaceIndex = 0;  // Default fallback
@@ -199,41 +194,29 @@ function draw(chartData) {
                 const bodyPalaceData = Object.values(palaceData).find(p => p.isShen);
                 if (bodyPalaceData) {
                     bodyPalaceIndex = bodyPalaceData.index;
-                    console.log(`Body Palace index: ${bodyPalaceIndex}`);
                 } else {
                     // Fallback: calculate from basic module
                     if (window.ziweiBasic) {
                         const bodyPalaceInfo = window.ziweiBasic.getBodyPalace(lunarYear);
                         bodyPalaceIndex = bodyPalaceInfo.palaceIndex || 0;
-                        console.log(`Body Palace (from basic): ${bodyPalaceIndex}`);
                     }
                 }
             } catch (e) {
-                console.warn('Body palace determination failed, using default:', e);
+                console.error('Body palace determination failed, using default:', e);
             }
             
-            // Get month and time indices from birth data
-            const monthIndex = meta.lunar.lunarMonth - 1;  // Convert to 0-based
-            const timeIndex = getMilitaryHourIndex(meta.birthtime);  // Convert time to hour index (0-11)
-            
-            // Get heavenly stem and earthly branch indices from ziweiBasic
-            const stemIndex = window.ziweiBasic.getHeavenlyStemIndex(lunarYear);
-            const branchIndex = window.ziweiBasic.getEarthlyBranchIndex(lunarYear);
-            
-            // Calculate all secondary stars
+            // Use pre-calculated indices from draw() start
+            // monthIndex, timeIndex, yearStemIndex, yearBranchIndex already available
             const secondaryStarsInput = {
                 monthIndex: monthIndex,
                 timeIndex: timeIndex,
-                stemIndex: stemIndex,
-                branchIndex: branchIndex
+                stemIndex: yearStemIndex,
+                branchIndex: yearBranchIndex
             };
             
-            console.log('Secondary stars input:', secondaryStarsInput);
-            
             secondaryStarsData = window.ziweiSecondary.calculateAllSecondaryStars(secondaryStarsInput);
-            console.log('Secondary stars calculation complete:', secondaryStarsData);
         } catch (e) {
-            console.warn('Secondary stars calculation failed:', e);
+            console.error('Secondary stars calculation failed:', e);
         }
     }
     
@@ -241,41 +224,20 @@ function draw(chartData) {
     let mutationsData = null;
     if (window.ziweiMutations && lunarYear) {
         try {
-            console.log('Calculating birth year mutations...');
-            
-            // Get heavenly stem index from lunar year
-            const stemIndex = window.ziweiBasic.getHeavenlyStemIndex(lunarYear);
-            
-            // Calculate four mutations based on birth year stem
-            mutationsData = window.ziweiMutations.calculateBirthYearMutations(stemIndex);
-            console.log('Birth year mutations calculation complete:', mutationsData);
+            // Use pre-calculated yearStemIndex from draw() start
+            mutationsData = window.ziweiMutations.calculateBirthYearMutations(yearStemIndex);
         } catch (e) {
-            console.warn('Mutations calculation failed:', e);
-            console.error(e);
+            console.error('Mutations calculation failed:', e);
         }
-    } else {
-        console.warn('Mutations calculation skipped:', {
-            hasMutationsModule: !!window.ziweiMutations,
-            hasLunarYear: !!lunarYear
-        });
     }
     
     // Calculate minor stars (雜曜)
     let minorStarsData = {};
     if (window.ziweiMinorStars && meta.lunar) {
         try {
-            console.log('Calculating minor stars positions...');
-            
             // Get required indices for minor stars calculation
-            const monthIndex = meta.lunar.lunarMonth - 1; // Convert to 0-based index
-            const timeIndex = getMilitaryHourIndex(meta.birthtime);
-            const lunarYear = meta.lunar.lunarYear;
-            const yearBranchIndex = window.ziweiBasic.getEarthlyBranchIndex(lunarYear);
-            const yearStemIndex = window.ziweiBasic.getHeavenlyStemIndex(lunarYear);
-            
-            // For day branch, we need the lunar day
             const lunarDay = meta.lunar.lunarDay;
-            const dayBranchIndex = (lunarDay - 1) % 12; // Simple calculation, may need refinement
+            const dayBranchIndex = (lunarDay - 1) % 12;
             
             // Get Ming Palace, Shen Palace, and Migration Palace indices
             const mingPalaceData = Object.values(palaceData).find(p => p.isMing);
@@ -309,23 +271,46 @@ function draw(chartData) {
                 literaryTalentIndex,
                 lunarDay
             );
-            console.log('Minor stars calculation complete:', minorStarsData);
         } catch (e) {
-            console.warn('Minor stars calculation failed:', e);
-            console.error(e);
+            console.error('Minor stars calculation failed:', e);
         }
-    } else {
-        console.warn('Minor stars calculation skipped:', {
-            hasMinorStarsModule: !!window.ziweiMinorStars,
-            hasLunar: !!meta.lunar
-        });
+    }
+    
+    // Calculate attributes (神煞 - spiritual mood descriptors & Tai Sui stars)
+    let attributesData = {};
+    let taiSuiStarsData = {};
+    if (window.ziweiAttributes && meta.lunar && window.ziweiBasic) {
+        try {
+            // Use pre-calculated yearBranchIndex and monthIndex from draw() start
+            attributesData = window.ziweiAttributes.calculateAllAttributes(
+                yearBranchIndex,
+                monthIndex
+            );
+            
+            // Calculate Tai Sui stars if secondary stars data available
+            if (secondaryStarsData) {
+                const luCunPalace = secondaryStarsData['祿存'];
+                if (luCunPalace !== undefined) {
+                    // Determine clockwise direction based on gender and year branch
+                    const isClockwise = window.ziweiBasic.isClockwise(meta.gender, yearBranchIndex);
+                    
+                    taiSuiStarsData = window.ziweiAttributes.calculateAllAttributes(
+                        yearBranchIndex,
+                        luCunPalace,
+                        isClockwise
+                    );
+                }
+            }
+        } catch (e) {
+            console.error('Attributes/Tai Sui calculation failed:', e);
+        }
     }
     
     // Add all 12 palace cells (skip center positions)
     for (let row = 1; row <= 4; row++) {
         for (let col = 1; col <= 4; col++) {
             if ((row === 2 || row === 3) && (col === 2 || col === 3)) continue; // Skip center
-            grid.appendChild(createPalaceCell(row, col, palaceData, primaryStarsData, secondaryStarsData, lifeCycleData, mutationsData, minorStarsData));
+            grid.appendChild(createPalaceCell(row, col, palaceData, primaryStarsData, secondaryStarsData, lifeCycleData, mutationsData, minorStarsData, taiSuiStarsData));
         }
     }
 
@@ -468,7 +453,7 @@ function createCenterCell(meta, palaceData = {}) {
     let masterBodyEl = null;
     if (meta.lunar && window.ziweiBasic) {
         try {
-            const lunarYear = meta.lunar.lunarYear;
+            // Use pre-calculated lunarYear from draw() start
             const masterPalace = window.ziweiBasic.getMasterPalace(lunarYear);
             const bodyPalace = window.ziweiBasic.getBodyPalace(lunarYear);
             
@@ -485,12 +470,8 @@ function createCenterCell(meta, palaceData = {}) {
             
             masterBodyEl.appendChild(masterInfo);
             masterBodyEl.appendChild(bodyInfo);
-            
-            if (window.ziweiCalData?.env?.isDebug) {
-                console.log('Master and Body Palaces:', { masterPalace, bodyPalace });
-            }
         } catch (e) {
-            console.warn('Master/Body palace calculation failed:', e);
+            console.error('Master/Body palace calculation failed:', e);
         }
     }
 
@@ -577,7 +558,7 @@ function hourToChinese(hour) {
  * @param {Object} minorStarsData Minor stars positions from calculateMinorStars
  * @returns {HTMLElement} The palace cell element
  */
-function createPalaceCell(row, col, palaceData = {}, primaryStarsData = {}, secondaryStarsData = {}, lifeCycleData = {}, mutationsData = null, minorStarsData = {}) {
+function createPalaceCell(row, col, palaceData = {}, primaryStarsData = {}, secondaryStarsData = {}, lifeCycleData = {}, mutationsData = null, minorStarsData = {}, taiSuiStarsData = {}) {
     const cell = document.createElement('div');
     cell.className = 'ziwei-cell';
     cell.style.gridColumnStart = String(col);
@@ -718,7 +699,6 @@ function createPalaceCell(row, col, palaceData = {}, primaryStarsData = {}, seco
                             minorStarEl.className = 'ziwei-minor-star';
                             minorStarEl.textContent = starName;
                             minorStarsContainer.appendChild(minorStarEl);
-                            console.log(`Minor star "${starName}" placed at palace ${branchIndex}`);
                         }
                     }
                     
@@ -735,7 +715,6 @@ function createPalaceCell(row, col, palaceData = {}, primaryStarsData = {}, seco
                 const nameEl = document.createElement('div');
                 nameEl.className = 'ziwei-palace-name';
                 nameEl.textContent = palace.name;
-                console.log(`Palace name: "${palace.name}"`);
                 
                 // Add stem-branch character (e.g., "己巳") with vertical writing (smaller)
                 const stemBranchEl = document.createElement('div');
@@ -743,12 +722,31 @@ function createPalaceCell(row, col, palaceData = {}, primaryStarsData = {}, seco
                 // Format: stem + branch (e.g., "己" + "巳" = "己巳")
                 const stemBranchText = (palace.stem || '') + (palace.branchZhi || branchNumToChar(branchIndex));
                 stemBranchEl.textContent = stemBranchText;
-                console.log(`Stem-Branch display text: "${stemBranchText}"`);
                 
                 // Add in order: stem-branch, then name (so stem-branch appears on right)
                 palaceContainer.appendChild(stemBranchEl);
                 palaceContainer.appendChild(nameEl);
                 cell.appendChild(palaceContainer);
+                
+                // Add attributes (神煞 - Tai Sui stars: 太歲、將前、博士)
+                if (window.ziweiAttributes && taiSuiStarsData) {
+                    const attributes = window.ziweiAttributes.getAttributesForPalace(branchIndex, taiSuiStarsData);
+                    
+                    if (attributes && attributes.length > 0) {
+                        const attributesContainer = document.createElement('div');
+                        attributesContainer.className = 'ziwei-attributes-container';
+                        
+                        // Display each Tai Sui star
+                        attributes.forEach((attr, index) => {
+                            const attrEl = document.createElement('div');
+                            attrEl.className = 'ziwei-attribute';
+                            attrEl.textContent = attr;
+                            attributesContainer.appendChild(attrEl);
+                        });
+                        
+                        cell.appendChild(attributesContainer);
+                    }
+                }
                 
                 // Add life cycle information below palace cell
                 if (branchIndex >= 0 && Object.keys(lifeCycleData).length > 0) {
@@ -762,7 +760,6 @@ function createPalaceCell(row, col, palaceData = {}, primaryStarsData = {}, seco
                         majorCycleEl.className = 'ziwei-major-cycle';
                         majorCycleEl.textContent = cycle.ageRange;
                         lifeCycleContainer.appendChild(majorCycleEl);
-                        console.log(`Major cycle for palace ${branchIndex}:`, cycle);
                     }
                     
                     // Display twelve life stage (based on nayin loci)
@@ -773,7 +770,6 @@ function createPalaceCell(row, col, palaceData = {}, primaryStarsData = {}, seco
                         lifeStageEl.className = 'ziwei-life-stage';
                         lifeStageEl.textContent = lifeStage;
                         lifeCycleContainer.appendChild(lifeStageEl);
-                        console.log(`Twelve life stage for palace ${branchIndex}:`, lifeStage);
                     }
                     
                     if (lifeCycleContainer.children.length > 0) {

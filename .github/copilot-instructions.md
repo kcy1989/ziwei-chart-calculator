@@ -22,11 +22,12 @@ window.ziweiPrimary = { placePrimaryStars() };
 window.ziweiSecondary = { calculateAllSecondaryStars() };
 window.ziweiLifeCycle = { calculateMajorCycles(), calculateTwelveLongLifePositions() };
 window.ziweiMinorStars = { calculateMinorStars() };  // 43 minor stars (雜曜)
+window.ziweiAttributes = { calculateAttributes(), calculateAllAttributes() };  // 3 spiritual mood descriptors per palace (神煞)
 ```
 
-**Script loading order** (registered in `ziwei-cal.php` lines 220-310):
+**Script loading order** (registered in `ziwei-cal.php` lines 220-330):
 1. Data modules first (palaces-name.js, nayin.js)
-2. Core calculators (basic.js, palaces.js, primary.js, secondary.js, life-cycle.js)
+2. Core calculators (basic.js, palaces.js, primary.js, secondary.js, life-cycle.js, minor-stars.js, attributes.js)
 3. Display/form modules (form.js, chart.js, calculator.js)
 
 Each module **self-documents via console.log** during calculation for debugging.
@@ -49,15 +50,15 @@ draw(chartData)
 ├─ placePrimaryStars() → primaryStarsData  
 ├─ calculateAllSecondaryStars() → secondaryStarsData
 ├─ calculateMinorStars() → minorStarsData (43 stars)
+├─ calculateAllAttributes() → attributesData (3 spiritual mood descriptors per palace)
 ├─ calculateMajorCycles() → lifeCycleData
 └─ createPalaceCell() for each of 12 positions
    ├─ .ziwei-stars-container (primary + secondary stars together)
-   ├─ .ziwei-minor-stars-container (43 minor stars, left side)
+   ├─ .ziwei-minor-stars-container (43 minor stars, mid-left)
+   ├─ .ziwei-attributes-container (3 attributes/mood descriptors, bottom-left)
    ├─ .ziwei-palace-container (name + stem-branch, vertical)
    └─ .ziwei-life-cycle-container (cycles, bottom)
 ```
-
-**Star display**: Primary stars (red, 18px, 700 weight) and secondary stars (gray #6b7a87, same size/weight) in **same vertical container**, not separate. See chart.js line 510.
 
 ### CSS Grid & Vertical Writing
 
@@ -137,19 +138,20 @@ register_rest_route('ziwei-cal/v1', '/calculate', [
 - Proper null/undefined checks: `lunar?.lunarMonth`, `isLeapMonth || false`, `|| 0` defaults
 
 ## Progressive Development Strategy
- Current phase: **Phase 7 (Minor Stars/雜曜)** - All 43 minor stars (✅ complete)
+ Current phase: **Phase 9 (Major Cycles)** - 大運 and 流年 cycles (not started)
  
  - Phase 1-3: Form + palaces + basic information display (✅ complete)
  - Phase 4: Primary stars (✅ complete)
  - Phase 5: Secondary stars (✅ complete)
  - Phase 6: Four mutations (✅ complete)
  - Phase 7: Minor stars/雜曜 (✅ complete) - 43 stars fully implemented
- - Phase 8: Major cycles (大運) and annual cycles (流年) (not started)
- - Phase 9: UI refinement & responsiveness (not started)
- - Phase 10: School/Config systems (not started)
- - Phase 11: Export as PNG and PDF (not started)
- - Phase 12: Star explanations & tooltips (may not be included)
- - Phase 13: Star combination explanations (may not be included)
+ - Phase 8: 神煞 (✅ complete) - Tai Sui stars (太歲、將前、博士) fully implemented
+ - Phase 9: Major cycles (大運) and annual cycles (流年) (⏳ not started)
+ - Phase 10: UI refinement & responsiveness (⏳ not started)
+ - Phase 11: School/Config systems (⏳ not started)
+ - Phase 12: Export as PNG and PDF (⏳ not started)
+ - Phase 13: Star explanations & tooltips (⏳ may not be included)
+ - Phase 14: Star combination explanations (⏳ may not be included)
  
 
 Generate code in **focused chunks** - one calculation function + one display integration per request. Test with console.log output before moving to next phase.

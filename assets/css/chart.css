@@ -219,14 +219,14 @@
     color: #34495e;
 }
 
-/* Palace content - container for name and branch */
+/* Palace content - container for name and branch - aligned to bottom-right edge */
 .ziwei-palace-container {
     position: absolute;
     bottom: 4px;
     right: 4px;
     display: flex;
     flex-direction: column;  /* Vertical stacking */
-    align-items: center;
+    align-items: flex-end;  /* Align to right edge */
     justify-content: flex-end;
     gap: 0;
 }
@@ -266,6 +266,19 @@
     font-size: 15px;
     font-weight: 400;
     color: #7f8c8d;  /* Slightly darker gray color */
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    line-height: 1;
+    letter-spacing: 0px;
+    padding: 0;
+    margin: 0;
+}
+
+/* Tai Sui stars display (太歲神煞) - same style as minor stars */
+.ziwei-tai-sui-star {
+    font-size: 15px;
+    font-weight: 400;
+    color: #7f8c8d;
     writing-mode: vertical-rl;
     text-orientation: upright;
     line-height: 1;
@@ -390,12 +403,18 @@
         0.5px 0.5px 0 #2471a3;
 }
 
-/* Major cycles (大運) and life stages display - positioned at bottom inside palace cell */
+/* Major cycles (大運) and life stages display - centered between attributes and palace name
+   精確計算左右占位寬度：
+   - 左側神煞（attributes）：2px(left) + 16px*3*1.1 ≈ 55px
+   - 右側宮位名稱（palace name）：40px + 4px(right) ≈ 45px
+*/
 .ziwei-life-cycle-container {
     position: absolute;
     bottom: 3px;
     left: 0;
     right: 0;
+    margin-left: 55px;   /* Space for 3-column attributes on left */
+    margin-right: 40px;  /* Space for 2-column palace name on right */
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -424,6 +443,33 @@
     line-height: 1.1;
     letter-spacing: 0px;
     height: auto;
+}
+
+/* Attributes container (神煞 - spiritual mood descriptors) - aligned to bottom-left edge */
+.ziwei-attributes-container {
+    position: absolute;
+    bottom: 4px;
+    left: 2px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;  /* Align to left edge */
+    justify-content: flex-end;
+    gap: 0;
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+}
+
+/* Individual attribute (神煞) - same style as palace name */
+.ziwei-attribute {
+    font-weight: 500;
+    font-size: 16px;
+    color: #34495e;
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    line-height: 1.1;
+    letter-spacing: 0px;
+    padding: 0;
+    margin: 0;
 }
 
 /* Palace branch name (地支) with vertical writing - same size as name */
