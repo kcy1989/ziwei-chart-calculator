@@ -1,29 +1,35 @@
     <div class="ziwei-cal">
-        <h1 class="ziwei-cal-title">紫微斗數排盤工具</h1>
+        <div class="ziwei-cal-title">
+            <h1>紫微斗數排盤工具</h1>
+        </div>
         <form class="ziwei-cal-form" id="ziwei-cal-form" novalidate>
         <!-- Name and Gender -->
         <div class="ziwei-cal-row-name-gender">
             <div class="ziwei-cal-name-group">
-                <label class="ziwei-cal-label">
-                    姓名 <span class="ziwei-cal-required">*</span>
-                </label>
-                <input type="text" id="ziwei-name" name="name" required placeholder="請輸入姓名">
+                <div>
+                    <label class="ziwei-cal-label">
+                        姓名 <span class="ziwei-cal-required">*</span>
+                    </label>
+                    <input type="text" id="ziwei-name" name="name" required placeholder="請輸入姓名">
+                </div>
+                <span class="ziwei-cal-error-message" id="name-error" style="display: none;"></span>
             </div>
 
             <div class="ziwei-cal-gender-group">
-                <label class="ziwei-cal-label">
-                    性別 <span class="ziwei-cal-required">*</span>
-                </label>
-                <div style="display: flex; gap: 12px;">
-                    <label style="flex: 1; cursor: pointer;">
-                        <input type="radio" id="ziwei-male" name="gender" value="M" required style="margin-right: 8px;">
+                <div>
+                    <label class="ziwei-cal-label">
+                        性別 <span class="ziwei-cal-required">*</span>
+                    </label>
+                    <label style="cursor: pointer; display: flex; align-items: center; gap: 8px; margin: 0;">
+                        <input type="radio" id="ziwei-male" name="gender" value="M" required>
                         男
                     </label>
-                    <label style="flex: 1; cursor: pointer;">
-                        <input type="radio" id="ziwei-female" name="gender" value="F" required style="margin-right: 8px;">
+                    <label style="cursor: pointer; display: flex; align-items: center; gap: 8px; margin: 0;">
+                        <input type="radio" id="ziwei-female" name="gender" value="F" required>
                         女
                     </label>
                 </div>
+                <span class="ziwei-cal-error-message" id="gender-error" style="display: none;"></span>
             </div>
         </div>
 

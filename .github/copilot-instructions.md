@@ -138,7 +138,7 @@ register_rest_route('ziwei-cal/v1', '/calculate', [
 - Proper null/undefined checks: `lunar?.lunarMonth`, `isLeapMonth || false`, `|| 0` defaults
 
 ## Progressive Development Strategy
- Current phase: **Phase 9 (Major Cycles)** - 大運 and 流年 cycles (not started)
+ Current phase: **Phase 9 (Palace Interaction)** - 宮位互動 (✅ complete)
  
  - Phase 1-3: Form + palaces + basic information display (✅ complete)
  - Phase 4: Primary stars (✅ complete)
@@ -146,13 +146,16 @@ register_rest_route('ziwei-cal/v1', '/calculate', [
  - Phase 6: Four mutations (✅ complete)
  - Phase 7: Minor stars/雜曜 (✅ complete) - 43 stars fully implemented
  - Phase 8: 神煞 (✅ complete) - Tai Sui stars (太歲、將前、博士) fully implemented
- - Phase 9: Major cycles (大運) and annual cycles (流年) (⏳ not started)
- - Phase 10: UI refinement & responsiveness (⏳ not started)
+ - Phase 9: Three-direction Four-square interaction & UI refinement (✅ complete)
+ - Phase 10: Major cycles (大運) and annual cycles (流年) (⏳ not started)
  - Phase 11: School/Config systems (⏳ not started)
+      - Phase 11a: Star status (廟旺利陷) configurations (⏳ not started)
+      - Phase 11b: Different school rules (⏳ not started)
+      - Phase 11c: Month, Day and time handling differences (⏳ not started)
  - Phase 12: Export as PNG and PDF (⏳ not started)
- - Phase 13: Star explanations & tooltips (⏳ may not be included)
- - Phase 14: Star combination explanations (⏳ may not be included)
- 
+ - Phase 13: True Sun time & location adjustments (⏳ not started)
+ - Phase 14: Star explanations & tooltips (⏳ may not be included)
+ - Phase 15: Star combination explanations (⏳ may not be included)
 
 Generate code in **focused chunks** - one calculation function + one display integration per request. Test with console.log output before moving to next phase.
 

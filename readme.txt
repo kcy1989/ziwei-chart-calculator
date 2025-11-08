@@ -4,7 +4,7 @@ Tags: 紫微斗數, 命理, 排盤, 中州派, astrology
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 0.3.0
+Stable tag: 0.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -37,8 +37,8 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 6. 四化（祿權科忌）顯示（✅ 完成）
 7. 雜曜（其他星曜）（✅ 完成）
 8. 神煞（太歲、將前、博士）（✅ 完成）
-9. 大運流年（未開始）
-10. 美化與優化（未開始）
+9. 三方四方與美化（✅ 完成）
+10. 大運流年（未開始）
 11. 派別/流派設定系統（未開始）
 12. 匯出 PNG/PDF（未開始）
 13. 星曜說明與提示（未開始）
@@ -126,6 +126,12 @@ ziwei-cal/
 此功能將在階段 12 開發。
 
 == Changelog ==
+
+= 0.4.0 - 2025-11-08 =
+* 完成：宮位互動功能 - 點擊任何宮位顯示三方四正
+* 改進：表單驗證 - 增強錯誤提示UX
+* 改進：表單布局改進
+* 改進：響應式設計優化
 
 = 0.3.0 - 2025-11-07 =
 * 完成：神煞（太歲、將前、博士）

@@ -315,7 +315,7 @@ function draw(chartData) {
     }
 
     // Append center cell (spanning 2x2) - pass palaceData directly
-    grid.appendChild(createCenterCell(meta, palaceData));
+    grid.appendChild(createCenterCell(meta, palaceData, lunarYear));
 
     // Fade-in effect
     requestAnimationFrame(() => {
@@ -325,7 +325,18 @@ function draw(chartData) {
         });
     });
 
-    return grid;
+    // Wrap grid in a container to isolate it from external elements
+    const chartWrapper = document.createElement('div');
+    chartWrapper.className = 'ziwei-chart-wrapper';
+    chartWrapper.style.marginBottom = '30px';
+    chartWrapper.appendChild(grid);
+
+    // Initialize palace interaction (clicking to highlight 三方四正 and draw lines)
+    if (window.initializePalaceInteraction) {
+        window.initializePalaceInteraction(grid);
+    }
+
+    return chartWrapper;
 }
 
 /**
@@ -334,7 +345,7 @@ function draw(chartData) {
  * @param {Object} palaceData Palace position mapping from calculatePalacePositions
  * @returns {HTMLElement} The center cell element
  */
-function createCenterCell(meta, palaceData = {}) {
+function createCenterCell(meta, palaceData = {}, lunarYear = 0) {
     const cell = document.createElement('div');
     cell.className = 'ziwei-center-big';
     // Apply inline styles to ensure theme CSS cannot override these critical visual properties
@@ -386,23 +397,11 @@ function createCenterCell(meta, palaceData = {}) {
                 nayinEl = document.createElement('div');
                 nayinEl.className = 'ziwei-nayin';
                 nayinEl.textContent = lociName;
-                
-                if (window.ziweiCalData?.env?.isDebug) {
-                    console.log(`Nayin calculation: stem=${stemIndex}, branch=${branchIndex}, loci=${loci}, name=${lociName}`);
-                }
             } else {
                 console.warn('Ming Palace not found in palaceData');
             }
         } catch (e) {
             console.warn('Nayin calculation failed:', e);
-        }
-    } else {
-        if (window.ziweiCalData?.env?.isDebug) {
-            console.log('Nayin calculation skipped:', {
-                hasLunar: !!meta.lunar,
-                hasNayin: !!window.ziweiNayin,
-                hasPalaceData: !!palaceData
-            });
         }
     }
 
@@ -579,9 +578,6 @@ function createPalaceCell(row, col, palaceData = {}, primaryStarsData = {}, seco
             const palace = palaceData[branchIndex];
             
             if (palace) {
-                console.log(`Branch ${branchIndex} - Palace found:`, palace);
-                console.log(`Stem: "${palace.stem}", Branch: "${palace.branchZhi}"`);
-                
                 // Create a unified container for both primary and secondary stars at the top
                 const starsContainer = document.createElement('div');
                 starsContainer.className = 'ziwei-stars-container';
@@ -594,8 +590,6 @@ function createPalaceCell(row, col, palaceData = {}, primaryStarsData = {}, seco
                     if (palaceIdx === branchIndex) {
                         // Check if this star has a mutation
                         const mutationType = mutationsData ? window.ziweiMutations.getMutationForStar(starName, mutationsData) : null;
-                        
-                        console.log(`Star: ${starName}, Palace: ${palaceIdx}, Mutation: ${mutationType}`);
                         
                         const starGroupEl = document.createElement('div');
                         starGroupEl.className = 'ziwei-star-mutation-group';
@@ -613,8 +607,6 @@ function createPalaceCell(row, col, palaceData = {}, primaryStarsData = {}, seco
                         starGroupEl.appendChild(starEl);
 
                         if (mutationType) {
-                            console.log(`Adding mutation ${mutationType} to star ${starName}`);
-
                             // Create mutations wrapper for stacking on the right
                             const mutationsWrapper = document.createElement('div');
                             mutationsWrapper.className = 'ziwei-mutations-wrapper';
@@ -641,8 +633,6 @@ function createPalaceCell(row, col, palaceData = {}, primaryStarsData = {}, seco
                         // Check if this star has a mutation
                         const mutationType = mutationsData ? window.ziweiMutations.getMutationForStar(starName, mutationsData) : null;
                         
-                        console.log(`Secondary Star: ${starName}, Palace: ${palaceIdx}, Mutation: ${mutationType}`);
-                        
                         const starGroupEl = document.createElement('div');
                         starGroupEl.className = 'ziwei-star-mutation-group';
                         
@@ -659,8 +649,6 @@ function createPalaceCell(row, col, palaceData = {}, primaryStarsData = {}, seco
                         starGroupEl.appendChild(starEl);
 
                         if (mutationType) {
-                            console.log(`Adding mutation ${mutationType} to secondary star ${starName}`);
-
                             // Create mutations wrapper for stacking on the right
                             const mutationsWrapper = document.createElement('div');
                             mutationsWrapper.className = 'ziwei-mutations-wrapper';

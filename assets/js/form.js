@@ -236,6 +236,13 @@ function showFieldError(fieldId, message) {
     let errorContainer;
 
     switch (fieldId) {
+        case 'ziwei-name':
+            // Name field - error goes in .ziwei-cal-name-group
+            const nameInput = document.getElementById(fieldId);
+            errorContainer = nameInput ? nameInput.closest('.ziwei-cal-name-group') : null;
+            targetElement = errorContainer; // Target is the container for adding error class
+            break;
+
         case 'ziwei-gender-group':
             // Gender selection group
             targetElement = document.querySelector('.ziwei-cal-gender-group');

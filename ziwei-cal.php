@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * Plugin Name: Ziwei Cal
  * Description: Ziwei Doushu Chart Calculator
- * Version: 0.3.0
+ * Version: 0.4.0
  * Author: kcy1989
  * License: GPL v2 or later
  * Text Domain: ziwei-cal
@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('ZIWEI_CAL_VERSION', '0.3.0'); // Bump version to force cache refresh
+define('ZIWEI_CAL_VERSION', '0.4.0'); // Bump version to force cache refresh
 define('ZIWEI_CAL_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('ZIWEI_CAL_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -345,9 +345,17 @@ function ziwei_cal_enqueue_scripts(): void {
     );
 
     wp_enqueue_script(
+        'ziwei-cal-palace-interaction',
+        ZIWEI_CAL_PLUGIN_URL . 'assets/js/palace-interaction.js',
+        ['ziwei-cal-chart'],
+        ZIWEI_CAL_VERSION,
+        true
+    );
+
+    wp_enqueue_script(
         'ziwei-cal-js',
         ZIWEI_CAL_PLUGIN_URL . 'assets/js/calculator.js',
-        ['jquery', 'ziwei-cal-form', 'ziwei-cal-chart'],
+        ['jquery', 'ziwei-cal-form', 'ziwei-cal-chart', 'ziwei-cal-palace-interaction'],
         ZIWEI_CAL_VERSION,
         true
     );

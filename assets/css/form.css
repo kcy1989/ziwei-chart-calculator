@@ -25,10 +25,16 @@ body {
 .ziwei-cal {
     max-width: 1200px;
     margin: 40px auto;
-    padding: 40px;
+    padding: 0 40px 40px 40px;
     background: white;
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+/* Form container wrapper - adds spacing around form */
+#ziwei-cal-form {
+    margin: 0 30px 0 30px;
+    padding: 0 0 30px 0;
 }
 
 /* ========================================
@@ -38,12 +44,15 @@ body {
 .ziwei-cal-title {
     text-align: center;
     margin-bottom: 40px;
+    margin-top: 0;
+    padding-top: 30px;
 }
 
 .ziwei-cal-title h1 {
     font-size: 32px;
     color: #2c3e50;
     margin-bottom: 12px;
+    margin-top: 0;
     font-weight: 700;
 }
 
@@ -66,7 +75,7 @@ body {
 .ziwei-cal-form-group {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
 }
 
 /* Label */
@@ -90,7 +99,7 @@ body {
 .ziwei-cal-form-group input[type="time"],
 .ziwei-cal-form-group select {
     width: 100%;
-    padding: 12px 16px;
+    padding: 8px 12px;
     font-size: 15px;
     border: 2px solid #e0e0e0;
     border-radius: 8px;
@@ -111,17 +120,62 @@ body {
 /* First row: Name and Gender */
 .ziwei-cal-row-name-gender {
     display: flex;
-    align-items: flex-end;
     gap: 40px;
-    margin-bottom: 20px;
+    align-items: center;
 }
 
 .ziwei-cal-name-group {
-    width: 300px;
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ziwei-cal-name-group > div {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: transparent;
+}
+
+.ziwei-cal-name-group .ziwei-cal-label {
+    margin: 0;
+    white-space: nowrap;
+}
+
+.ziwei-cal-name-group input[type="text"] {
+    width: 200px;
+    padding: 8px 12px;
+    font-size: 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    font-family: inherit;
+    background: white;
+}
+
+.ziwei-cal-name-group input[type="text"]:focus {
+    outline: none;
+    border-color: #5dade2;
+    box-shadow: 0 0 0 3px rgba(93, 173, 226, 0.1);
 }
 
 .ziwei-cal-gender-group {
-    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ziwei-cal-gender-group > div {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: transparent;
+}
+
+.ziwei-cal-gender-group .ziwei-cal-label {
+    margin: 0;
+    white-space: nowrap;
 }
 
 /* ========================================
@@ -133,7 +187,7 @@ body {
     font-size: 16px;
     font-weight: 600;
     color: #34495e;
-    margin-bottom: 10px;
+    margin-bottom: 0;
 }
 
 /* Required asterisk - small and red */
@@ -155,7 +209,9 @@ body {
    ======================================== */
 
 .ziwei-cal-datetime-group {
-    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .ziwei-cal-datetime-row {
@@ -186,22 +242,22 @@ body {
 
 /* Year input field */
 .ziwei-cal-year-input {
-    width: 140px;
-    min-width: 100px;
+    width: 90px;
+    min-width: 80px;
     flex-shrink: 0;
 }
 
 /* Month and day input fields */
 .ziwei-cal-md-input {
-    width: 90px;
-    min-width: 70px;
+    width: 70px;
+    min-width: 60px;
     flex-shrink: 0;
 }
 
 /* Time selection */
 .ziwei-cal-time-select {
-    width: 100px;
-    min-width: 90px;
+    width: 80px;
+    min-width: 70px;
     cursor: pointer;
     background-color: white;
     flex-shrink: 0;
@@ -297,21 +353,49 @@ form.ziwei-cal-form button.ziwei-cal-btn-secondary:hover {
         font-size: 24px;
     }
 
+    /* Form: maintain consistent 20px gap between all sections */
+    .ziwei-cal-form {
+        gap: 20px !important;
+    }
+
     /* Name and gender stacked vertically */
     .ziwei-cal-row-name-gender {
         flex-direction: column;
         gap: 20px;
         align-items: stretch;
+        margin-bottom: 0 !important;
     }
 
     .ziwei-cal-name-group {
         width: 100%;
+        margin-bottom: 0 !important;
+    }
+
+    /* Gender group on narrow screens: keep column layout to show error below */
+    .ziwei-cal-gender-group {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 4px !important;
+        width: auto !important;
+        margin-bottom: 0 !important;
+    }
+
+    .ziwei-cal-gender-group > div {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 20px !important;
+    }
+
+    /* Datetime group: maintain standard gap */
+    .ziwei-cal-datetime-group {
+        margin-bottom: 0 !important;
     }
 
     /* Date and time: ensure hour and minute wrap together */
     .ziwei-cal-datetime-row {
         flex-direction: column;
         align-items: stretch;
+        gap: 10px;
     }
 
     .ziwei-cal-date-section {
@@ -327,6 +411,7 @@ form.ziwei-cal-form button.ziwei-cal-btn-secondary:hover {
     /* Buttons stacked vertically */
     .ziwei-cal-form-actions {
         flex-direction: column;
+        margin-top: 0 !important;
     }
     
     .ziwei-cal .ziwei-cal-form-actions .ziwei-cal-btn,
@@ -413,7 +498,21 @@ form.ziwei-cal-form button.ziwei-cal-btn-secondary:hover {
     background-color: rgba(231, 76, 60, 0.05);
 }
 
+/* Name group error state */
+.ziwei-cal-name-group.ziwei-cal-field-error {
+    padding: 8px !important;
+    border-radius: 8px;
+    background-color: rgba(231, 76, 60, 0.05) !important;
+    margin: -8px -8px 0 0;
+}
+
 /* DateTime group error state */
+.ziwei-cal-datetime-group.has-error {
+    padding: 8px;
+    border-radius: 8px;
+    background-color: rgba(231, 76, 60, 0.05);
+}
+
 .ziwei-cal-datetime-group.has-error .ziwei-cal-error-message {
     margin-top: 8px;
     margin-bottom: 0;
