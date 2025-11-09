@@ -29,6 +29,8 @@ window.ziweiAttributes = { calculateAttributes(), calculateAllAttributes() };  /
 1. Data modules first (palaces-name.js, nayin.js)
 2. Core calculators (basic.js, palaces.js, primary.js, secondary.js, life-cycle.js, minor-stars.js, attributes.js)
 3. Display/form modules (form.js, chart.js, calculator.js)
+4. Interaction module (palace-interaction.js)
+5. Cycle controls (cycles.js)
 
 Each module **self-documents via console.log** during calculation for debugging.
 
@@ -133,12 +135,10 @@ register_rest_route('ziwei-cal/v1', '/calculate', [
 - All functions documented with JSDoc comments including @param and @returns
 - Console.log extensively used for debugging (search flow: secondary stars → chart display)
 - No npm dependencies - only vanilla ES6 JavaScript
-- All star types (primary, secondary) display in unified `.ziwei-stars-container`
-- Shared logic extracted: `isClockwise()` in basic.js, `getMilitaryHourIndex()` in chart.js
-- Proper null/undefined checks: `lunar?.lunarMonth`, `isLeapMonth || false`, `|| 0` defaults
+- Reduce the testing. Let users do the testing instead
 
 ## Progressive Development Strategy
- Current phase: **Phase 9 (Palace Interaction)** - 宮位互動 (✅ complete)
+ Current phase: **Phase 10 (Major Cycles & Annual Cycles)** - 大限流年 (🚧 in progress - v0.4.1)
  
  - Phase 1-3: Form + palaces + basic information display (✅ complete)
  - Phase 4: Primary stars (✅ complete)
@@ -147,7 +147,7 @@ register_rest_route('ziwei-cal/v1', '/calculate', [
  - Phase 7: Minor stars/雜曜 (✅ complete) - 43 stars fully implemented
  - Phase 8: 神煞 (✅ complete) - Tai Sui stars (太歲、將前、博士) fully implemented
  - Phase 9: Three-direction Four-square interaction & UI refinement (✅ complete)
- - Phase 10: Major cycles (大運) and annual cycles (流年) (⏳ not started)
+ - Phase 10: Major cycles (大運) and annual cycles (流年) (🚧 ongoing)
  - Phase 11: School/Config systems (⏳ not started)
       - Phase 11a: Star status (廟旺利陷) configurations (⏳ not started)
       - Phase 11b: Different school rules (⏳ not started)

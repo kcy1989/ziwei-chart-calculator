@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * Plugin Name: Ziwei Cal
  * Description: Ziwei Doushu Chart Calculator
- * Version: 0.4.0
+ * Version: 0.4.1
  * Author: kcy1989
  * License: GPL v2 or later
  * Text Domain: ziwei-cal
@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('ZIWEI_CAL_VERSION', '0.4.0'); // Bump version to force cache refresh
+define('ZIWEI_CAL_VERSION', '0.4.1'); // Bump version to force cache refresh
 define('ZIWEI_CAL_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('ZIWEI_CAL_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -292,6 +292,14 @@ function ziwei_cal_enqueue_scripts(): void {
         true
     );
 
+    wp_enqueue_script(
+        'ziwei-cal-cycles',
+        ZIWEI_CAL_PLUGIN_URL . 'assets/js/cycles.js',
+        ['ziwei-cal-life-cycle'],
+        ZIWEI_CAL_VERSION,
+        true
+    );
+
     // Enqueue secondary stars placement module (13 secondary stars)
     wp_enqueue_script(
         'ziwei-cal-secondary',
@@ -328,6 +336,15 @@ function ziwei_cal_enqueue_scripts(): void {
         true
     );
 
+    // Enqueue major cycle stars calculation module (大限文昌, 大限文曲)
+    wp_enqueue_script(
+        'ziwei-cal-major-cycle',
+        ZIWEI_CAL_PLUGIN_URL . 'assets/astrology/major-cycle.js',
+        [],  // No dependencies
+        ZIWEI_CAL_VERSION,
+        true
+    );
+
     wp_enqueue_script(
         'ziwei-cal-form',
         ZIWEI_CAL_PLUGIN_URL . 'assets/js/form.js',
@@ -339,7 +356,7 @@ function ziwei_cal_enqueue_scripts(): void {
     wp_enqueue_script(
         'ziwei-cal-chart',
         ZIWEI_CAL_PLUGIN_URL . 'assets/js/chart.js',
-        ['jquery', 'ziwei-cal-form', 'ziwei-cal-palaces', 'ziwei-cal-primary', 'ziwei-cal-secondary', 'ziwei-cal-mutations', 'ziwei-cal-minor-stars', 'ziwei-cal-attributes'],
+        ['jquery', 'ziwei-cal-form', 'ziwei-cal-palaces', 'ziwei-cal-primary', 'ziwei-cal-secondary', 'ziwei-cal-mutations', 'ziwei-cal-minor-stars', 'ziwei-cal-attributes', 'ziwei-cal-major-cycle', 'ziwei-cal-cycles'],
         ZIWEI_CAL_VERSION,
         true
     );

@@ -15,6 +15,7 @@ function initializePalaceInteraction(grid) {
     
     // Store reference to currently selected palace
     let selectedPalaceIndex = null;
+    let clearCallbacks = [];
     
     // Store cell elements by branch index for quick lookup
     const cellsByBranchIndex = {};
@@ -48,28 +49,83 @@ function initializePalaceInteraction(grid) {
      * Get connection point on palace boundary
      * Each of the 12 palaces has a specific connection point
      */
+    const connectionPointPositions = {
+        0: 'top-center',
+        1: 'top-center',
+        2: 'top-right',
+        3: 'right-center',
+        4: 'right-center',
+        5: 'bottom-right',
+        6: 'bottom-center',
+        7: 'bottom-center',
+        8: 'bottom-left',
+        9: 'left-center',
+        10: 'left-center',
+        11: 'top-left'
+    };
+
     function getConnectionPoint(branchIndex) {
-        // Fixed connection points for each palace (branchIndex 0-11)
-        const connectionPoints = {
-            0:  { x: 400, y: 480 },  // 子
-            1:  { x: 240, y: 480 },  // 丑
-            2:  { x: 160, y: 480 },  // 寅
-            3:  { x: 160, y: 400 },  // 卯
-            4:  { x: 160, y: 240 },  // 辰
-            5:  { x: 160, y: 160 },  // 巳
-            6:  { x: 240, y: 160 },  // 午
-            7:  { x: 400, y: 160 },  // 未
-            8:  { x: 480, y: 160 },  // 申
-            9:  { x: 480, y: 240 },  // 酉
-            10: { x: 480, y: 400 },  // 戌
-            11: { x: 480, y: 480 }   // 亥
-        };
-        
-        if (!(branchIndex in connectionPoints)) {
+        const position = connectionPointPositions[branchIndex];
+        if (!position) {
             console.error(`Invalid branchIndex for connection point: ${branchIndex} (expected 0-11)`);
             throw new Error(`Invalid branch index: ${branchIndex}`);
         }
-        return connectionPoints[branchIndex];
+
+        const targetCell = cellsByBranchIndex[branchIndex];
+        if (!targetCell) {
+            console.error(`Missing palace cell for branchIndex: ${branchIndex}`);
+            throw new Error(`Cannot locate palace cell for branchIndex ${branchIndex}`);
+        }
+
+        const gridRect = grid.getBoundingClientRect();
+        const cellRect = targetCell.getBoundingClientRect();
+        const offset = 3; // Adjust all connection points by 1px left and up
+
+        switch (position) {
+            case 'top-center':
+                return {
+                    x: (cellRect.left + cellRect.right) / 2 - gridRect.left - offset,
+                    y: cellRect.top - gridRect.top - offset
+                };
+            case 'top-right':
+                return {
+                    x: cellRect.right - gridRect.left - offset,
+                    y: cellRect.top - gridRect.top - offset
+                };
+            case 'right-center':
+                return {
+                    x: cellRect.right - gridRect.left - offset,
+                    y: (cellRect.top + cellRect.bottom) / 2 - gridRect.top - offset
+                };
+            case 'bottom-right':
+                return {
+                    x: cellRect.right - gridRect.left - offset,
+                    y: cellRect.bottom - gridRect.top - offset
+                };
+            case 'bottom-center':
+                return {
+                    x: (cellRect.left + cellRect.right) / 2 - gridRect.left - offset,
+                    y: cellRect.bottom - gridRect.top - offset
+                };
+            case 'bottom-left':
+                return {
+                    x: cellRect.left - gridRect.left - offset,
+                    y: cellRect.bottom - gridRect.top - offset
+                };
+            case 'left-center':
+                return {
+                    x: cellRect.left - gridRect.left - offset,
+                    y: (cellRect.top + cellRect.bottom) / 2 - gridRect.top - offset
+                };
+            case 'top-left':
+                return {
+                    x: cellRect.left - gridRect.left - offset,
+                    y: cellRect.top - gridRect.top - offset
+                };
+            default:
+                console.error(`Unsupported connection point position: ${position}`);
+                throw new Error(`Unsupported connection point position: ${position}`);
+        }
     }
     
     /**
@@ -89,12 +145,22 @@ function initializePalaceInteraction(grid) {
         }
         
         selectedPalaceIndex = null;
+
+        // Invoke all registered clear callbacks
+        clearCallbacks.forEach(callback => {
+            try {
+                callback();
+            } catch (e) {
+                console.error('Error in clear callback:', e);
+            }
+        });
     }
     
     /**
      * Highlight related palaces and draw connection lines
      */
     function highlightRelatedPalaces(branchIndex) {
+        console.log('highlightRelatedPalaces called:', branchIndex);
         clearHighlight();
         selectedPalaceIndex = branchIndex;
         
@@ -260,11 +326,23 @@ function initializePalaceInteraction(grid) {
     // Initialize handlers
     attachCellClickHandlers();
     attachGridClearHandler();
-    
-    // Expose API globally for external control
-    window.ziweiChartInteraction = {
-        clearHighlight: clearHighlight,
-        highlightPalace: highlightRelatedPalaces,
-        getSelectedPalace: () => selectedPalaceIndex
+
+    // Expose API for external control
+    const api = {
+        clear: clearHighlight,
+        clearHighlight: clearHighlight, // Legacy alias
+        highlight: highlightRelatedPalaces,
+        highlightPalace: highlightRelatedPalaces, // Legacy alias
+        getSelectedPalace: () => selectedPalaceIndex,
+        onClear: (callback) => {
+            if (typeof callback === 'function') {
+                clearCallbacks.push(callback);
+            }
+        }
     };
+
+    grid.ziweiPalaceInteraction = api;
+    window.ziweiChartInteraction = api; // Maintain legacy global for backward compatibility
+
+    return api;
 }

@@ -4,7 +4,7 @@ Tags: 紫微斗數, 命理, 排盤, 中州派, astrology
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 0.4.0
+Stable tag: 0.4.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -25,9 +25,7 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 **開發進度與功能階段**
 
-本插件採「分階段」逐步開發，詳見 `.github/copilot-instructions.md`。
-
-目前共規劃 13 個主要開發階段：
+本插件採「分階段」逐步開發。目前共規劃 13 個主要開發階段：
 
 1. 基礎資料輸入表單（✅ 完成）
 2. 農曆轉換功能（✅ 完成）
@@ -37,8 +35,8 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 6. 四化（祿權科忌）顯示（✅ 完成）
 7. 雜曜（其他星曜）（✅ 完成）
 8. 神煞（太歲、將前、博士）（✅ 完成）
-9. 三方四方與美化（✅ 完成）
-10. 大運流年（未開始）
+9. 三方四正與美化（✅ 完成）
+10. 大限流年（開發中）
 11. 派別/流派設定系統（未開始）
 12. 匯出 PNG/PDF（未開始）
 13. 星曜說明與提示（未開始）
@@ -62,29 +60,32 @@ ziwei-cal/
 │   └── form.php           # 表單模板
 ├── assets/
 │   ├── css/
-│   │   ├── form.css       # 表單樣式
-│   │   └── chart.css      # 命盤樣式
+│   │   ├── form.css          　　 # 表單樣式
+│   │   └── chart.css         　　 # 命盤樣式
 │   ├── js/
-│   │   ├── form.js        # 表單邏輯
-│   │   ├── calculator.js  # 主計算器
-│   │   ├── chart.js       # 命盤渲染
-│   │   └── lunar-converter.js  # 農曆轉換
+│   │   ├── form.js            　　# 表單邏輯
+│   │   ├── calculator.js      　　# 主計算器
+│   │   ├── chart.js           　　# 命盤渲染
+│   │   ├── lunar-converter.js 　　# 農曆轉換
+│   │   ├── palace-interaction.js # 宮位三方四正互動/連線
+│   │   └── cycles.js       　　   # 大限盤選取/流年/四化/互動控制
 │   ├── astrology/
-│   │   ├── basic.js             # 基本索引與方向計算
-│   │   ├── palaces.js           # 宮位計算
-│   │   ├── primary.js           # 主星安置
-│   │   ├── secondary.js         # 輔星安置
-│   │   ├── minor-stars.js       # 雜曜計算（43 顆星曜）
-│   │   ├── attributes.js        # 神煞計算（太歲、將前、博士）
-│   │   ├── life-cycle.js        # 大運與十二長生計算
-│   │   ├── gender-calculator.js # 陰陽性別計算
-│   │   └── mutations.js         # 生年四化（祿權科忌）
+│   │   ├── basic.js        　　   # 基本索引與方向計算
+│   │   ├── palaces.js     　　    # 宮位計算
+│   │   ├── primary.js      　　   # 主星安置
+│   │   ├── secondary.js    　　   # 輔星安置
+│   │   ├── minor-stars.js   　　  # 雜曜計算（43 顆星曜）
+│   │   ├── attributes.js    　　  # 神煞計算（太歲、將前、博士）
+│   │   ├── life-cycle.js    　　  # 大運與十二長生計算
+│   │   ├── major-cycle.js   　　  # 大限星/流年星/四化標註
+│   │   ├── gender-calculator.js  # 陰陽性別計算
+│   │   └── mutations.js     　　  # 生年四化（祿權科忌）
 │   └── data/
-│       ├── palaces-name.js      # 宮位名稱資料
-│       ├── nayin.js             # 納音五行局資料
+│       ├── palaces-name.js        # 宮位名稱資料
+│       ├── nayin.js               # 納音五行局資料
 │       └── mutation-zhongzhou.js  # 中州派四化表
 └── .github/
-    └── copilot-instructions.md  # 開發規範與架構文件
+    └── copilot-instructions.md    # 開發規範與架構文件
 
 **技術規範：**
 
@@ -127,11 +128,21 @@ ziwei-cal/
 
 == Changelog ==
 
+= 0.4.2 - 2025-11-09 =
+* 新增：可選取大限盤，並顯示流年鍵
+* 新增：大限四化、大限流曜標註
+* 新增：大限盤互動、選取狀態、UI優化
+* 修復：部分顯示問題
+
+= 0.4.1 - 2025-11-08 =
+* 修復：部份顯示問題
+
 = 0.4.0 - 2025-11-08 =
 * 完成：宮位互動功能 - 點擊任何宮位顯示三方四正
 * 改進：表單驗證 - 增強錯誤提示UX
 * 改進：表單布局改進
-* 改進：響應式設計優化
+* 新增：palace-interaction.js 檔案（宮位互動與連線功能）
+* 新增：cycles.js 檔案（大限/流年控制面板）
 
 = 0.3.0 - 2025-11-07 =
 * 完成：神煞（太歲、將前、博士）

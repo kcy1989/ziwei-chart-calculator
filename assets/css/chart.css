@@ -17,7 +17,9 @@
     width: 100% !important;
     max-width: 700px !important;
     display: flex !important;
-    justify-content: center !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
     position: relative !important;
     margin: 0 auto 30px auto !important;
     padding: 0 30px 30px 30px !important;
@@ -79,16 +81,15 @@
 .ziwei-4x4-grid {
     width: 640px !important;
     height: 640px !important;
+    flex-shrink: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
     display: grid !important;
     grid-template-columns: repeat(4, 1fr) !important;
     grid-template-rows: repeat(4, 1fr) !important;
     gap: 0 !important;
-    border: none !important;
+    border: 3px solid #333 !important;
     background: transparent !important;
-    outline: 3px solid #333 !important;
-    outline-offset: 0 !important;
     position: relative !important;
 }
 
@@ -99,12 +100,10 @@
     aspect-ratio: 1 / 1 !important;
     width: 100% !important;
     height: 100% !important;
-    writing-mode: vertical-rl !important;
-    text-orientation: upright !important;
     position: relative !important;
     display: flex !important;
     flex-direction: column !important;
-    align-items: center !important;
+    align-items: stretch !important;
     justify-content: flex-start !important;
     box-shadow: none !important;
     border: 1px solid #ccc !important;
@@ -242,53 +241,92 @@
     bottom: 4px;
     right: 4px;
     display: flex;
-    flex-direction: column;  /* Vertical stacking */
-    align-items: flex-end;  /* Align to right edge */
+    flex-direction: row;  /* Use 'row' to stack vertical text blocks vertically */
+    align-items: flex-end;
     justify-content: flex-end;
-    gap: 0;
 }
 
 /* Primary stars container - positioned at top of palace cell */
 .ziwei-stars-container {
     position: absolute;
-    top: 3px;
+    top: 4px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 0px;
-    writing-mode: vertical-rl;
-    text-orientation: upright;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 1px;
 }
 
-/* Minor stars container - positioned at left side, vertically centered */
+/* Minor stars container - positioned at left side, fixed position for minor stars (雜曜) */
 .ziwei-minor-stars-container {
     position: absolute;
     left: 2px;
-    top: 50%;
-    transform: translateY(-50%);
+    top: 60px; /* Minor stars sit above cycle stars; keep a safe top */
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    flex-direction: row; /* Horizontal stacking of vertical-writing items */
+    align-items: flex-start;
+    justify-content: flex-start;
     gap: 1px;
-    writing-mode: vertical-rl;
-    text-orientation: upright;
 }
 
 /* Minor star display - lighter color, smaller font */
 .ziwei-minor-star {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 400;
-    color: #7f8c8d;  /* Slightly darker gray color */
-    writing-mode: vertical-rl;
-    text-orientation: upright;
-    line-height: 1;
+    color: #7f8c8d;
+    writing-mode: vertical-rl !important; /* Keep vertical writing */
+    text-orientation: upright !important;
+    /* Normalize intra-column spacing to avoid unevenness across names */
+    line-height: 1; 
     letter-spacing: 0px;
+    /* Make each star a uniform-width vertical column */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    min-width: 16px;
+    box-sizing: border-box;
     padding: 0;
     margin: 0;
+}
+
+/* Cycle stars wrapper - positioned below minor stars, same font and size */
+.ziwei-cycle-stars-wrapper {
+    position: absolute;
+    left: 2px;
+    bottom: 39px; /* Cycle stars sit just above attributes (神煞) */
+    display: flex;
+    flex-direction: row; /* Horizontal stacking */
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 0px !important;
+    width: fit-content;
+}
+
+.ziwei-major-cycle-star,
+.ziwei-annual-cycle-star {
+    font-size: 14px;
+    font-weight: 400;
+    writing-mode: vertical-rl !important;
+    text-orientation: upright !important;
+    line-height: 1;
+    letter-spacing: 0px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    min-width: 16px;
+    box-sizing: border-box;
+}
+
+.ziwei-major-cycle-star {
+    color: #1f6fbf; /* Blue for major cycle */
+}
+
+.ziwei-annual-cycle-star {
+    color: #27ae60; /* Green for annual cycle */
 }
 
 /* Tai Sui stars display (太歲神煞) - same style as minor stars */
@@ -296,8 +334,8 @@
     font-size: 15px;
     font-weight: 400;
     color: #7f8c8d;
-    writing-mode: vertical-rl;
-    text-orientation: upright;
+    writing-mode: vertical-rl !important;
+    text-orientation: upright !important;
     line-height: 1;
     letter-spacing: 0px;
     padding: 0;
@@ -309,8 +347,8 @@
     font-size: 20px;  /* Larger font */
     font-weight: 700;
     color: #e74c3c;
-    writing-mode: vertical-rl;
-    text-orientation: upright;
+    writing-mode: vertical-rl !important;
+    text-orientation: upright !important;
     line-height: 1;
     letter-spacing: 0px;
     padding: 0;
@@ -322,8 +360,8 @@
     font-size: 20px;  /* Larger font */
     font-weight: 700;
     color: #6b7a87;
-    writing-mode: vertical-rl;
-    text-orientation: upright;
+    writing-mode: vertical-rl !important;
+    text-orientation: upright !important;
     line-height: 1;
     letter-spacing: 0px;
     padding: 0;
@@ -350,12 +388,13 @@
 }
 
 .ziwei-mutations-wrapper {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-rows: repeat(3, 14px);
+    row-gap: 1px;
     align-items: center;
-    gap: 0;
+    justify-items: center;
     width: 14px;
-    justify-content: flex-start;
+    height: 44px;
     flex-shrink: 0;
 }
 
@@ -396,17 +435,19 @@
         0.5px -0.5px 0 #c0392b,
         -0.5px 0.5px 0 #c0392b,
         0.5px 0.5px 0 #c0392b;
+    grid-row: 1;
 }
 
 /* Major cycle mutation (大運四化) - green seal style */
 .ziwei-mutation-major {
-    background-color: #27ae60;
-    border: 1px solid #1e8449;
+    background-color: #2980b9;
+    border: 1px solid #1f618d;
     text-shadow: 
-        -0.5px -0.5px 0 #1e8449,
-        0.5px -0.5px 0 #1e8449,
-        -0.5px 0.5px 0 #1e8449,
-        0.5px 0.5px 0 #1e8449;
+        -0.5px -0.5px 0 #1f618d,
+        0.5px -0.5px 0 #1f618d,
+        -0.5px 0.5px 0 #1f618d,
+        0.5px 0.5px 0 #1f618d;
+    grid-row: 2;
 }
 
 /* Annual mutation (流年四化) - blue seal style */
@@ -418,6 +459,7 @@
         0.5px -0.5px 0 #2471a3,
         -0.5px 0.5px 0 #2471a3,
         0.5px 0.5px 0 #2471a3;
+    grid-row: 3;
 }
 
 /* Major cycles (大運) and life stages display - centered between attributes and palace name
@@ -450,16 +492,119 @@
     line-height: 1;
 }
 
+.ziwei-cycle-panel {
+    width: 640px !important;
+    margin: 16px auto 6px auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+}
+
+.ziwei-cycle-section {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+}
+
+.ziwei-cycle-label {
+    font-size: 18px !important;
+    font-weight: 600 !important;
+    color: #34495e !important;
+    text-align: center !important;
+}
+
+.ziwei-cycle-row {
+    display: grid !important;
+    gap: 0 !important;
+}
+
+.ziwei-major-cycle-row {
+    grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
+}
+
+.ziwei-annual-cycle-row {
+    grid-template-columns: repeat(10, minmax(0, 1fr)) !important;
+    display: none;
+}
+.ziwei-cycle-button {
+    height: 44px !important;
+    border: 1px solid #d0d7de !important;
+    border-radius: 0 !important;
+    background: #f9fbfc !important;
+    color: #34495e !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 3px !important;
+    transition: background 0.2s ease, color 0.2s ease, border 0.2s ease, box-shadow 0.2s ease !important;
+    padding: 0 !important;
+    margin: -1px 0 0 -1px !important;
+    text-align: center !important;
+}
+
+.ziwei-cycle-button:hover {
+    background: #e8eaed !important;
+    outline: none !important;
+}
+
+/* Active state - must have higher specificity and !important to override everything */
+.ziwei-cycle-button-active,
+.ziwei-cycle-button-active:hover,
+.ziwei-cycle-button-active:focus,
+.ziwei-cycle-button-active:active {
+    background: #f3e6ff !important;
+    background-color: #f3e6ff !important;
+    color: #512e5f !important;
+    border: １px solid #9b59b6 !important;
+    border-color: #9b59b6 !important;
+    box-shadow: inset 0 0 0 2px #9b59b6 !important;
+    margin: -1px 0 0 -1px !important;
+}
+
+.ziwei-cycle-button-active .ziwei-cycle-button-label {
+    color: #512e5f !important;
+    font-weight: 600 !important;
+}
+
+.ziwei-cycle-button-active .ziwei-cycle-button-age {
+    color: #512e5f !important;
+}
+
+.ziwei-annual-cycle-button {
+    font-weight: 500 !important;
+}
+
+.ziwei-cycle-button-label {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    color: #34495e !important;
+    line-height: 1 !important;
+    display: block !important;
+}
+
+.ziwei-cycle-button-age {
+    font-size: 12px !important;
+    color: #5d6d7e !important;
+    line-height: 1 !important;
+    display: block !important;
+}
+
 /* Palace name with vertical writing */
 .ziwei-palace-name {
     font-weight: 500;
     font-size: 16px;
     color: #34495e;
-    writing-mode: vertical-rl;
-    text-orientation: upright;
+    writing-mode: vertical-rl !important;
+    text-orientation: upright !important;
     line-height: 1.1;
     letter-spacing: 0px;
     height: auto;
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
 /* Attributes container (神煞 - spiritual mood descriptors) - aligned to bottom-left edge */
@@ -472,8 +617,8 @@
     align-items: flex-start;  /* Align to left edge */
     justify-content: flex-end;
     gap: 0;
-    writing-mode: vertical-rl;
-    text-orientation: upright;
+    writing-mode: vertical-rl !important;
+    text-orientation: upright !important;
 }
 
 /* Individual attribute (神煞) - same style as palace name */
@@ -481,8 +626,8 @@
     font-weight: 500;
     font-size: 16px;
     color: #34495e;
-    writing-mode: vertical-rl;
-    text-orientation: upright;
+    writing-mode: vertical-rl !important;
+    text-orientation: upright !important;
     line-height: 1.1;
     letter-spacing: 0px;
     padding: 0;
@@ -494,8 +639,8 @@
     font-size: 16px;
     font-weight: 500;
     color: #34495e;
-    writing-mode: vertical-rl;
-    text-orientation: upright;
+    writing-mode: vertical-rl !important;
+    text-orientation: upright !important;
     line-height: 1.1;
 }
 
@@ -534,5 +679,3 @@
 .ziwei-connection-lines {
     display: block !important;
 }
-
-
