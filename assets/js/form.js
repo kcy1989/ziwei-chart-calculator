@@ -329,21 +329,32 @@ function showError(message, isApiError = false) {
         errorDiv.className = 'ziwei-cal-api-error';
         errorDiv.setAttribute('role', 'alert');
         errorDiv.setAttribute('aria-live', 'polite');
-        
+
+        const iconDiv = document.createElement('div');
+        iconDiv.className = 'ziwei-cal-error-icon';
+        iconDiv.textContent = isApiError ? '⚠️' : 'ℹ️';
+
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'ziwei-cal-error-content';
+
+        const strongEl = document.createElement('strong');
+        strongEl.textContent = isApiError ? '系統錯誤：' : '提示：';
+
+        const messageSpan = document.createElement('span');
+        messageSpan.textContent = message;
+
+        contentDiv.appendChild(strongEl);
+        contentDiv.appendChild(messageSpan);
+
         if (isApiError) {
-            errorDiv.innerHTML = `
-                <div class="ziwei-cal-error-icon">⚠️</div>
-                <div class="ziwei-cal-error-content">
-                    <strong>系統錯誤：</strong>${message}
-                    <div class="ziwei-cal-error-help">請稍後重試或聯絡管理員</div>
-                </div>`;
-        } else {
-            errorDiv.innerHTML = `
-                <div class="ziwei-cal-error-icon">ℹ️</div>
-                <div class="ziwei-cal-error-content">
-                    <strong>提示：</strong>${message}
-                </div>`;
+            const helpDiv = document.createElement('div');
+            helpDiv.className = 'ziwei-cal-error-help';
+            helpDiv.textContent = '請稍後重試或聯絡管理員';
+            contentDiv.appendChild(helpDiv);
         }
+
+        errorDiv.appendChild(iconDiv);
+        errorDiv.appendChild(contentDiv);
 
         // Insert error message at top of the form
         const form = formContainer.querySelector('form');
@@ -418,6 +429,11 @@ async function restoreForm(currentElement) {
     if (!_savedFormClone) {
         window.location.reload();
         return;
+    }
+
+    const container = currentElement.closest('.ziwei-cal');
+    if (container) {
+        container.setAttribute('data-ziwei-mode', 'form');
     }
 
     currentElement.style.transition = 'opacity 200ms ease';

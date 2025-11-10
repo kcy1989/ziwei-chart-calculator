@@ -35,7 +35,10 @@ const NAYIN_LOCI_TO_PALACE = {
  * @returns {Object} Mapping of palace index (0-11) to life stage name
  */
 function calculateTwelveLongLifePositions(nayinLoci, gender, lunarYear) {
-    const startPalaceIndex = NAYIN_LOCI_TO_PALACE[nayinLoci] || 0;
+    const startPalaceIndex = NAYIN_LOCI_TO_PALACE[nayinLoci];
+    if (typeof startPalaceIndex !== 'number') {
+        throw new Error('Invalid Nayin loci: no palace mapping available');
+    }
     
     // Get arrangement direction using basic.js function
     if (!window.ziweiBasic || !window.ziweiBasic.isClockwise) {
@@ -69,6 +72,9 @@ function calculateTwelveLongLifePositions(nayinLoci, gender, lunarYear) {
  * Example: nayinLoci=2 → cycles start at age 2-11, 12-21, 22-31, etc.
  */
 function calculateMajorCycles(nayinLoci, gender, lunarYear, mingPalaceIndex) {
+    if (typeof nayinLoci !== 'number') {
+        throw new Error('Invalid Nayin loci: expected number');
+    }
     const startAge = nayinLoci;  // Nayin loci value is the starting age
     
     // Get arrangement direction using basic.js function

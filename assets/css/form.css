@@ -22,10 +22,9 @@ body {
    Main Container
    ======================================== */
 
-.ziwei-cal {
-    max-width: 1200px;
+.ziwei-cal[data-ziwei-mode="form"] {
     margin: 40px auto;
-    padding: 0 40px 40px 40px;
+    padding: 0 30px 40px 30px;
     background: white;
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
@@ -43,7 +42,7 @@ body {
 
 .ziwei-cal-title {
     text-align: center;
-    margin-bottom: 40px;
+    margin-bottom: 0;
     margin-top: 0;
     padding-top: 30px;
 }
@@ -51,14 +50,42 @@ body {
 .ziwei-cal-title h1 {
     font-size: 32px;
     color: #2c3e50;
-    margin-bottom: 12px;
+    margin-bottom: 0;
     margin-top: 0;
     font-weight: 700;
 }
 
-.ziwei-cal-title p {
-    font-size: 16px;
-    color: #7f8c8d;
+.ziwei-cal-title .ziwei-cal-version-link {
+    /* pull the link slightly up to sit closer to the title */
+    margin: 0;
+    line-height: 12px;
+}
+.ziwei-cal-title .ziwei-cal-version-link a {
+    color: #c5cdd3; /* match version text, very subtle */
+    text-decoration: none;
+    font-size: 11px;
+    font-weight: 400;
+    opacity: 0.95;
+}
+.ziwei-cal-title .ziwei-cal-version-link a:hover,
+.ziwei-cal-title .ziwei-cal-version-link a:focus {
+    text-decoration: underline;
+    color: #c5cdd3; /* explicitly keep same color */
+}
+.ziwei-cal-title .ziwei-cal-version-link a:visited,
+.ziwei-cal-title .ziwei-cal-version-link a:active {
+    color: #c5cdd3;
+}
+
+/* Placeholder styling: make name placeholder match birthplace placeholder style
+   Keep field sizes untouched; this only affects placeholder color/size.
+*/
+.ziwei-cal-form-group input::placeholder,
+.ziwei-cal-name-group input::placeholder,
+#ziwei-birthplace::placeholder {
+    color: #9aa3a8; /* subtle gray used for placeholders */
+    font-size: 14px; /* match visible sample size */
+    opacity: 1; /* ensure consistent appearance across browsers */
 }
 
 /* ========================================
@@ -288,55 +315,41 @@ body {
     margin-top: 30px;
 }
 
-/* Use multiple selectors + !important to override theme */
-.ziwei-cal .ziwei-cal-form-actions .ziwei-cal-btn,
-.ziwei-cal button.ziwei-cal-btn,
-form.ziwei-cal-form .ziwei-cal-btn,
-button.ziwei-cal-btn.ziwei-cal-btn-primary,
-button.ziwei-cal-btn.ziwei-cal-btn-secondary {
-    flex: 1 !important;
-    padding: 16px 32px !important;
-    font-size: 17px !important;
-    font-weight: 600 !important;
-    line-height: 1.5 !important;
-    border: none !important;
-    border-radius: 8px !important;
-    cursor: pointer !important;
-    transition: background-color 0.3s ease !important;
-    text-align: center !important;
-    display: inline-block !important;
-    box-sizing: border-box !important;
-    text-transform: none !important;
-    letter-spacing: normal !important;
-    min-height: auto !important;
+.ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-form-actions .ziwei-cal-btn {
+    flex: 1;
+    padding: 16px 32px;
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.5;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    text-transform: none;
+    letter-spacing: normal;
 }
 
-/* Primary button - light blue */
-.ziwei-cal .ziwei-cal-form-actions .ziwei-cal-btn-primary,
-.ziwei-cal button.ziwei-cal-btn-primary,
-form.ziwei-cal-form button.ziwei-cal-btn-primary {
-    background: #5dade2 !important;
-    color: white !important;
+.ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-btn-primary {
+    background: #5dade2;
+    color: #ffffff;
 }
 
-.ziwei-cal .ziwei-cal-form-actions .ziwei-cal-btn-primary:hover,
-.ziwei-cal button.ziwei-cal-btn-primary:hover,
-form.ziwei-cal-form button.ziwei-cal-btn-primary:hover {
-    background: #2e86c1 !important;
+.ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-btn-primary:hover {
+    background: #2e86c1;
 }
 
-/* Secondary button - gray */
-.ziwei-cal .ziwei-cal-form-actions .ziwei-cal-btn-secondary,
-.ziwei-cal button.ziwei-cal-btn-secondary,
-form.ziwei-cal-form button.ziwei-cal-btn-secondary {
-    background: #ecf0f1 !important;
-    color: #34495e !important;
+.ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-btn-secondary {
+    background: #ecf0f1;
+    color: #34495e;
 }
 
-.ziwei-cal .ziwei-cal-form-actions .ziwei-cal-btn-secondary:hover,
-.ziwei-cal button.ziwei-cal-btn-secondary:hover,
-form.ziwei-cal-form button.ziwei-cal-btn-secondary:hover {
-    background: #bdc3c7 !important;
+.ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-btn-secondary:hover {
+    background: #bdc3c7;
 }
 
 /* ========================================
@@ -344,112 +357,103 @@ form.ziwei-cal-form button.ziwei-cal-btn-secondary:hover {
    ======================================== */
 
 @media (max-width: 768px) {
-    .ziwei-cal {
+    .ziwei-cal[data-ziwei-mode="form"] {
         margin: 20px;
         padding: 24px;
     }
 
-    .ziwei-cal-title h1 {
+    .ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-title h1 {
         font-size: 24px;
     }
 
-    /* Form: maintain consistent 20px gap between all sections */
-    .ziwei-cal-form {
-        gap: 20px !important;
+    .ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-form {
+        gap: 20px;
     }
 
-    /* Name and gender stacked vertically */
-    .ziwei-cal-row-name-gender {
+    .ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-row-name-gender {
         flex-direction: column;
         gap: 20px;
         align-items: stretch;
-        margin-bottom: 0 !important;
+        margin-bottom: 0;
     }
 
-    .ziwei-cal-name-group {
+    .ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-name-group {
         width: 100%;
-        margin-bottom: 0 !important;
+        margin-bottom: 0;
     }
 
-    /* Gender group on narrow screens: keep column layout to show error below */
-    .ziwei-cal-gender-group {
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 4px !important;
-        width: auto !important;
-        margin-bottom: 0 !important;
+    .ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-gender-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        width: auto;
+        margin-bottom: 0;
     }
 
-    .ziwei-cal-gender-group > div {
-        display: flex !important;
-        flex-direction: row !important;
-        gap: 20px !important;
+    .ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-gender-group > div {
+        display: flex;
+        flex-direction: row;
+        gap: 20px;
     }
 
-    /* Datetime group: maintain standard gap */
-    .ziwei-cal-datetime-group {
-        margin-bottom: 0 !important;
+    .ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-datetime-group {
+        margin-bottom: 0;
     }
 
-    /* Date and time: ensure hour and minute wrap together */
-    .ziwei-cal-datetime-row {
+    .ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-datetime-row {
         flex-direction: column;
         align-items: stretch;
         gap: 10px;
     }
 
-    .ziwei-cal-date-section {
+    .ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-date-section {
         width: 100%;
         min-width: auto;
     }
 
-    .ziwei-cal-time-section {
+    .ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-time-section {
         width: 100%;
         justify-content: flex-start;
     }
 
-    /* Buttons stacked vertically */
-    .ziwei-cal-form-actions {
+    .ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-form-actions {
         flex-direction: column;
-        margin-top: 0 !important;
+        margin-top: 0;
     }
-    
-    .ziwei-cal .ziwei-cal-form-actions .ziwei-cal-btn,
-    .ziwei-cal button.ziwei-cal-btn,
-    form.ziwei-cal-form .ziwei-cal-btn {
-        width: 100% !important;
+
+    .ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-form-actions .ziwei-cal-btn {
+        width: 100%;
     }
 }
 
 @media (max-width: 480px) {
-    .ziwei-cal {
+    .ziwei-cal[data-ziwei-mode="form"] {
         margin: 10px;
         padding: 20px;
     }
 
-    .ziwei-cal-title h1 {
+    .ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-title h1 {
         font-size: 20px;
     }
 
-    .ziwei-cal-title p {
+    .ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-title p {
         font-size: 14px;
     }
 
-    .ziwei-cal-form-group label {
+    .ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-form-group label {
         font-size: 14px;
     }
 
-    .ziwei-cal-form-group input[type="text"],
-    .ziwei-cal-form-group input[type="date"],
-    .ziwei-cal-form-group input[type="time"],
-    .ziwei-cal-form-group select {
+    .ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-form-group input[type="text"],
+    .ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-form-group input[type="date"],
+    .ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-form-group input[type="time"],
+    .ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-form-group select {
         font-size: 14px;
         padding: 10px 14px;
     }
 
-    /* Small screen: hour and minute remain on same line */
-    .ziwei-cal-time-section {
-        flex-wrap: nowrap !important;
+    .ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-time-section {
+        flex-wrap: nowrap;
     }
 }
 
@@ -499,10 +503,10 @@ form.ziwei-cal-form button.ziwei-cal-btn-secondary:hover {
 }
 
 /* Name group error state */
-.ziwei-cal-name-group.ziwei-cal-field-error {
-    padding: 8px !important;
+.ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-name-group.ziwei-cal-field-error {
+    padding: 8px;
     border-radius: 8px;
-    background-color: rgba(231, 76, 60, 0.05) !important;
+    background-color: rgba(231, 76, 60, 0.05);
     margin: -8px -8px 0 0;
 }
 
@@ -519,12 +523,12 @@ form.ziwei-cal-form button.ziwei-cal-btn-secondary:hover {
 }
 
 /* Remove error styles during focus/active state */
-.ziwei-cal-form-group input:focus,
-.ziwei-cal-form-group select:focus,
-.ziwei-cal-form-group input:active,
-.ziwei-cal-form-group select:active {
-    border-color: #5dade2 !important;
-    box-shadow: 0 0 0 3px rgba(93, 173, 226, 0.1) !important;
+.ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-form-group input:focus,
+.ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-form-group select:focus,
+.ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-form-group input:active,
+.ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-form-group select:active {
+    border-color: #5dade2;
+    box-shadow: 0 0 0 3px rgba(93, 173, 226, 0.1);
 }
 
 /* Loading state */

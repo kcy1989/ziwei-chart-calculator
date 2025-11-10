@@ -88,6 +88,10 @@ document.addEventListener('DOMContentLoaded', () => {
  */
 async function submitToApi(formData) {
     try {
+        if (!window.ziweiCalData?.restUrl) {
+            throw new Error('REST API 設定缺失，請重新載入頁面');
+        }
+
         console.log('Submitting to:', window.ziweiCalData.restUrl);
         console.log('Form data:', formData);
         
@@ -114,7 +118,17 @@ async function submitToApi(formData) {
         return result;
     } catch (error) {
         console.error('API Error:', error);
-        throw new Error('無法連接到伺服器，請稍後再試');
+        let message = '無法連接到伺服器，請稍後再試';
+
+        if (error instanceof Error && error.message) {
+            if (error.message.includes('Failed to fetch')) {
+                message = '無法連線到伺服器，請確認網路或稍後再試';
+            } else {
+                message = error.message;
+            }
+        }
+
+        throw new Error(message);
     }
 }
 
@@ -137,6 +151,10 @@ async function updateDisplay(chartElement) {
     const form = document.getElementById('ziwei-cal-form');
     if (!form) {
         throw new Error('Form element not found');
+    }
+    const container = form.closest('.ziwei-cal');
+    if (container) {
+        container.setAttribute('data-ziwei-mode', 'chart');
     }
     
     // Fade out form

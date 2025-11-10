@@ -138,7 +138,7 @@ register_rest_route('ziwei-cal/v1', '/calculate', [
 - Reduce the testing. Let users do the testing instead
 
 ## Progressive Development Strategy
- Current phase: **Phase 10 (Major Cycles & Annual Cycles)** - 大限流年 (🚧 in progress - v0.4.1)
+ Current phase: **Phase 10 (Major Cycles & Annual Cycles)** - 大限流年 (🚧 in progress - v0.4.4)
  
  - Phase 1-3: Form + palaces + basic information display (✅ complete)
  - Phase 4: Primary stars (✅ complete)
