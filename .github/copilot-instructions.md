@@ -127,6 +127,7 @@ register_rest_route('ziwei-cal/v1', '/calculate', [
 - **Module structure**: 'use strict'; at top, then calculations, then `window.ziweiXXX = { ...functions };` at end
 - **Object handling**: Always check for undefined/null before accessing nested properties (e.g., `lunar?.lunarMonth`)
 - **Data validation**: Log warnings for invalid inputs, return safe defaults (empty array/object)
+- **No fallbacks**: Assume all required data is present; log errors if not (fail fast principle)
 
 ### Code Quality Checklist
 
@@ -138,7 +139,7 @@ register_rest_route('ziwei-cal/v1', '/calculate', [
 - Reduce the testing. Let users do the testing instead
 
 ## Progressive Development Strategy
- Current phase: **Phase 10 (Major Cycles & Annual Cycles)** - 大限流年 (🚧 in progress - v0.4.4)
+ Current phase: **Phase 10 (Major Cycles & Annual Cycles)** - 大限流年 (🚧 in progress - v0.5.0)
  
  - Phase 1-3: Form + palaces + basic information display (✅ complete)
  - Phase 4: Primary stars (✅ complete)
@@ -147,8 +148,8 @@ register_rest_route('ziwei-cal/v1', '/calculate', [
  - Phase 7: Minor stars/雜曜 (✅ complete) - 43 stars fully implemented
  - Phase 8: 神煞 (✅ complete) - Tai Sui stars (太歲、將前、博士) fully implemented
  - Phase 9: Three-direction Four-square interaction & UI refinement (✅ complete)
- - Phase 10: Major cycles (大運) and annual cycles (流年) (🚧 ongoing)
- - Phase 11: School/Config systems (⏳ not started)
+ - Phase 10: Major cycles (大運) and annual cycles (流年) (✅ complete)
+ - Phase 11: School/Config systems (🚧 ongoing)
       - Phase 11a: Star status (廟旺利陷) configurations (⏳ not started)
       - Phase 11b: Different school rules (⏳ not started)
       - Phase 11c: Month, Day and time handling differences (⏳ not started)

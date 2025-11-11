@@ -23,11 +23,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Convert solar date to lunar date using local library
         console.log('Converting to lunar date...');
         const lunarData = solarToLunar(
-            parseInt(formData.year),
-            parseInt(formData.month),
-            parseInt(formData.day),
-            parseInt(formData.hour),
-            parseInt(formData.minute)
+            parseInt(formData.year, 10),
+            parseInt(formData.month, 10),
+            parseInt(formData.day, 10),
+            parseInt(formData.hour, 10),
+            parseInt(formData.minute, 10)
         );
         
         if (!lunarData) {
@@ -69,14 +69,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Handle back button clicks - attach to document to ensure it catches the event
+    // Handle control bar button clicks via event delegation
+    // (Settings button is handled internally by control.js)
     document.addEventListener('click', (e) => {
-        if (e.target.matches('.ziwei-back-btn')) {
-            // Find the chart container (it should be a sibling or nearby)
+        const backBtn = e.target.closest('.ziwei-back-btn');
+        if (backBtn) {
             const chartContainer = document.querySelector('[data-ziwei-chart]');
             if (chartContainer) {
                 window.ziweiForm.restore(chartContainer);
             }
+            return;
+        }
+
+        const prevBtn = e.target.closest('.ziwei-control-prev-hour');
+        if (prevBtn) {
+            document.dispatchEvent(new CustomEvent('ziwei-control-prev-hour'));
+            console.log('Control bar: previous hour requested');
+            return;
+        }
+
+        const nextBtn = e.target.closest('.ziwei-control-next-hour');
+        if (nextBtn) {
+            document.dispatchEvent(new CustomEvent('ziwei-control-next-hour'));
+            console.log('Control bar: next hour requested');
+            return;
         }
     });
 });
@@ -86,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
  * @param {Object} formData The form values to submit
  * @returns {Promise<Object>} API response data
  */
-async function submitToApi(formData) {
+window.submitToApi = async function submitToApi(formData) {
     try {
         if (!window.ziweiCalData?.restUrl) {
             throw new Error('REST API 設定缺失，請重新載入頁面');
@@ -138,7 +154,7 @@ async function submitToApi(formData) {
  * @param {Object} chartData The data returned from API
  * @returns {Promise<HTMLElement>} The chart element
  */
-async function showChart(chartData) {
+window.showChart = async function showChart(chartData) {
     return window.ziweiChart.draw(chartData);
 }
 
@@ -153,6 +169,8 @@ async function updateDisplay(chartElement) {
         throw new Error('Form element not found');
     }
     const container = form.closest('.ziwei-cal');
+    
+    // Set chart mode BEFORE replacing the form, so CSS selectors work immediately
     if (container) {
         container.setAttribute('data-ziwei-mode', 'chart');
     }
@@ -161,24 +179,21 @@ async function updateDisplay(chartElement) {
     form.style.transition = 'opacity 200ms ease';
     form.style.opacity = '0';
     
-    await new Promise(resolve => setTimeout(resolve, 220));
+    // Wait a total of 500ms (includes fade-out) before showing the chart
+    // — keeps calculations running while providing a short display pause.
+    await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Create controls bar (back button) - will be placed OUTSIDE the chart container
-    const controls = document.createElement('div');
-    controls.className = 'ziwei-chart-controls';
-
-    const backBtn = document.createElement('button');
-    backBtn.type = 'button';
-    backBtn.className = 'ziwei-back-btn';
-    backBtn.textContent = '上一頁';
-
-    controls.appendChild(backBtn);
-
     // Mark the chart element so the back button handler can find it
     chartElement.setAttribute('data-ziwei-chart', '1');
 
-    // Insert controls BEFORE the chart container, so they're not inside it
-    form.parentNode.insertBefore(controls, form);
+    if (window.ziweiControl && typeof window.ziweiControl.createBar === 'function') {
+        window.ziweiControl.createBar({
+            mountNode: form.parentNode,
+            beforeNode: form
+        });
+    } else {
+        console.warn('ziweiControl module not available; control bar not rendered.');
+    }
     
     // Replace the form with the chart element directly (after controls)
     form.replaceWith(chartElement);

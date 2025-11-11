@@ -12,9 +12,9 @@
         const majorCycles = Array.isArray(lifeCycleData?.majorCycles) ? lifeCycleData.majorCycles : [];
         const palaceData = lifeCycleData?.palaceData || {};
         const timeIndex = lifeCycleData?.timeIndex;
-        
-        console.log('Cycles.js initialized:', { majorCycles, palaceData, timeIndex, palaceInteraction });
-        
+
+        console.log('Cycles.js initialized:', { majorCycles, palaceData, timeIndex, palaceInteraction, lifeCycleData });
+
         if (!grid || majorCycles.length === 0) {
             return null;
         }
@@ -43,7 +43,7 @@
 
         const annualLabel = document.createElement('div');
         annualLabel.className = 'ziwei-cycle-label';
-        annualLabel.textContent = '流年(開發中)';
+        annualLabel.textContent = '流年';
         annualLabel.style.display = 'none';
         annualSection.appendChild(annualLabel);
 
@@ -52,8 +52,11 @@
         annualRow.style.display = 'none';
         annualSection.appendChild(annualRow);
 
-        let activeMajorButton = null;
+    let activeMajorButton = null;
         let isProcessingCycleClick = false;
+
+    // Fixed clockwise labels for 大限 display starting at 命宮
+    const MAJOR_LABELS = ['大命','大父','大福','大田','大事','大友','大遷','大疾','大財','大子','大夫','大兄'];
 
         const clearCycleState = () => {
             // Don't clear if we're in the middle of processing a cycle button click
@@ -72,10 +75,16 @@
             annualLabel.style.display = 'none';
             window.ziweiChartHelpers?.clearMajorCycleStars?.();
             window.ziweiChartHelpers?.clearMajorCycleMutations?.();
+            window.ziweiChartHelpers?.clearMajorMingLabel?.();
+            // Also clear any multi-palace major-cycle labels
+            window.ziweiChartHelpers?.clearMajorCycleLabels?.();
+            // Clear any multi-palace annual-cycle labels
+            window.ziweiChartHelpers?.clearAnnualCycleLabels?.();
+            window.ziweiChartHelpers?.clearAnnualCycleMutations?.();
+            window.ziweiChartHelpers?.clearAnnualMingLabel?.();
         };
 
         const highlightPalace = (palaceIndex) => {
-            console.log('highlightPalace called:', palaceIndex, 'API available:', typeof palaceInteraction?.highlight);
             if (palaceInteraction && typeof palaceInteraction.highlight === 'function') {
                 palaceInteraction.highlight(palaceIndex);
                 return;
@@ -83,10 +92,33 @@
 
             // Fallback: find cell and click it
             const fallbackCell = grid.querySelector(`.ziwei-cell[data-branch-index="${palaceIndex}"]`);
-            console.log('Fallback cell found:', !!fallbackCell, 'selector:', `.ziwei-cell[data-branch-index="${palaceIndex}"]`);
             if (fallbackCell) {
                 fallbackCell.click();
             }
+        };
+
+        /**
+         * Get earthly branch (地支) character for a given year
+         * @param {number} year The year
+         * @returns {string} Branch character (子-亥)
+         */
+        const getEarthlyBranchChar = (year) => {
+            const branches = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+            if (window.ziweiBasic && typeof window.ziweiBasic.getEarthlyBranchIndex === 'function') {
+                const branchIndex = window.ziweiBasic.getEarthlyBranchIndex(year);
+                return branches[branchIndex] || '';
+            }
+            return '';
+        };
+
+        /**
+         * Convert branch character to branch index (0-11)
+         * @param {string} branchChar Branch character (子-亥)
+         * @returns {number} Branch index (0-11), or -1 if not found
+         */
+        const branchCharToIndex = (branchChar) => {
+            const branches = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+            return branches.indexOf(branchChar);
         };
 
         const getPalaceStemBranch = (palaceIndex) => {
@@ -97,17 +129,140 @@
             return '';
         };
 
+        // Extract lunarYear: check window.ziweiChartData (set by chart.js) or grid data attributes
+        const lunarYear = (function() {
+            // Try window.ziweiChartData first (global cache from chart.js)
+            if (Number.isInteger(window.ziweiChartData?.lunarYear)) {
+                return window.ziweiChartData.lunarYear;
+            }
+            // Fallback: try old path for backward compatibility
+            if (Number.isInteger(window.ziweiChartData?.meta?.lunar?.lunarYear)) {
+                return window.ziweiChartData.meta.lunar.lunarYear;
+            }
+            // Try grid element data attributes
+            const gridLunarYear = grid?.dataset?.lunarYear;
+            if (gridLunarYear && /^\d+$/.test(gridLunarYear)) {
+                return parseInt(gridLunarYear, 10);
+            }
+            return null;
+        })();
+
+        console.log('Year extraction result:', { lunarYear, ziweiChartDataAvailable: !!window.ziweiChartData, gridDataset: grid?.dataset });
+
+        /**
+         * Get heavenly stem (天干) character for a given year
+         * @param {number} year The year
+         * @returns {string} Stem character (甲-癸)
+         */
+        const getHeavenlyStemChar = (year) => {
+            const stems = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
+            if (window.ziweiBasic && typeof window.ziweiBasic.getHeavenlyStemIndex === 'function') {
+                const stemIndex = window.ziweiBasic.getHeavenlyStemIndex(year);
+                return stems[stemIndex] || '';
+            }
+            return '';
+        };
+
+        /**
+         * Get the stem-branch (天干地支) characters for a given year
+         * @param {number} year The year
+         * @returns {string} Stem-branch combination (e.g., "甲子")
+         */
+        const getStemBranchForYear = (year) => {
+            return getHeavenlyStemChar(year) + getEarthlyBranchChar(year);
+        };
+
         const renderAnnualRow = (cycle) => {
             annualRow.innerHTML = '';
+            window.ziweiChartHelpers?.clearAnnualMingLabel?.();
+            window.ziweiChartHelpers?.clearAnnualCycleLabels?.();
+            window.ziweiChartHelpers?.clearAnnualCycleMutations?.();
+
+            // Strict requirement: must have lunarYear to compute actual years.
+            if (!Number.isInteger(lunarYear)) {
+                console.error('ziweiCycles: unable to render annual years — missing lunarYear', { 
+                    lunarYear, 
+                    ziweiChartData: window.ziweiChartData,
+                    gridDataset: grid?.dataset 
+                });
+                // Do not show the annual row when data insufficient (no fallback assumptions).
+                annualRow.style.display = 'none';
+                annualLabel.style.display = 'none';
+                return;
+            }
 
             for (let offset = 0; offset < 10; offset++) {
                 const age = cycle.startAge + offset;
                 const annualBtn = document.createElement('button');
                 annualBtn.type = 'button';
                 annualBtn.className = 'ziwei-cycle-button ziwei-annual-cycle-button';
-                annualBtn.textContent = `${age}`;
                 annualBtn.dataset.age = String(age);
                 annualBtn.dataset.cycleIndex = String(cycle.cycleIndex);
+
+                // Compute displayed year: lunarYear + startAge + offset - 1
+                // Example: lunarYear=1989, cycle 12-21, offset=0 => 1989+12-1=2000
+                const displayYear = lunarYear + cycle.startAge + offset - 1;
+                const stemBranch = getStemBranchForYear(displayYear);
+                
+                // Create button content: year on top, stem-branch + age on bottom
+                const yearSpan = document.createElement('div');
+                yearSpan.className = 'ziwei-annual-year';
+                yearSpan.textContent = `${displayYear}年`;
+                
+                const stemBranchSpan = document.createElement('div');
+                stemBranchSpan.className = 'ziwei-annual-stem-branch';
+                stemBranchSpan.textContent = `${stemBranch}${age}歲`;
+                
+                annualBtn.appendChild(yearSpan);
+                annualBtn.appendChild(stemBranchSpan);
+                annualBtn.dataset.year = String(displayYear);
+
+                // Add click event to annual button for highlighting palace and showing annual stars
+                annualBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    console.log('Annual button clicked:', { displayYear, stemBranch, age });
+
+                    // Extract branch character from stem-branch (last character is branch)
+                    const stemChar = stemBranch.charAt(0);
+                    const branchChar = stemBranch.charAt(1);
+                    const branchIndex = branchCharToIndex(branchChar);
+                    console.log('Branch info:', { branchChar, branchIndex });
+
+                    if (branchIndex >= 0 && branchIndex < 12) {
+                        // Prevent clear callbacks from wiping state while we update the view
+                        isProcessingCycleClick = true;
+
+                        // Highlight this annual button (add active class)
+                        const allAnnualButtons = annualRow.querySelectorAll('.ziwei-annual-cycle-button');
+                        allAnnualButtons.forEach(btn => {
+                            btn.classList.remove('ziwei-cycle-button-active');
+                        });
+                        annualBtn.classList.add('ziwei-cycle-button-active');
+
+                        // Highlight the palace based on branch index
+                        highlightPalace(branchIndex);
+
+                        // Show annual stars - ADD to existing major cycle stars, don't replace them
+                        window.ziweiChartHelpers?.showAnnualCycleStars?.({
+                            age: age,
+                            year: displayYear,
+                            branchIndex: branchIndex,
+                            stemChar: stemChar,
+                            timeIndex: timeIndex
+                        });
+
+                        // Also render the clockwise sequence of annual labels (skip the main 年命 palace)
+                        const ANNUAL_LABELS = ['流父','流福','流田','流事','流友','流遷','流疾','流財','流子','流夫','流兄'];
+                        window.ziweiChartHelpers?.setAnnualCycleLabels?.(branchIndex, ANNUAL_LABELS);
+
+                        // Allow deferred clear callbacks to run after highlight completes
+                        setTimeout(() => {
+                            isProcessingCycleClick = false;
+                        }, 100);
+                    }
+                });
+
                 annualRow.appendChild(annualBtn);
             }
             annualRow.style.display = 'grid';
@@ -129,6 +284,10 @@
                 palaceData: palaceData
             });
             window.ziweiChartHelpers?.applyMajorCycleMutations?.(cycleStem);
+            // Render the full clockwise sequence of 大限 labels around 命宮
+            if (Number.isInteger(cycleBranchIndex)) {
+                window.ziweiChartHelpers?.setMajorCycleLabels?.(cycleBranchIndex, MAJOR_LABELS);
+            }
         };
 
         majorCycles.forEach((cycle) => {

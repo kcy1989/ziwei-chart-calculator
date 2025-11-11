@@ -4,7 +4,7 @@ Tags: 紫微斗數, 命理, 排盤, 中州派, astrology
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 0.4.4
+Stable tag: 0.5.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -36,11 +36,18 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 7. 雜曜（其他星曜）（✅ 完成）
 8. 神煞（太歲、將前、博士）（✅ 完成）
 9. 三方四正與美化（✅ 完成）
-10. 大限流年（開發中）
-11. 派別/流派設定系統（未開始）
-12. 匯出 PNG/PDF（未開始）
-13. 星曜說明與提示（未開始）
-14. 星曜組合解釋（未開始）
+10. 大限流年（✅ 完成）
+11. 派別/流派設定系統（⏳ 長期開發中 - v0.5.x 系列）
+    * Phase 11a: 個人資料隱藏（✅ v0.5.1 完成）
+    * Phase 11b: 派別選擇與規則（🚧 開發中 - v0.5.2+）
+    * Phase 11c: 時區與地點調整（⏳ 計畫中 - v0.5.x）
+12. 匯出 PNG/PDF（⏳ 計畫中）
+13. 星曜說明與提示（⏳ 計畫中）
+14. 星曜組合解釋（⏳ 計畫中）
+
+**版本規劃**：
+- **v0.5.x 系列**（長期）：完成第 11 階段所有設定功能
+- **v0.6.0**（未來）：第 12-14 階段功能完成後發佈
 
 == Installation ==
 
@@ -54,38 +61,41 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 **程式架構：**
 
 ziwei-cal/
-├── ziwei-cal.php          # 主插件文件（PHP）
-├── readme.txt             # WordPress 插件說明文件
+├── ziwei-cal.php                  # 主插件文件（PHP、REST API 路由）
+├── readme.txt                     # WordPress 插件說明文件
 ├── templates/
-│   └── form.php           # 表單模板
+│   └── form.php                   # 表單模板
 ├── assets/
 │   ├── css/
-│   │   ├── form.css          　　 # 表單樣式
-│   │   └── chart.css         　　 # 命盤樣式
+│   │   ├── form.css               # 表單樣式
+│   │   └── chart.css              # 命盤樣式
 │   ├── js/
-│   │   ├── form.js            　　# 表單邏輯
-│   │   ├── calculator.js      　　# 主計算器
-│   │   ├── chart.js           　　# 命盤渲染
-│   │   ├── lunar-converter.js 　　# 農曆轉換
-│   │   ├── palace-interaction.js # 宮位三方四正互動/連線
-│   │   └── cycles.js       　　   # 大限盤選取/流年/四化/互動控制
+│   │   ├── form.js                # 表單邏輯與表單驗證
+│   │   ├── calculator.js          # 主計算器（POST 到 API）
+│   │   ├── control.js             # 控制列管理（時辰切換、設定按鈕）
+│   │   ├── config.js              # 設定模組（選項管理、應用邏輯）
+│   │   ├── chart.js               # 命盤渲染引擎
+│   │   ├── lunar-converter.js     # 農曆轉換（LunarSolarConverter）
+│   │   ├── palace-interaction.js  # 宮位三方四正互動
+│   │   └── cycles.js              # 大限盤選取、流年、四化顯示
 │   ├── astrology/
-│   │   ├── basic.js        　　   # 基本索引與方向計算
-│   │   ├── palaces.js     　　    # 宮位計算
-│   │   ├── primary.js      　　   # 主星安置
-│   │   ├── secondary.js    　　   # 輔星安置
-│   │   ├── minor-stars.js   　　  # 雜曜計算（43 顆星曜）
-│   │   ├── attributes.js    　　  # 神煞計算（太歲、將前、博士）
-│   │   ├── life-cycle.js    　　  # 大運與十二長生計算
-│   │   ├── major-cycle.js   　　  # 大限星/流年星/四化標註
-│   │   ├── gender-calculator.js  # 陰陽性別計算
-│   │   └── mutations.js     　　  # 生年四化（祿權科忌）
+│   │   ├── basic.js               # 基本索引計算、方向判斷
+│   │   ├── palaces.js             # 宮位計算
+│   │   ├── primary.js             # 主星（紫微、天府等）安置
+│   │   ├── secondary.js           # 輔星（左輔右弼、文昌等）安置
+│   │   ├── minor-stars.js         # 雜曜計算（43 顆星曜）
+│   │   ├── attributes.js          # 神煞計算（太歲、將前、博士）
+│   │   ├── life-cycle.js          # 大運與十二長生計算
+│   │   ├── major-cycle.js         # 大限星、流年星、四化標註
+│   │   ├── gender-calculator.js   # 陰陽性別分類計算
+│   │   └── mutations.js           # 生年四化（祿權科忌）
 │   └── data/
 │       ├── palaces-name.js        # 宮位名稱資料
 │       ├── nayin.js               # 納音五行局資料
 │       └── mutation-zhongzhou.js  # 中州派四化表
 └── .github/
-    └── copilot-instructions.md    # 開發規範與架構文件
+    ├── copilot-instructions.md    # GitHub Copilot 開發規範
+    └── CONFIG_MODULE_GUIDE.md     # 設定模組開發指引
 
 **技術規範：**
 
@@ -127,6 +137,21 @@ ziwei-cal/
 此功能將在階段 12 開發。
 
 == Changelog ==
+
+= 0.5.1 - 2025-11-11 =
+* 新增：個人資料隱藏功能（隱藏姓名、性別、出生日期）
+* 新增：快速更改時辰
+* 新增：支援年份至2100年
+* 改進：預填今日資料
+* 優化：代碼清理，移除冗餘邏輯
+* 優化：改善效能，加強安全性
+
+= 0.5.0 - 2025-11-11 =
+* 新增：流曜顯示
+* 新增：流年四化（綠色標示）
+* 刪除：取消姓名輸入要求，去除相關驗證
+* 改進：宮位布局調整
+* 優化：CSS 代碼整理
 
 = 0.4.4 - 2025-11-10 =
 * 新增：開發日誌超連結及版本資訊
@@ -192,6 +217,11 @@ ziwei-cal/
 **貢獻：**
 
 歡迎提交 Issue 和 Pull Request！
+
+== Known Issues ==
+
+* 當某宮位同時包含大量主星、輔星與雜曜時，可能出現文字溢出或重疊。後續版本將考慮：
+    * 星曜縮排 / 摺疊顯示
 
 == Credits ==
 

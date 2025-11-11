@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * Plugin Name: Ziwei Cal
  * Description: Ziwei Doushu Chart Calculator
- * Version: 0.4.4
+ * Version: 0.5.1
  * Author: kcy1989
  * License: GPL v2 or later
  * Text Domain: ziwei-cal
@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('ZIWEI_CAL_VERSION', '0.4.4'); // Bump version to force cache refresh
+define('ZIWEI_CAL_VERSION', '0.5.1'); // Bump version to force cache refresh
 define('ZIWEI_CAL_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('ZIWEI_CAL_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -211,6 +211,13 @@ function ziwei_cal_enqueue_scripts(): void {
         ZIWEI_CAL_VERSION
     );
 
+    wp_enqueue_style(
+        'ziwei-cal-control',
+        ZIWEI_CAL_PLUGIN_URL . 'assets/css/control.css',
+        [],
+        ZIWEI_CAL_VERSION
+    );
+
     // Enqueue lunar converter library (supports 1900-2100)
     wp_enqueue_script(
         'ziwei-cal-lunar-converter',
@@ -370,9 +377,25 @@ function ziwei_cal_enqueue_scripts(): void {
     );
 
     wp_enqueue_script(
+        'ziwei-cal-config',
+        ZIWEI_CAL_PLUGIN_URL . 'assets/js/config.js',
+        [],
+        ZIWEI_CAL_VERSION,
+        true
+    );
+
+    wp_enqueue_script(
+        'ziwei-cal-control',
+        ZIWEI_CAL_PLUGIN_URL . 'assets/js/control.js',
+        ['ziwei-cal-config'],
+        ZIWEI_CAL_VERSION,
+        true
+    );
+
+    wp_enqueue_script(
         'ziwei-cal-js',
         ZIWEI_CAL_PLUGIN_URL . 'assets/js/calculator.js',
-        ['jquery', 'ziwei-cal-form', 'ziwei-cal-chart', 'ziwei-cal-palace-interaction'],
+        ['jquery', 'ziwei-cal-form', 'ziwei-cal-chart', 'ziwei-cal-palace-interaction', 'ziwei-cal-control'],
         ZIWEI_CAL_VERSION,
         true
     );

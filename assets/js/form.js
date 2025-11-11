@@ -1,316 +1,637 @@
-/**
- * Form handling module for Ziwei Calculator
- */
+'use strict';
 
-// Keep a clone of the form (with current values) for back button functionality
-let _savedFormClone = null;
+// ============================================================================
+// Module State & Constants
+// ============================================================================
+
+const DEBUG_FORM = !!(window?.ziweiCalData?.env?.isDebug);
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const DEBOUNCE_MS = 250;
+
+const state = {
+    isInitialized: false,
+    isSubmitting: false,
+    form: null,
+    inputs: [],
+    inputMap: new Map(),
+    submitBtn: null,
+    lastValues: null,
+    lastErrors: {},
+    listeners: [],
+    debounceTimers: new Map(),
+    savedFormClone: null // For back button functionality
+};
+
+// ============================================================================
+// Logging Utilities
+// ============================================================================
+
+function log(...args) {
+    if (DEBUG_FORM) console.log('[ziwei-form]', ...args);
+}
+
+function warn(...args) {
+    if (DEBUG_FORM) console.warn('[ziwei-form]', ...args);
+}
+
+function err(...args) {
+    console.error('[ziwei-form]', ...args);
+}
+
+
+// ============================================================================
+// Initialization & Cleanup
+// ============================================================================
 
 /**
- * Initialize form event handlers
+ * Initialize form event handlers (idempotent)
  */
 function initForm() {
-    console.log('Initializing form...');
+    log('Initializing form...');
+    
     const form = document.getElementById('ziwei-cal-form');
     if (!form) {
-        console.error('Form element not found');
+        err('Form element not found');
         return;
     }
-
-    // Remove any existing event listeners by cloning the form
-    const newForm = form.cloneNode(true);
-    form.parentNode.replaceChild(newForm, form);
-
-    // Add new submit event listener
-    newForm.addEventListener('submit', e => {
-        console.log('Form submit event triggered');
-        // Prevent default form submission
-        e.preventDefault();
-        
-        // Get and validate form data
-        const formData = getFormValues();
-        console.log('Collected form data:', formData);
-        
-        if (!validateFormValues(formData)) {
-            console.log('Form validation failed');
-            return;
-        }
-
-        // Dispatch form submit event
-        try {
-            // Check required global configuration
-            if (!window.ziweiCalData || !window.ziweiCalData.nonce) {
-                console.error('Missing required WordPress configuration');
-                showError('系統配置錯誤，請重新載入頁面');
-                return;
-            }
-
-            // Create and dispatch form submit event
-            const event = new CustomEvent('ziwei-form-submit', {
-                bubbles: true,
-                cancelable: true,
-                detail: { 
-                    formData,
-                    nonce: window.ziweiCalData.nonce
-                }
-            });
-            
-            // Ensure event is dispatched only once
-            const dispatched = newForm.dispatchEvent(event);
-            
-            if (window.ziweiCalData?.env?.isDebug) {
-                console.log('Form submit event dispatched:', dispatched);
-                console.log('Event data:', {
-                    formData,
-                    hasNonce: !!window.ziweiCalData.nonce
-                });
-            }
-            
-            if (!dispatched) {
-                console.log('Event was cancelled');
-                showError('表單提交被取消');
-            }
-        } catch (err) {
-            console.error('Error dispatching event:', err);
-            showError('提交表單時發生錯誤');
-            
-            if (window.ziweiCalData?.env?.isDebug) {
-                console.error('Detailed error:', err);
-            }
-        }
-    });
-
-    // Add debug click handler to submit button in debug mode
-    if (window.ziweiCalData?.env?.isDebug) {
-        const submitBtn = form.querySelector('button[type="submit"]');
-        if (submitBtn) {
-            submitBtn.addEventListener('click', () => {
-                console.log('Submit button clicked');
-            });
+    
+    // Prevent duplicate initialization
+    if (state.isInitialized) {
+        log('Form already initialized, skipping');
+        return;
+    }
+    
+    // Cache form and elements
+    state.form = form;
+    state.inputs = Array.from(form.querySelectorAll('input, select, textarea'));
+    state.submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
+    
+    // Build input map for fast lookup
+    state.inputMap.clear();
+    for (let i = 0; i < state.inputs.length; i++) {
+        const el = state.inputs[i];
+        if (el.name) {
+            state.inputMap.set(el.name, el);
         }
     }
-
-    console.log('Form initialized successfully with debug mode:', !!window.ziweiCalData?.env?.isDebug);
+    
+    // Pre-fill current date and time
+    prefillCurrentDateTime();
+    
+    // Register event listeners
+    const handleReset = () => {
+        // Re-fill date and time after form reset
+        setTimeout(prefillCurrentDateTime, 0);
+    };
+    
+    form.addEventListener('submit', handleSubmit);
+    form.addEventListener('input', handleInput, { passive: true });
+    form.addEventListener('reset', handleReset);
+    state.listeners.push(['submit', handleSubmit], ['input', handleInput], ['reset', handleReset]);
+    
+    state.isInitialized = true;
+    log('Form initialized with', state.inputs.length, 'fields');
 }
 
 /**
- * Get values from form fields
- * @returns {Object} Collected form values
+ * Pre-fill current date and time with specific rounding for time
+ * Time is rounded down to nearest 5-minute interval
  */
-function getFormValues() {
-    const form = document.getElementById('ziwei-cal-form');
-    if (!form) {
-        console.error('Form not found when getting values');
-        return null;
+function prefillCurrentDateTime() {
+    const now = new Date();
+    
+    // Get current date components
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1; // getMonth() is 0-indexed
+    const day = now.getDate();
+    
+    // Get current time and round down to nearest 5-minute interval
+    let hour = now.getHours();
+    let minute = now.getMinutes();
+    minute = Math.floor(minute / 5) * 5;
+    
+    // Pre-fill year
+    const yearSelect = document.getElementById('ziwei-birth-year');
+    if (yearSelect) {
+        yearSelect.value = String(year);
+        log(`Pre-filled year: ${year}`);
     }
-
-    const getValue = selector => form.querySelector(selector)?.value ?? '';
-    const getCheckedValue = name => form.querySelector(`input[name="${name}"]:checked`)?.value ?? '';
-
-    // Get raw values (do not convert immediately)
-    const rawValues = {
-        name: getValue('#ziwei-name'),
-        gender: getCheckedValue('gender'),
-        year: getValue('#ziwei-birth-year'),
-        month: getValue('#ziwei-birth-month'),
-        day: getValue('#ziwei-birth-day'),
-        hour: getValue('#ziwei-birth-hour'),
-        minute: getValue('#ziwei-birth-minute'),
-        birthplace: getValue('#ziwei-birthplace')
-    };
-
-    // Convert and validate values
-    const data = {
-        name: rawValues.name.trim(),
-        gender: rawValues.gender,
-        year: rawValues.year === '' ? '' : parseInt(rawValues.year, 10) || 0,
-        month: rawValues.month === '' ? '' : parseInt(rawValues.month, 10) || 0,
-        day: rawValues.day === '' ? '' : parseInt(rawValues.day, 10) || 0,
-        hour: rawValues.hour === '' ? '' : parseInt(rawValues.hour, 10),
-        minute: rawValues.minute === '' ? '' : parseInt(rawValues.minute, 10),
-        birthplace: rawValues.birthplace.trim()
-    };
-
-    console.log('Form values collected:', data);
-    return data;
+    
+    // Pre-fill month
+    const monthSelect = document.getElementById('ziwei-birth-month');
+    if (monthSelect) {
+        monthSelect.value = String(month);
+        log(`Pre-filled month: ${month}`);
+    }
+    
+    // Pre-fill day
+    const daySelect = document.getElementById('ziwei-birth-day');
+    if (daySelect) {
+        daySelect.value = String(day);
+        log(`Pre-filled day: ${day}`);
+    }
+    
+    // Pre-fill hour
+    const hourSelect = document.getElementById('ziwei-birth-hour');
+    if (hourSelect) {
+        hourSelect.value = String(hour);
+        log(`Pre-filled hour: ${hour}`);
+    }
+    
+    // Pre-fill minute
+    const minuteSelect = document.getElementById('ziwei-birth-minute');
+    if (minuteSelect) {
+        minuteSelect.value = String(minute);
+        log(`Pre-filled minute: ${minute}`);
+    }
 }
 
 /**
- * Validate form values
- * @param {Object} data The form values to validate
- * @returns {boolean} Whether validation passed
+ * Cleanup form event handlers
  */
-function validateFormValues(data) {
-    let isValid = true;
+function destroyForm() {
+    if (!state.form) return;
     
-    // Clear all existing error messages
-    clearAllErrors();
+    log('Destroying form...');
     
-    // Check basic fields
-    if (!data.name || data.name.trim() === '') {
-        showFieldError('ziwei-name', '請輸入姓名');
-        isValid = false;
+    // Remove all event listeners
+    for (let i = 0; i < state.listeners.length; i++) {
+        const [type, fn] = state.listeners[i];
+        state.form.removeEventListener(type, fn);
     }
+    state.listeners = [];
     
-    if (!data.gender) {
-        showFieldError('ziwei-gender-group', '請選擇性別');
-        isValid = false;
-    }
+    // Clear all debounce timers
+    state.debounceTimers.forEach(id => clearTimeout(id));
+    state.debounceTimers.clear();
     
-    // Check date and time
-    const isDateMissing = !data.year || !data.month || !data.day || 
-                         data.year === 0 || data.month === 0 || data.day === 0;
-    const isHourMissing = data.hour === '' || data.hour === undefined;
-    const isMinuteMissing = data.minute === '' || data.minute === undefined;
+    // Reset state
+    state.isInitialized = false;
+    state.form = null;
+    state.inputs = [];
+    state.inputMap.clear();
+    state.submitBtn = null;
+    
+    log('Form destroyed');
+}
 
-    if (isDateMissing || isHourMissing || isMinuteMissing) {
-        showFieldError('ziwei-birth-time', '請選擇完整的出生訊息');
-        isValid = false;
+
+// ============================================================================
+// Input Handling & Debounced Validation
+// ============================================================================
+
+/**
+ * Handle input events with debouncing
+ */
+function handleInput(e) {
+    const el = e.target;
+    if (!el || !el.name) return;
+    
+    const name = el.name;
+    
+    // Clear previous timer
+    const prev = state.debounceTimers.get(name);
+    if (prev) clearTimeout(prev);
+    
+    // Set new timer for validation
+    const id = setTimeout(() => {
+        const res = validateField(name, el.value);
+        applyFieldA11y(el, res);
+        state.debounceTimers.delete(name);
+    }, DEBOUNCE_MS);
+    
+    state.debounceTimers.set(name, id);
+}
+
+/**
+ * Apply accessibility attributes based on validation result
+ * @param {HTMLElement} el Field element
+ * @param {{valid: boolean, message?: string}} res Validation result
+ */
+function applyFieldA11y(el, res) {
+    const isValid = res?.valid !== false;
+    
+    if (!isValid) {
+        el.setAttribute('aria-invalid', 'true');
+        if (res?.message) {
+            el.title = res.message;
+        }
     } else {
-        // If date is filled, validate it
-        const date = new Date(data.year, data.month - 1, data.day);
-        if (date.getMonth() !== data.month - 1 || date.getDate() !== data.day) {
-            showFieldError('ziwei-birth-date', '請輸入有效的日期');
-            isValid = false;
+        if (el.getAttribute('aria-invalid') === 'true') {
+            el.removeAttribute('aria-invalid');
+        }
+        if (el.title) {
+            el.title = '';
         }
     }
+}
 
-    // Log validation result in debug mode
-    if (window.ziweiCalData?.env?.isDebug) {
-        console.log('Form validation result:', {
-            isValid,
-            data
-        });
+// ============================================================================
+// Value Collection & Validation
+// ============================================================================
+
+/**
+ * Collect values from form inputs
+ * @returns {Object} Field values
+ */
+function collectValues() {
+    const values = {};
+    
+    for (let i = 0; i < state.inputs.length; i++) {
+        const el = state.inputs[i];
+        if (!el.name) continue;
+        
+        let v = el.value;
+        
+        // Trim string values
+        if (typeof v === 'string') {
+            v = v.trim();
+        }
+        
+        // Handle checkboxes and radios
+        if (el.type === 'checkbox' || el.type === 'radio') {
+            if (el.checked) {
+                values[el.name] = v;
+            }
+        } else {
+            values[el.name] = v;
+        }
     }
     
-    return isValid;
+    return values;
 }
 
 /**
- * Clear all error messages
+ * Validate a single field
+ * @param {string} name Field name
+ * @param {*} value Field value
+ * @returns {{valid: boolean, message?: string}} Validation result
+ */
+function validateField(name, value) {
+    switch (name) {
+        case 'name':
+            // Name is optional, so always valid
+            return { valid: true };
+            
+        case 'gender':
+            return value ? { valid: true } : { valid: false, message: '請選擇性別' };
+            
+        case 'year':
+        case 'month':
+        case 'day':
+            if (!value || value === '0' || value === 0) {
+                return { valid: false, message: '請選擇完整的日期' };
+            }
+            return { valid: true };
+            
+        case 'hour':
+        case 'minute':
+            if (value === '' || value === undefined || value === null) {
+                return { valid: false, message: '請選擇完整的時間' };
+            }
+            return { valid: true };
+            
+        default:
+            return { valid: true };
+    }
+}
+
+/**
+ * Validate all collected values
+ * @param {Object} values Field values
+ * @returns {{ok: boolean, errors: Object}} Validation result
+ */
+function validateValues(values) {
+    const errors = {};
+    
+    // Validate gender
+    if (!values.gender) {
+        errors.gender = '請選擇性別';
+    }
+    
+    // Validate date fields
+    const year = values.year ? parseInt(values.year, 10) : 0;
+    const month = values.month ? parseInt(values.month, 10) : 0;
+    const day = values.day ? parseInt(values.day, 10) : 0;
+    
+    if (!year || !month || !day) {
+        errors.birthdate = '請選擇完整的出生日期';
+    } else {
+        // Validate date is real
+        const date = new Date(year, month - 1, day);
+        if (date.getMonth() !== month - 1 || date.getDate() !== day) {
+            errors.birthdate = '請輸入有效的日期';
+        }
+    }
+    
+    // Validate time fields
+    const hour = values.hour;
+    const minute = values.minute;
+    
+    if (hour === '' || hour === undefined || hour === null ||
+        minute === '' || minute === undefined || minute === null) {
+        errors.birthtime = '請選擇完整的出生時間';
+    }
+    
+    return {
+        ok: Object.keys(errors).length === 0,
+        errors
+    };
+}
+
+
+// ============================================================================
+// Error Rendering
+// ============================================================================
+
+/**
+ * Render validation errors (batch update)
+ * @param {Object} errors Error messages by field name
+ */
+function renderErrors(errors) {
+    const msgs = [];
+    
+    for (const k in errors) {
+        msgs.push(errors[k]);
+        const el = state.inputMap.get(k);
+        if (el) {
+            applyFieldA11y(el, { valid: false, message: errors[k] });
+        }
+    }
+    
+    // Only call showError once with all messages
+    if (msgs.length > 0) {
+        const combinedMsg = msgs.join('；');
+        
+        // Avoid redundant error display
+        const lastMsg = state.lastErrors.combined;
+        if (lastMsg !== combinedMsg) {
+            if (typeof showError === 'function') {
+                showError(combinedMsg);
+            } else {
+                warn('Errors:', combinedMsg);
+            }
+            state.lastErrors.combined = combinedMsg;
+        }
+    }
+}
+
+/**
+ * Focus first invalid field
+ * @param {Object} errors Error messages by field name
+ */
+function focusFirstInvalid(errors) {
+    for (const k in errors) {
+        const el = state.inputMap.get(k);
+        if (el && typeof el.focus === 'function') {
+            el.focus();
+            break;
+        }
+    }
+}
+
+/**
+ * Clear all errors
  */
 function clearAllErrors() {
+    // Clear aria-invalid from all fields
+    for (let i = 0; i < state.inputs.length; i++) {
+        const el = state.inputs[i];
+        if (el.getAttribute('aria-invalid') === 'true') {
+            el.removeAttribute('aria-invalid');
+        }
+        if (el.title) {
+            el.title = '';
+        }
+    }
+    
+    // Remove error message elements
     const elementsToClean = [
-        // General error messages
         '.ziwei-cal-error-message',
-        // API error messages
         '.ziwei-cal-api-error',
-        // Date-time group errors
         '.ziwei-cal-datetime-group.has-error',
-        // All elements with error state
         '.ziwei-cal-field-error'
     ];
 
-    // Clean all error-related elements and styles
     elementsToClean.forEach(selector => {
         document.querySelectorAll(selector).forEach(el => {
             if (selector === '.ziwei-cal-error-message' || selector === '.ziwei-cal-api-error') {
-                // Remove error message elements
                 el.remove();
             } else {
-                // Remove error state classes
                 el.classList.remove('ziwei-cal-field-error', 'has-error');
             }
         });
     });
-
-    // Ensure gender group error state is cleared
+    
     const genderGroup = document.querySelector('.ziwei-cal-gender-group');
     if (genderGroup) {
         genderGroup.classList.remove('ziwei-cal-field-error');
     }
+    
+    state.lastErrors = {};
+    log('Cleared all form errors');
+}
 
-    // Log clearing operation in debug mode
-    if (window.ziweiCalData?.env?.isDebug) {
-        console.log('Cleared all form errors');
+// ============================================================================
+// Submit Handling
+// ============================================================================
+
+/**
+ * Toggle busy state
+ * @param {boolean} busy Whether form is busy
+ */
+function toggleBusy(busy) {
+    if (!state.form) return;
+    
+    if (busy) {
+        state.form.setAttribute('aria-busy', 'true');
+        if (state.submitBtn) {
+            state.submitBtn.disabled = true;
+            state.submitBtn.textContent = '計算中...';
+        }
+    } else {
+        state.form.removeAttribute('aria-busy');
+        if (state.submitBtn) {
+            state.submitBtn.disabled = false;
+            state.submitBtn.textContent = '開始排盤';
+        }
     }
 }
 
 /**
- * Show field error message
- * @param {string} fieldId - Field ID or field group ID
- * @param {string} message - Error message
+ * Handle form submission
+ * @param {Event} e Submit event
+ */
+async function handleSubmit(e) {
+    e.preventDefault();
+    
+    if (!state.form) return;
+    
+    // Prevent reentry
+    if (state.isSubmitting) {
+        warn('Form already submitting, ignoring');
+        return;
+    }
+    
+    state.isSubmitting = true;
+    toggleBusy(true);
+    
+    try {
+        // Clear previous errors
+        clearAllErrors();
+        
+        // Collect values
+        const rawValues = collectValues();
+        
+        // Prepare form data with proper types
+        const formData = {
+            name: rawValues.name || '無名氏',
+            gender: rawValues.gender,
+            year: rawValues.year ? parseInt(rawValues.year, 10) : 0,
+            month: rawValues.month ? parseInt(rawValues.month, 10) : 0,
+            day: rawValues.day ? parseInt(rawValues.day, 10) : 0,
+            hour: rawValues.hour ? parseInt(rawValues.hour, 10) : '',
+            minute: rawValues.minute ? parseInt(rawValues.minute, 10) : '',
+            birthplace: rawValues.birthplace || ''
+        };
+        
+        log('Form data collected:', formData);
+        
+        // Validate
+        const result = validateValues(rawValues);
+        
+        if (!result.ok) {
+            log('Validation failed:', result.errors);
+            renderErrors(result.errors);
+            focusFirstInvalid(result.errors);
+            state.isSubmitting = false;
+            toggleBusy(false);
+            return;
+        }
+        
+        // Check nonce
+        if (!window.ziweiCalData || !window.ziweiCalData.nonce) {
+            err('Missing required WordPress configuration');
+            if (typeof showError === 'function') {
+                showError('系統配置錯誤，請重新載入頁面');
+            }
+            state.isSubmitting = false;
+            toggleBusy(false);
+            return;
+        }
+        
+        // Save values snapshot
+        state.lastValues = formData;
+        
+        // Wait 500ms with "計算中..." showing
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Dispatch event
+        const detail = Object.freeze({
+            formData,
+            nonce: window.ziweiCalData.nonce
+        });
+        
+        const event = new CustomEvent('ziwei-form-submit', {
+            bubbles: true,
+            cancelable: true,
+            detail
+        });
+        
+        const dispatched = state.form.dispatchEvent(event);
+        
+        log('Form submit event dispatched:', dispatched);
+        
+        if (!dispatched) {
+            if (typeof showError === 'function') {
+                showError('表單提交被取消');
+            }
+            state.isSubmitting = false;
+            toggleBusy(false);
+        }
+        
+        // Note: toggleBusy(false) is called by calculator.js after chart display
+        
+    } catch (ex) {
+        err('Error in form submission:', ex);
+        if (typeof showError === 'function') {
+            showError('提交時發生錯誤，請稍後再試');
+        }
+        state.isSubmitting = false;
+        toggleBusy(false);
+    }
+}
+
+
+// ============================================================================
+// Legacy Support Functions
+// ============================================================================
+
+/**
+ * Show field error message (legacy compatibility)
+ * @param {string} fieldId Field ID or field group ID
+ * @param {string} message Error message
  */
 function showFieldError(fieldId, message) {
-    // Use different selectors for different field types
     let targetElement;
     let errorContainer;
 
     switch (fieldId) {
         case 'ziwei-name':
-            // Name field - error goes in .ziwei-cal-name-group
             const nameInput = document.getElementById(fieldId);
             errorContainer = nameInput ? nameInput.closest('.ziwei-cal-name-group') : null;
-            targetElement = errorContainer; // Target is the container for adding error class
+            targetElement = errorContainer;
             break;
 
         case 'ziwei-gender-group':
-            // Gender selection group
             targetElement = document.querySelector('.ziwei-cal-gender-group');
             errorContainer = targetElement;
             break;
 
         case 'ziwei-birth-date':
         case 'ziwei-birth-time':
-            // Date-time group
             targetElement = document.querySelector('.ziwei-cal-datetime-group');
             errorContainer = targetElement;
             break;
 
         default:
-            // General fields (e.g., name)
             targetElement = document.getElementById(fieldId);
             errorContainer = targetElement ? targetElement.parentNode : null;
             break;
     }
 
     if (!targetElement || !errorContainer) {
-        console.error('Target element not found:', fieldId);
+        err('Target element not found:', fieldId);
         return;
     }
 
-    // Remove existing error message
     const existingError = errorContainer.querySelector('.ziwei-cal-error-message');
     if (existingError) {
         existingError.remove();
     }
 
-    // Create error message element
     const errorDiv = document.createElement('div');
     errorDiv.className = 'ziwei-cal-error-message';
     errorDiv.textContent = message;
     errorDiv.setAttribute('role', 'alert');
 
-    // Add error state styles
     targetElement.classList.add('ziwei-cal-field-error');
     
-    // For date-time group, add special error state
     if (fieldId === 'ziwei-birth-date' || fieldId === 'ziwei-birth-time') {
         targetElement.classList.add('has-error');
     }
 
-    // Insert error message
     errorContainer.appendChild(errorDiv);
-
-    // If in debug mode, log the error
-    if (window.ziweiCalData?.env?.isDebug) {
-        console.log('Field error shown:', {
-            field: fieldId,
-            message: message,
-            element: targetElement
-        });
-    }
+    
+    log('Field error shown:', { field: fieldId, message });
 }
 
 /**
- * Show loading state on the submit button
+ * Show loading state on the submit button (legacy compatibility)
  * @param {boolean} isLoading Whether to show loading state
  */
 function setSubmitLoading(isLoading) {
-    const submitButton = document.querySelector('.ziwei-cal-btn-primary');
-    if (submitButton) {
-        submitButton.disabled = isLoading;
-        submitButton.textContent = isLoading ? '計算中...' : '開始排盤';
-    }
+    toggleBusy(isLoading);
 }
 
 /**
@@ -319,7 +640,6 @@ function setSubmitLoading(isLoading) {
  * @param {boolean} [isApiError=false] Whether this is an API error
  */
 function showError(message, isApiError = false) {
-    // Remove any existing error messages
     const existingErrors = document.querySelectorAll('.ziwei-cal-api-error');
     existingErrors.forEach(error => error.remove());
 
@@ -356,7 +676,6 @@ function showError(message, isApiError = false) {
         errorDiv.appendChild(iconDiv);
         errorDiv.appendChild(contentDiv);
 
-        // Insert error message at top of the form
         const form = formContainer.querySelector('form');
         if (form) {
             form.insertAdjacentElement('beforebegin', errorDiv);
@@ -364,16 +683,8 @@ function showError(message, isApiError = false) {
             formContainer.prepend(errorDiv);
         }
 
-        // Debug logging
-        if (window.ziweiCalData?.env?.isDebug) {
-            console.log('Error displayed:', {
-                message,
-                isApiError,
-                timestamp: new Date().toISOString()
-            });
-        }
+        log('Error displayed:', { message, isApiError });
 
-        // Auto-hide non-API errors after 5 seconds
         if (!isApiError) {
             setTimeout(() => {
                 errorDiv.style.opacity = '0';
@@ -383,12 +694,18 @@ function showError(message, isApiError = false) {
     }
 }
 
+// ============================================================================
+// Form State Management
+// ============================================================================
+
 /**
  * Save current form state
- * @param {HTMLFormElement} form The form element to save
  */
-function saveFormState(form) {
-    _savedFormClone = cloneFormWithValues(form);
+function saveFormState() {
+    if (!state.form) return;
+    
+    state.savedFormClone = cloneFormWithValues(state.form);
+    log('Form state saved');
 }
 
 /**
@@ -398,14 +715,17 @@ function saveFormState(form) {
  */
 function cloneFormWithValues(formEl) {
     if (!formEl) return null;
+    
     const clone = formEl.cloneNode(true);
 
-    // Copy values for inputs/selects/textareas
     const origInputs = formEl.querySelectorAll('input,select,textarea');
     const cloneInputs = clone.querySelectorAll('input,select,textarea');
-    origInputs.forEach((orig, idx) => {
-        const cloneInput = cloneInputs[idx];
-        if (!cloneInput) return;
+    
+    for (let i = 0; i < origInputs.length; i++) {
+        const orig = origInputs[i];
+        const cloneInput = cloneInputs[i];
+        if (!cloneInput) continue;
+        
         try {
             if (orig.type === 'checkbox' || orig.type === 'radio') {
                 cloneInput.checked = orig.checked;
@@ -413,9 +733,9 @@ function cloneFormWithValues(formEl) {
                 cloneInput.value = orig.value;
             }
         } catch (e) {
-            // ignore
+            // Ignore errors
         }
-    });
+    }
 
     return clone;
 }
@@ -426,7 +746,7 @@ function cloneFormWithValues(formEl) {
  * @returns {Promise<void>}
  */
 async function restoreForm(currentElement) {
-    if (!_savedFormClone) {
+    if (!state.savedFormClone) {
         window.location.reload();
         return;
     }
@@ -439,39 +759,61 @@ async function restoreForm(currentElement) {
     currentElement.style.transition = 'opacity 200ms ease';
     currentElement.style.opacity = '0';
     
-    // Also fade out the controls if they exist
-    const controls = currentElement.parentNode?.querySelector('.ziwei-chart-controls');
+    const controls = currentElement.parentNode?.querySelector('.ziwei-control-bar');
     if (controls) {
         controls.style.transition = 'opacity 200ms ease';
         controls.style.opacity = '0';
+    }
+
+    const settingsPanel = currentElement.parentNode?.querySelector('.ziwei-settings-panel');
+    if (settingsPanel) {
+        settingsPanel.style.transition = 'opacity 200ms ease';
+        settingsPanel.style.opacity = '0';
     }
     
     await new Promise(resolve => setTimeout(resolve, 220));
 
     try {
-        const newForm = _savedFormClone;
+        const newForm = state.savedFormClone;
         currentElement.replaceWith(newForm);
         
-        // Remove the controls bar as well
         if (controls) {
             controls.remove();
         }
+        if (settingsPanel) {
+            settingsPanel.remove();
+        }
+        
+        // Reset submitting state before re-initializing
+        state.isSubmitting = false;
+        state.isInitialized = false;
         
         requestAnimationFrame(() => {
             newForm.style.opacity = '0';
             newForm.style.transition = 'opacity 200ms ease';
             requestAnimationFrame(() => { newForm.style.opacity = '1'; });
         });
+        
+        // Re-initialize form to restore event handlers and reset button state
         initForm();
-    } catch (err) {
-        console.error('Failed to restore form:', err);
+        
+        // Ensure button is in correct state
+        toggleBusy(false);
+        
+        log('Form restored successfully');
+    } catch (err2) {
+        err('Failed to restore form:', err2);
         window.location.reload();
     }
 }
 
-// Expose public API
+// ============================================================================
+// Public API
+// ============================================================================
+
 window.ziweiForm = {
     init: initForm,
+    cleanup: destroyForm,
     setLoading: setSubmitLoading,
     showError,
     saveState: saveFormState,

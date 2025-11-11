@@ -94,25 +94,25 @@ function LunarSolarConverter() {
     // WARNING: Dates before Oct. 1582 are inaccurate
     this.SolarToInt = function(y, m, d) {
         m = (m + 9) % 12;
-        y = parseInt(y) - parseInt(m / 10);
-        return 365 * y + parseInt(y / 4) - parseInt(y / 100) + parseInt(y / 400) + parseInt((m * 306 + 5) / 10) + (d - 1);
+        y = parseInt(y, 10) - parseInt(m / 10, 10);
+        return 365 * y + parseInt(y / 4, 10) - parseInt(y / 100, 10) + parseInt(y / 400, 10) + parseInt((m * 306 + 5) / 10, 10) + (d - 1);
     };
 
     this.SolarFromInt = function(g) {
-        var y = parseInt((10000 * g + 14780) / 3652425);
-        var ddd = g - (365 * y + parseInt(y / 4) - parseInt(y / 100) + parseInt(y / 400));
+        var y = parseInt((10000 * g + 14780) / 3652425, 10);
+        var ddd = g - (365 * y + parseInt(y / 4, 10) - parseInt(y / 100, 10) + parseInt(y / 400, 10));
         if (ddd < 0) {
             y--;
-            ddd = g - (365 * y + parseInt(y / 4) - parseInt(y / 100) + parseInt(y / 400));
+            ddd = g - (365 * y + parseInt(y / 4, 10) - parseInt(y / 100, 10) + parseInt(y / 400, 10));
         }
-        var mi = parseInt((100 * ddd + 52) / 3060);
+        var mi = parseInt((100 * ddd + 52) / 3060, 10);
         var mm = (mi + 2) % 12 + 1;
-        y = y + parseInt((mi + 2) / 12);
-        var dd = ddd - parseInt((mi * 306 + 5) / 10) + 1;
+        y = y + parseInt((mi + 2) / 12, 10);
+        var dd = ddd - parseInt((mi * 306 + 5) / 10, 10) + 1;
         var solar = new Solar();
-        solar.solarYear = parseInt(y);
-        solar.solarMonth = parseInt(mm);
-        solar.solarDay = parseInt(dd);
+        solar.solarYear = parseInt(y, 10);
+        solar.solarMonth = parseInt(mm, 10);
+        solar.solarDay = parseInt(dd, 10);
         return solar;
     };
 
@@ -170,7 +170,7 @@ function LunarSolarConverter() {
                 break;
             }
         }
-        var lunarD = parseInt(offset);
+        var lunarD = parseInt(offset, 10);
         lunar.lunarYear = lunarY;
         lunar.lunarMonth = lunarM;
         lunar.isleap = false;
@@ -195,7 +195,7 @@ function LunarSolarConverter() {
  */
 function getTimeIndex(hour) {
     // Ensure hour is an integer
-    hour = parseInt(hour);
+    hour = parseInt(hour, 10);
     
     // Map clock hours to Chinese double-hour indices (0-11)
     if (hour >= 23 || hour < 1) return 0;   // 子時 (23-0)
@@ -270,7 +270,7 @@ function solarToLunar(year, month, day, hour, minute) {
         // Format lunar month
         var lunarMonthNames = [
             '正', '二', '三', '四', '五', '六',
-            '七', '八', '九', '十', '冬', '臘'
+            '七', '八', '九', '十', '十一', '十二'
         ];
 
         var monthIndex = lunar.lunarMonth - 1;
@@ -317,7 +317,7 @@ function solarToLunar(year, month, day, hour, minute) {
             hour: hour,
             minute: minute,
             timeIndex: timeIndex,       // Time index (1-12) for calculations
-            lunarYear: lunar.lunarYear,
+            lunarYear: lunar.lunarYear,  
             lunarMonth: lunar.lunarMonth,
             lunarDay: lunar.lunarDay
         };

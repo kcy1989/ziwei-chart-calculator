@@ -5,9 +5,12 @@
  */
 
 // Registry objects used to coordinate cycle panel interactions
-const cycleDisplayRegistry = {};
-const starMutationRegistry = {};
+let cycleDisplayRegistry = Object.create(null);
+let starMutationRegistry = Object.create(null);
+let starElementIndex = new Map(); // Reverse index: starName -> HTMLElement[]
 let lastPalaceDataRef = {};
+let currentMajorCycleMingIndex = null;
+let currentAnnualCycleMingIndex = null;
 
 // Fixed branch mapping for 4x4 grid layout to avoid reallocation per cell
 const GRID_BRANCH_MAP = [
@@ -21,13 +24,11 @@ const GRID_BRANCH_MAP = [
  * Reset registry state before rendering a new chart
  */
 function resetCycleRegistries() {
-    Object.keys(cycleDisplayRegistry).forEach((key) => {
-        delete cycleDisplayRegistry[key];
-    });
-
-    Object.keys(starMutationRegistry).forEach((key) => {
-        delete starMutationRegistry[key];
-    });
+    cycleDisplayRegistry = Object.create(null);
+    starMutationRegistry = Object.create(null);
+    starElementIndex = new Map();
+    currentMajorCycleMingIndex = null;
+    currentAnnualCycleMingIndex = null;
 }
 
 /**
@@ -63,44 +64,42 @@ function clearMajorCycleStars() {
 /**
  * Remove previously applied major cycle mutation badges
  */
-function clearMajorCycleMutations() {
+function clearMutationsByRole(roleName) {
     Object.values(starMutationRegistry).forEach((starMap) => {
         Object.values(starMap).forEach((groupList) => {
             groupList.forEach((groupEl) => {
                 const wrapper = groupEl.querySelector('.ziwei-mutations-wrapper');
                 if (!wrapper) {
-                    // If wrapper is missing, ensure highlight state reflects remaining mutations (none)
-                    if (!groupEl.querySelector('.ziwei-mutation')) {
-                        groupEl.classList.remove('ziwei-star-with-mutation');
-                        if (!groupEl.classList.contains('ziwei-star-no-mutation')) {
-                            groupEl.classList.add('ziwei-star-no-mutation');
-                        }
-                    }
+                    // No wrapper means no mutations at all
+                    groupEl.classList.toggle('ziwei-star-with-mutation', false);
+                    groupEl.classList.toggle('ziwei-star-no-mutation', true);
                     return;
                 }
 
-                const majorMutations = wrapper.querySelectorAll('[data-mutation-role="major-cycle"]');
-                majorMutations.forEach((mutationEl) => {
-                    mutationEl.remove();
-                });
+                // Remove specific role mutations in one query
+                const targetMutations = wrapper.querySelectorAll(`[data-mutation-role="${roleName}"]`);
+                targetMutations.forEach(mutationEl => mutationEl.remove());
 
-                if (!wrapper.querySelector('.ziwei-mutation')) {
+                // Check if wrapper is now empty
+                if (!wrapper.firstElementChild) {
                     wrapper.remove();
                 }
 
+                // Set final class state once
                 const hasAnyMutations = groupEl.querySelector('.ziwei-mutation') !== null;
-                if (hasAnyMutations) {
-                    groupEl.classList.add('ziwei-star-with-mutation');
-                    groupEl.classList.remove('ziwei-star-no-mutation');
-                } else {
-                    groupEl.classList.remove('ziwei-star-with-mutation');
-                    if (!groupEl.classList.contains('ziwei-star-no-mutation')) {
-                        groupEl.classList.add('ziwei-star-no-mutation');
-                    }
-                }
+                groupEl.classList.toggle('ziwei-star-with-mutation', hasAnyMutations);
+                groupEl.classList.toggle('ziwei-star-no-mutation', !hasAnyMutations);
             });
         });
     });
+}
+
+function clearMajorCycleMutations() {
+    clearMutationsByRole('major-cycle');
+}
+
+function clearAnnualCycleMutations() {
+    clearMutationsByRole('annual-cycle');
 }
 
 /**
@@ -137,43 +136,50 @@ function showMajorCycleStars({ cycle, stem, branchIndex, timeIndex, palaceData }
                     majorCycleBranchIndex,
                     timeIndex
                 );
-                console.log('Major cycle stars calculated:', majorCycleStars, 'stem:', stem, 'stemIndex:', stemIndex, 'branchIndex:', majorCycleBranchIndex, 'timeIndex:', timeIndex);
+                const DEBUG = window.ziweiCalData?.isDebug === true;
+                if (DEBUG) {
+                    console.log('Major cycle stars calculated:', majorCycleStars, 'stem:', stem, 'stemIndex:', stemIndex, 'branchIndex:', majorCycleBranchIndex, 'timeIndex:', timeIndex);
+                }
             }
         } catch (e) {
             console.warn('Failed to calculate major cycle stars:', e);
         }
     }
 
-    // Display major cycle stars in appropriate palace cells
+    // Pre-bucket stars by palace for O(1) lookup
+    const palaceBuckets = new Map();
+    for (const [starLabel, palaceIdx] of Object.entries(majorCycleStars)) {
+        if (!palaceBuckets.has(palaceIdx)) {
+            palaceBuckets.set(palaceIdx, []);
+        }
+        palaceBuckets.get(palaceIdx).push(starLabel);
+    }
+
     // Display major cycle stars in appropriate palace cells
     Object.entries(cycleDisplayRegistry).forEach(([branchIndex, elements]) => {
         if (!elements) return;
-    const { major, annual, wrapper } = elements;
+        const { major, annual, wrapper } = elements;
         const branchNum = Number(branchIndex);
 
-        // Collect all major cycle stars located in this palace (may be multiple)
-        let starsInPalace = [];
-        for (const [starLabel, palaceIdx] of Object.entries(majorCycleStars)) {
-            if (palaceIdx === branchNum) {
-                starsInPalace.push(starLabel);
-            }
-        }
+        // Get stars for this palace from bucket
+        const starsInPalace = palaceBuckets.get(branchNum) || [];
 
         // Remove previously injected dynamic stars
         if (wrapper) {
-            const toRemove = wrapper.querySelectorAll('[data-role="major-cycle"]');
-            toRemove.forEach((el) => el.remove());
+            wrapper.querySelectorAll('[data-role="major-cycle"]').forEach(n => n.remove());
         }
 
-        // Render each major cycle star as its own vertical column (like minor stars)
+        // Render each major cycle star using DocumentFragment
         if (wrapper && starsInPalace.length > 0) {
+            const frag = document.createDocumentFragment();
             starsInPalace.forEach((label) => {
                 const el = document.createElement('div');
                 el.className = 'ziwei-major-cycle-star';
-                el.setAttribute('data-role', 'major-cycle');
+                el.dataset.role = 'major-cycle';
                 el.textContent = label;
-                wrapper.appendChild(el);
+                frag.appendChild(el);
             });
+            wrapper.appendChild(frag);
         }
 
         // Keep placeholders hidden (we use dynamic items)
@@ -189,6 +195,10 @@ function showMajorCycleStars({ cycle, stem, branchIndex, timeIndex, palaceData }
             annual.classList.add('hidden');
         }
     });
+
+    if (Number.isInteger(majorCycleBranchIndex)) {
+        setMajorCycleMingLabel(majorCycleBranchIndex);
+    }
 }
 
 /**
@@ -205,29 +215,370 @@ function applyMajorCycleMutations(heavenlyStem) {
     const mutations = MutationZhongzhou.getAllMutations(heavenlyStem);
     if (!mutations) return;
 
+    // Use reverse index for O(mutations) complexity instead of O(mutations × palaces × stars)
     Object.entries(mutations).forEach(([mutationType, starName]) => {
-        Object.values(starMutationRegistry).forEach((starMap) => {
-            const groupList = starMap[starName];
-            if (!groupList) return;
+        const groupList = starElementIndex.get(starName);
+        if (!groupList) return;
 
-            groupList.forEach((groupEl) => {
-                let wrapper = groupEl.querySelector('.ziwei-mutations-wrapper');
-                if (!wrapper) {
-                    wrapper = document.createElement('div');
-                    wrapper.className = 'ziwei-mutations-wrapper';
-                    groupEl.appendChild(wrapper);
-                }
+        groupList.forEach((groupEl) => {
+            let wrapper = groupEl.querySelector('.ziwei-mutations-wrapper');
+            if (!wrapper) {
+                wrapper = document.createElement('div');
+                wrapper.className = 'ziwei-mutations-wrapper';
+                groupEl.appendChild(wrapper);
+            }
 
-                const mutationEl = document.createElement('span');
-                mutationEl.className = 'ziwei-mutation ziwei-mutation-major';
-                mutationEl.textContent = mutationType;
-                mutationEl.setAttribute('data-mutation-role', 'major-cycle');
-                wrapper.appendChild(mutationEl);
+            const mutationEl = document.createElement('span');
+            mutationEl.className = 'ziwei-mutation ziwei-mutation-major';
+            mutationEl.textContent = mutationType;
+            mutationEl.dataset.mutationRole = 'major-cycle';
+            wrapper.appendChild(mutationEl);
 
-                groupEl.classList.add('ziwei-star-with-mutation');
-                groupEl.classList.remove('ziwei-star-no-mutation');
-            });
+            groupEl.classList.add('ziwei-star-with-mutation');
+            groupEl.classList.remove('ziwei-star-no-mutation');
         });
+    });
+}
+
+function applyAnnualCycleMutations(heavenlyStem) {
+    clearAnnualCycleMutations();
+
+    if (!heavenlyStem || typeof MutationZhongzhou === 'undefined') {
+        return;
+    }
+
+    const mutations = MutationZhongzhou.getAllMutations(heavenlyStem);
+    if (!mutations) return;
+
+    // Use reverse index for O(mutations) complexity instead of O(mutations × palaces × stars)
+    Object.entries(mutations).forEach(([mutationType, starName]) => {
+        const groupList = starElementIndex.get(starName);
+        if (!groupList) return;
+
+        groupList.forEach((groupEl) => {
+            let wrapper = groupEl.querySelector('.ziwei-mutations-wrapper');
+            if (!wrapper) {
+                wrapper = document.createElement('div');
+                wrapper.className = 'ziwei-mutations-wrapper';
+                groupEl.appendChild(wrapper);
+            }
+
+            const mutationEl = document.createElement('span');
+            mutationEl.className = 'ziwei-mutation ziwei-mutation-annual';
+            mutationEl.textContent = mutationType;
+            mutationEl.dataset.mutationRole = 'annual-cycle';
+            wrapper.appendChild(mutationEl);
+
+            groupEl.classList.add('ziwei-star-with-mutation');
+            groupEl.classList.remove('ziwei-star-no-mutation');
+        });
+    });
+}
+
+/**
+ * Display annual cycle stars (流曜) in all palace cells
+ * Adds "流曜" stars alongside existing major cycle stars without clearing them
+ * @param {Object} options Annual cycle render options
+ * @param {number} [options.age] Age during this annual cycle
+ * @param {number} [options.year] Lunar year
+ * @param {number} [options.branchIndex] Earthly branch index of the annual palace (0-11)
+ */
+function showAnnualCycleStars({ age, year, branchIndex, stemChar, timeIndex } = {}) {
+    let annualCycleStars = {};
+    const branchIdx = Number.isInteger(branchIndex) ? branchIndex : Number(branchIndex);
+
+    if (window.ziweiMajorCycleStars && typeof window.ziweiMajorCycleStars.calculateAllMajorCycleStars === 'function') {
+        try {
+            const stemIndex = stemChar
+                ? window.ziweiMajorCycleStars.stemCharToIndex(stemChar)
+                : -1;
+
+            if (stemIndex >= 0 && Number.isInteger(branchIdx)) {
+                const effectiveTimeIndex = Number.isInteger(timeIndex)
+                    ? timeIndex
+                    : (window.ziweiChartData?.meta?.birthtime
+                        ? getMilitaryHourIndex(window.ziweiChartData.meta.birthtime)
+                        : 0);
+
+                const rawStars = window.ziweiMajorCycleStars.calculateAllMajorCycleStars(
+                    stemIndex,
+                    branchIdx,
+                    effectiveTimeIndex
+                );
+
+                annualCycleStars = Object.fromEntries(
+                    Object.entries(rawStars).map(([starName, palace]) => {
+                        const label = starName.startsWith('大')
+                            ? starName.replace(/^大/, '流')
+                            : `流${starName}`;
+                        return [label, palace];
+                    })
+                );
+
+                const DEBUG = window.ziweiCalData?.isDebug === true;
+                if (DEBUG) {
+                    console.log('Annual cycle stars calculated:', {
+                        age,
+                        year,
+                        stemChar,
+                        branchIdx,
+                        timeIndex: effectiveTimeIndex,
+                        annualCycleStars
+                    });
+                }
+            } else {
+                console.warn('Annual cycle stars skipped due to invalid stem or branch index', {
+                    stemChar,
+                    branchIndex
+                });
+            }
+        } catch (e) {
+            console.warn('Failed to calculate annual cycle stars:', e);
+        }
+    }
+
+    // Pre-bucket stars by palace for O(1) lookup
+    const palaceBuckets = new Map();
+    for (const [starLabel, palaceIdx] of Object.entries(annualCycleStars)) {
+        if (!palaceBuckets.has(palaceIdx)) {
+            palaceBuckets.set(palaceIdx, []);
+        }
+        palaceBuckets.get(palaceIdx).push(starLabel);
+    }
+
+    Object.entries(cycleDisplayRegistry).forEach(([palaceBranchIndex, elements]) => {
+        if (!elements) return;
+        const { major, annual, wrapper } = elements;
+        const branchNum = Number(palaceBranchIndex);
+
+        if (wrapper) {
+            wrapper.querySelectorAll('[data-role="annual-cycle"]').forEach(n => n.remove());
+        }
+
+        // Get stars for this palace from bucket
+        const starsInPalace = palaceBuckets.get(branchNum) || [];
+
+        if (wrapper && starsInPalace.length > 0) {
+            const frag = document.createDocumentFragment();
+            starsInPalace.forEach((label) => {
+                const el = document.createElement('div');
+                el.className = 'ziwei-annual-cycle-star';
+                el.dataset.role = 'annual-cycle';
+                el.textContent = label;
+                frag.appendChild(el);
+            });
+            wrapper.appendChild(frag);
+        }
+
+        if (major) {
+            major.textContent = '';
+            major.classList.add('hidden');
+        }
+
+        if (annual) {
+            annual.textContent = '';
+            annual.classList.add('hidden');
+        }
+    });
+
+    if (Number.isInteger(branchIdx) && branchIdx >= 0 && branchIdx < 12) {
+        setAnnualCycleMingLabel(branchIdx);
+    }
+
+    applyAnnualCycleMutations(stemChar);
+}
+
+function clearMajorMingLabel() {
+    if (!Number.isInteger(currentMajorCycleMingIndex)) {
+        currentMajorCycleMingIndex = null;
+        return;
+    }
+
+    const record = cycleDisplayRegistry[currentMajorCycleMingIndex];
+    const container = record?.palaceContainer;
+    if (container) {
+        const label = container.querySelector('[data-role="major-cycle-ming"]');
+        if (label) {
+            label.remove();
+        }
+    }
+
+    currentMajorCycleMingIndex = null;
+}
+
+function setMajorCycleMingLabel(branchIndex) {
+    if (!Number.isInteger(branchIndex) || branchIndex < 0 || branchIndex > 11) {
+        return;
+    }
+
+    clearMajorMingLabel();
+
+    const record = cycleDisplayRegistry[branchIndex];
+    const container = record?.palaceContainer;
+    if (!container) {
+        return;
+    }
+
+    const existing = container.querySelector('[data-role="major-cycle-ming"]');
+    if (existing) {
+        existing.remove();
+    }
+
+    const tag = document.createElement('div');
+    tag.className = 'ziwei-palace-label ziwei-palace-tag ziwei-palace-tag-major';
+    tag.setAttribute('data-role', 'major-cycle-ming');
+    tag.textContent = '大命';
+    container.prepend(tag);
+
+    currentMajorCycleMingIndex = branchIndex;
+}
+
+function clearAnnualMingLabel() {
+    if (!Number.isInteger(currentAnnualCycleMingIndex)) {
+        currentAnnualCycleMingIndex = null;
+        return;
+    }
+
+    const record = cycleDisplayRegistry[currentAnnualCycleMingIndex];
+    const container = record?.palaceContainer;
+    if (container) {
+        const label = container.querySelector('[data-role="annual-cycle-ming"]');
+        if (label) {
+            label.remove();
+        }
+    }
+
+    currentAnnualCycleMingIndex = null;
+}
+
+function setAnnualCycleMingLabel(branchIndex) {
+    if (!Number.isInteger(branchIndex) || branchIndex < 0 || branchIndex > 11) {
+        return;
+    }
+
+    clearAnnualMingLabel();
+
+    const record = cycleDisplayRegistry[branchIndex];
+    const container = record?.palaceContainer;
+    if (!container) {
+        return;
+    }
+
+    const existing = container.querySelector('[data-role="annual-cycle-ming"]');
+    if (existing) {
+        existing.remove();
+    }
+
+    const tag = document.createElement('div');
+    tag.className = 'ziwei-palace-label ziwei-palace-tag ziwei-palace-tag-annual';
+    tag.setAttribute('data-role', 'annual-cycle-ming');
+    tag.textContent = '年命';
+    container.prepend(tag);
+
+    currentAnnualCycleMingIndex = branchIndex;
+}
+
+/**
+ * Set a clockwise sequence of major-cycle labels starting from a given palace branch index.
+ * Labels array should contain up to 12 strings. The first label will be placed at startBranchIndex,
+ * the next at (start+1) mod 12, and so on.
+ * @param {number} startBranchIndex
+ * @param {Array<string>} labelsArray
+ */
+function setMajorCycleLabels(startBranchIndex, labelsArray) {
+    if (!Number.isInteger(startBranchIndex) || startBranchIndex < 0 || startBranchIndex > 11) return;
+    if (!Array.isArray(labelsArray) || labelsArray.length === 0) return;
+
+    // Clear any previously placed major-cycle sequence labels first
+    clearMajorCycleLabels();
+    labelsArray.forEach((labelText, i) => {
+        const targetIndex = (startBranchIndex + i) % 12;
+        const record = cycleDisplayRegistry[targetIndex];
+        const container = record?.palaceContainer;
+        if (!container) return;
+
+        // For the first label (index 0) prefer the existing major-cycle-ming tag
+        if (i === 0) {
+            // Ensure the canonical major-cycle-ming label exists and has correct text
+            setMajorCycleMingLabel(targetIndex);
+            // Update text if different
+            const existing = container.querySelector('[data-role="major-cycle-ming"]');
+            if (existing && existing.textContent !== labelText) {
+                existing.textContent = labelText;
+            }
+            return;
+        }
+
+        // Use a predictable data-role so we can clear them later
+        const roleName = `major-cycle-label-${i}`;
+        const existing = container.querySelector(`[data-role="${roleName}"]`);
+        if (existing) existing.remove();
+
+        const tag = document.createElement('div');
+        tag.className = 'ziwei-palace-label ziwei-palace-tag ziwei-palace-tag-major';
+        tag.setAttribute('data-role', roleName);
+        tag.textContent = labelText;
+        container.prepend(tag);
+    });
+
+    // Keep track of the first (大命) palace index for compatibility with other helpers
+    currentMajorCycleMingIndex = startBranchIndex;
+}
+
+/**
+ * Clear any major-cycle sequence labels inserted by setMajorCycleLabels
+ */
+function clearMajorCycleLabels() {
+    Object.values(cycleDisplayRegistry).forEach((record) => {
+        const container = record?.palaceContainer;
+        if (!container) return;
+        const nodes = container.querySelectorAll('[data-role^="major-cycle-label-"]');
+        nodes.forEach((n) => n.remove());
+    });
+}
+
+/**
+ * Set an ordered sequence of annual-cycle labels (skip the main 年命 palace).
+ * labelsArray should contain labels in clockwise order excluding the main '年命'.
+ * They will be placed starting at startBranchIndex+1, +2, ...
+ * @param {number} startBranchIndex
+ * @param {Array<string>} labelsArray
+ */
+function setAnnualCycleLabels(startBranchIndex, labelsArray) {
+    if (!Number.isInteger(startBranchIndex) || startBranchIndex < 0 || startBranchIndex > 11) return;
+    if (!Array.isArray(labelsArray) || labelsArray.length === 0) return;
+
+    // Clear any previous annual labels
+    clearAnnualCycleLabels();
+
+    labelsArray.forEach((labelText, i) => {
+        // Place labels starting at the next palace clockwise (skip the main 年命 palace)
+        const targetIndex = (startBranchIndex + 1 + i) % 12;
+        const record = cycleDisplayRegistry[targetIndex];
+        const container = record?.palaceContainer;
+        if (!container) return;
+
+        const roleName = `annual-cycle-label-${i}`;
+        const existing = container.querySelector(`[data-role="${roleName}"]`);
+        if (existing) existing.remove();
+
+        const tag = document.createElement('div');
+        tag.className = 'ziwei-palace-label ziwei-palace-tag ziwei-palace-tag-annual';
+        tag.setAttribute('data-role', roleName);
+        tag.textContent = labelText;
+        container.prepend(tag);
+    });
+}
+
+/**
+ * Clear any annual-cycle sequence labels inserted by setAnnualCycleLabels
+ */
+function clearAnnualCycleLabels() {
+    Object.values(cycleDisplayRegistry).forEach((record) => {
+        const container = record?.palaceContainer;
+        if (!container) return;
+        const nodes = container.querySelectorAll('[data-role^="annual-cycle-label-"]');
+        nodes.forEach((n) => n.remove());
     });
 }
 
@@ -247,6 +598,12 @@ function registerStarGroup(branchIndex, starName, groupEl) {
     }
 
     starMutationRegistry[branchIndex][starName].push(groupEl);
+    
+    // Also populate reverse index for fast mutation lookups
+    if (!starElementIndex.has(starName)) {
+        starElementIndex.set(starName, []);
+    }
+    starElementIndex.get(starName).push(groupEl);
 }
 
 /**
@@ -316,6 +673,8 @@ function failAndAbort(message) {
 function appendStarsToContainer(container, starsData, branchIndex, starClass, mutationLookup) {
     if (!starsData || !container) return;
 
+    const frag = document.createDocumentFragment();
+    
     Object.entries(starsData).forEach(([starName, starPalaceIndex]) => {
         const palaceIdx = typeof starPalaceIndex === 'number'
             ? starPalaceIndex
@@ -327,9 +686,13 @@ function appendStarsToContainer(container, starsData, branchIndex, starClass, mu
 
         const mutationType = mutationLookup?.[starName] || null;
         const starGroupEl = createStarGroupElement(starName, starClass, mutationType);
-        container.appendChild(starGroupEl);
+        frag.appendChild(starGroupEl);
         registerStarGroup(branchIndex, starName, starGroupEl);
     });
+    
+    if (frag.childNodes.length > 0) {
+        container.appendChild(frag);
+    }
 }
 
 /**
@@ -416,6 +779,13 @@ function draw(chartData) {
         monthIndex = 0;
     }
     timeIndex = getMilitaryHourIndex(meta.birthtime);
+    
+    // Cache metadata globally for cycles.js and other interactive modules to access
+    window.ziweiChartData = {
+        meta: meta,
+        lunarYear: lunarYear
+    };
+    console.log('ziweiChartData cached:', window.ziweiChartData);
     
     // Calculate palace positions (Ming Palace, Shen Palace, others)
     let palaceData = {};
@@ -688,7 +1058,30 @@ function draw(chartData) {
         }
     }
     
+    // Pre-bucket minor stars by palace for O(1) lookup in createPalaceCell
+    const minorStarsBuckets = Array(12).fill(null).map(() => []);
+    if (minorStarsData && typeof minorStarsData === 'object') {
+        for (const [starName, starPalaceIndex] of Object.entries(minorStarsData)) {
+            if (Array.isArray(starPalaceIndex)) {
+                // Star appears in multiple palaces
+                starPalaceIndex.forEach(idx => {
+                    if (idx >= 0 && idx < 12) {
+                        minorStarsBuckets[idx].push(starName);
+                    }
+                });
+            } else if (typeof starPalaceIndex === 'number') {
+                // Star appears in single palace
+                if (starPalaceIndex >= 0 && starPalaceIndex < 12) {
+                    minorStarsBuckets[starPalaceIndex].push(starName);
+                }
+            }
+        }
+    }
+    
     // Add all 12 palace cells (skip center positions)
+    // Set grid data attributes for cycles.js fallback access
+    grid.dataset.lunarYear = String(lunarYear);
+    
     for (let row = 1; row <= 4; row++) {
         for (let col = 1; col <= 4; col++) {
             if ((row === 2 || row === 3) && (col === 2 || col === 3)) continue; // Skip center
@@ -700,7 +1093,7 @@ function draw(chartData) {
                 secondaryStarsData,
                 lifeCycleData,
                 mutationsData,
-                minorStarsData,
+                minorStarsBuckets,
                 taiSuiStarsData,
                 hasPalaceData
             ));
@@ -721,6 +1114,7 @@ function draw(chartData) {
     // Wrap grid in a container to isolate it from external elements
     const chartWrapper = document.createElement('div');
     chartWrapper.className = 'ziwei-chart-wrapper';
+    chartWrapper.setAttribute('data-ziwei-chart', '1');
     chartWrapper.style.marginBottom = '30px';
     chartWrapper.appendChild(grid);
 
@@ -960,12 +1354,12 @@ function hourToChinese(hour) {
  * @param {Object} secondaryStarsData Secondary stars positions from calculateAllSecondaryStars
  * @param {Object} lifeCycleData Life cycle information for all 12 palaces
  * @param {Object} mutationsData Four mutations data from calculateBirthYearMutations
- * @param {Object} minorStarsData Minor stars positions from calculateMinorStars
+ * @param {Array<Array<string>>} minorStarsBuckets Pre-bucketed minor stars by palace index
  * @param {Object} taiSuiStarsData Tai Sui attributes data
  * @param {boolean} hasPalaceData Whether palace data is available
  * @returns {HTMLElement} The palace cell element
  */
-function createPalaceCell(row, col, palaceData = {}, primaryStarsData = {}, secondaryStarsData = {}, lifeCycleData = {}, mutationsData = null, minorStarsData = {}, taiSuiStarsData = {}, hasPalaceData = false) {
+function createPalaceCell(row, col, palaceData = {}, primaryStarsData = {}, secondaryStarsData = {}, lifeCycleData = {}, mutationsData = null, minorStarsBuckets = [], taiSuiStarsData = {}, hasPalaceData = false) {
     const cell = document.createElement('div');
     cell.className = 'ziwei-cell';
     cell.style.gridColumnStart = String(col);
@@ -989,36 +1383,26 @@ function createPalaceCell(row, col, palaceData = {}, primaryStarsData = {}, seco
                 cell.appendChild(starsContainer);
             }
 
-            if (minorStarsData && typeof minorStarsData === 'object') {
-                const minorStarNames = [];
+            // Use pre-bucketed minor stars for O(1) access
+            const minorStarNames = minorStarsBuckets[branchIndex] || [];
+            if (minorStarNames.length > 0) {
+                const minorStarsContainer = document.createElement('div');
+                minorStarsContainer.className = 'ziwei-minor-stars-container';
 
-                for (const [starName, starPalaceIndex] of Object.entries(minorStarsData)) {
-                    const isInThisPalace = Array.isArray(starPalaceIndex)
-                        ? starPalaceIndex.includes(branchIndex)
-                        : starPalaceIndex === branchIndex;
+                const minorStarsGroup = document.createElement('div');
+                minorStarsGroup.className = 'ziwei-minor-stars-group';
 
-                    if (isInThisPalace) {
-                        minorStarNames.push(starName);
-                    }
-                }
+                const frag = document.createDocumentFragment();
+                minorStarNames.forEach((name) => {
+                    const minorStarEl = document.createElement('div');
+                    minorStarEl.className = 'ziwei-minor-star';
+                    minorStarEl.textContent = name;
+                    frag.appendChild(minorStarEl);
+                });
 
-                if (minorStarNames.length > 0) {
-                    const minorStarsContainer = document.createElement('div');
-                    minorStarsContainer.className = 'ziwei-minor-stars-container';
-
-                    const minorStarsGroup = document.createElement('div');
-                    minorStarsGroup.className = 'ziwei-minor-stars-group';
-
-                    minorStarNames.forEach((name) => {
-                        const minorStarEl = document.createElement('div');
-                        minorStarEl.className = 'ziwei-minor-star';
-                        minorStarEl.textContent = name;
-                        minorStarsGroup.appendChild(minorStarEl);
-                    });
-
-                    minorStarsContainer.appendChild(minorStarsGroup);
-                    cell.appendChild(minorStarsContainer);
-                }
+                minorStarsGroup.appendChild(frag);
+                minorStarsContainer.appendChild(minorStarsGroup);
+                cell.appendChild(minorStarsContainer);
             }
 
             const cycleStarsWrapper = document.createElement('div');
@@ -1045,17 +1429,22 @@ function createPalaceCell(row, col, palaceData = {}, primaryStarsData = {}, seco
             palaceContainer.className = 'ziwei-palace-container';
 
             const stemBranchEl = document.createElement('div');
-            stemBranchEl.className = 'ziwei-palace-branch';
+            stemBranchEl.className = 'ziwei-palace-label ziwei-palace-branch';
             const stemBranchText = (palace.stem || '') + (palace.branchZhi || branchNumToChar(branchIndex));
             stemBranchEl.textContent = stemBranchText;
 
             const nameEl = document.createElement('div');
-            nameEl.className = 'ziwei-palace-name';
+            nameEl.className = 'ziwei-palace-label ziwei-palace-name';
             nameEl.textContent = palace.name;
 
-            palaceContainer.appendChild(stemBranchEl);
+            // Swap order: palace name (left/first) then stem-branch (right/last)
             palaceContainer.appendChild(nameEl);
+            palaceContainer.appendChild(stemBranchEl);
             cell.appendChild(palaceContainer);
+
+            if (cycleDisplayRegistry[branchIndex]) {
+                cycleDisplayRegistry[branchIndex].palaceContainer = palaceContainer;
+            }
 
             if (window.ziweiAttributes && taiSuiStarsData) {
                 const attributes = window.ziweiAttributes.getAttributesForPalace(branchIndex, taiSuiStarsData);
@@ -1116,7 +1505,7 @@ function createPalaceCell(row, col, palaceData = {}, primaryStarsData = {}, seco
             }
 
             const branchEl = document.createElement('div');
-            branchEl.className = 'ziwei-palace-branch';
+            branchEl.className = 'ziwei-palace-label ziwei-palace-branch';
             branchEl.textContent = branchNumToChar(branchIndex);
             cell.appendChild(branchEl);
         }
@@ -1135,3 +1524,14 @@ window.ziweiChartHelpers.showMajorCycleStars = showMajorCycleStars;
 window.ziweiChartHelpers.clearMajorCycleStars = clearMajorCycleStars;
 window.ziweiChartHelpers.applyMajorCycleMutations = applyMajorCycleMutations;
 window.ziweiChartHelpers.clearMajorCycleMutations = clearMajorCycleMutations;
+window.ziweiChartHelpers.showAnnualCycleStars = showAnnualCycleStars;
+window.ziweiChartHelpers.applyAnnualCycleMutations = applyAnnualCycleMutations;
+window.ziweiChartHelpers.clearAnnualCycleMutations = clearAnnualCycleMutations;
+window.ziweiChartHelpers.clearMajorMingLabel = clearMajorMingLabel;
+window.ziweiChartHelpers.setMajorCycleMingLabel = setMajorCycleMingLabel;
+window.ziweiChartHelpers.clearAnnualMingLabel = clearAnnualMingLabel;
+window.ziweiChartHelpers.setAnnualCycleMingLabel = setAnnualCycleMingLabel;
+window.ziweiChartHelpers.setMajorCycleLabels = setMajorCycleLabels;
+window.ziweiChartHelpers.clearMajorCycleLabels = clearMajorCycleLabels;
+window.ziweiChartHelpers.setAnnualCycleLabels = setAnnualCycleLabels;
+window.ziweiChartHelpers.clearAnnualCycleLabels = clearAnnualCycleLabels;

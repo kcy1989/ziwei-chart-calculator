@@ -1,0 +1,141 @@
+/* ========================================
+   Control Bar Styles
+   ======================================== */
+
+.ziwei-control-bar {
+    width: 640px;
+    margin: 0 auto 30px auto;
+    padding: 0;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    column-gap: 16px;
+    background: transparent;
+}
+
+.ziwei-control-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ziwei-control-group-left {
+    justify-content: flex-start;
+}
+
+.ziwei-control-group-center {
+    justify-content: center;
+}
+
+.ziwei-control-group-right {
+    justify-content: flex-end;
+}
+
+.ziwei-control-button {
+    padding: 8px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.5;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-sizing: border-box;
+    background: #ecf0f1;
+    color: #34495e;
+    text-decoration: none;
+    white-space: nowrap;
+    font-family: inherit;
+}
+
+.ziwei-control-button:hover {
+    background: #bdc3c7;
+    color: #34495e;
+}
+
+.ziwei-control-button:focus {
+    outline: none;
+}
+
+.ziwei-control-prev-hour,
+.ziwei-control-next-hour {
+    min-width: 120px;
+}
+
+.ziwei-control-settings-btn {
+    padding: 8px 20px;
+}
+
+.ziwei-control-settings-btn.active {
+    background: #3498db;
+    color: #ffffff;
+}
+
+.ziwei-control-settings-btn.active:hover {
+    background: #2980b9;
+    color: #ffffff;
+}
+
+/* ========================================
+   Settings Panel Styles
+   ======================================== */
+
+.ziwei-settings-panel {
+    width: 640px;
+    margin: 0 auto 30px auto;
+    padding: 20px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    display: none;
+}
+
+.ziwei-settings-panel.active {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px 12px;
+}
+
+.ziwei-settings-group {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+}
+
+.ziwei-settings-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #34495e;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.ziwei-settings-select {
+    flex: 1;
+    padding: 4px 8px;
+    font-size: 12px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #34495e;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    font-family: inherit;
+    min-width: 0;
+}
+
+.ziwei-settings-select:hover {
+    border-color: #3498db;
+}
+
+.ziwei-settings-select:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}

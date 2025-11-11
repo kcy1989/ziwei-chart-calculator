@@ -1,7 +1,7 @@
     <div class="ziwei-cal" data-ziwei-mode="form">
         <div class="ziwei-cal-title">
             <h1>紫微斗數排盤工具</h1>
-            <p class="ziwei-cal-version-link"><a href="https://little-yin.com/2025/11/08/calculator/" target="_blank" rel="noopener noreferrer">版本 0.4.4 • 更新於 2025-11-10</a></p>
+            <p class="ziwei-cal-version-link"><a href="https://little-yin.com/2025/11/08/calculator/" target="_blank" rel="noopener noreferrer">版本 0.5.1 • 更新於 2025-11-11</a></p>
         </div>
         <form class="ziwei-cal-form" id="ziwei-cal-form" novalidate>
         <!-- Name and Gender -->
@@ -9,11 +9,11 @@
             <div class="ziwei-cal-name-group">
                 <div>
                     <label class="ziwei-cal-label">
-                        姓名 <span class="ziwei-cal-required">*</span>
+                        姓名 <span class="ziwei-cal-optional">(選填)</span>
                     </label>
-                    <input type="text" id="ziwei-name" name="name" required placeholder="請輸入姓名">
+                    <input type="text" id="ziwei-name" name="name" placeholder="請輸入姓名">
                 </div>
-                <span class="ziwei-cal-error-message" id="name-error" style="display: none;"></span>
+                
             </div>
 
             <div class="ziwei-cal-gender-group">
@@ -42,25 +42,34 @@
             <div class="ziwei-cal-datetime-row">
                 <div class="ziwei-cal-date-section">
                     <select id="ziwei-birth-year" name="year" class="ziwei-cal-year-input" required>
-                        <option value="">年份</option>
-                        <?php for ($year = date('Y'); $year >= 1900; $year--): ?>
-                            <option value="<?php echo $year; ?>"><?php echo $year; ?></option>
+                        <?php 
+                            $currentYear = (int)date('Y');
+                            for ($year = 1900; $year <= 2100; $year++): 
+                                $selected = ($year === $currentYear) ? 'selected' : '';
+                        ?>
+                            <option value="<?php echo $year; ?>" <?php echo $selected; ?>><?php echo $year; ?></option>
                         <?php endfor; ?>
                     </select>
                     <span class="ziwei-cal-unit">年</span>
 
                     <select id="ziwei-birth-month" name="month" class="ziwei-cal-md-input" required>
-                        <option value="">月</option>
-                        <?php for ($month = 1; $month <= 12; $month++): ?>
-                            <option value="<?php echo $month; ?>"><?php echo $month; ?></option>
+                        <?php 
+                            $currentMonth = (int)date('m');
+                            for ($month = 1; $month <= 12; $month++):
+                                $selected = ($month === $currentMonth) ? 'selected' : '';
+                        ?>
+                            <option value="<?php echo $month; ?>" <?php echo $selected; ?>><?php echo $month; ?></option>
                         <?php endfor; ?>
                     </select>
                     <span class="ziwei-cal-unit">月</span>
 
                     <select id="ziwei-birth-day" name="day" class="ziwei-cal-md-input" required>
-                        <option value="">日</option>
-                        <?php for ($day = 1; $day <= 31; $day++): ?>
-                            <option value="<?php echo $day; ?>"><?php echo $day; ?></option>
+                        <?php 
+                            $currentDay = (int)date('d');
+                            for ($day = 1; $day <= 31; $day++):
+                                $selected = ($day === $currentDay) ? 'selected' : '';
+                        ?>
+                            <option value="<?php echo $day; ?>" <?php echo $selected; ?>><?php echo $day; ?></option>
                         <?php endfor; ?>
                     </select>
                     <span class="ziwei-cal-unit">日</span>
@@ -70,7 +79,6 @@
 
                 <div class="ziwei-cal-time-section">
                     <select id="ziwei-birth-hour" name="hour" class="ziwei-cal-time-select" required>
-                        <option value="">時</option>
                         <?php for ($hour = 0; $hour < 24; $hour++): ?>
                             <option value="<?php echo $hour; ?>"><?php echo sprintf('%02d', $hour); ?></option>
                         <?php endfor; ?>
@@ -78,7 +86,6 @@
                     <span class="ziwei-cal-unit">時</span>
 
                     <select id="ziwei-birth-minute" name="minute" class="ziwei-cal-time-select" required>
-                        <option value="">分</option>
                         <?php for ($minute = 0; $minute < 60; $minute += 5): ?>
                             <option value="<?php echo $minute; ?>"><?php echo sprintf('%02d', $minute); ?></option>
                         <?php endfor; ?>
