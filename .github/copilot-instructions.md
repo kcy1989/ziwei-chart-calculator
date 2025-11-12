@@ -2,51 +2,177 @@
 
 ## Project Overview
 
-**Ziwei Doushu (紫微斗數) Calculator** - A WordPress plugin for real-time astrology chart generation. Frontend uses Vanilla JavaScript modules (no frameworks/npm), backend uses REST API with PHP. Emphasis on modularity and gradual feature expansion across 8 phases. All UI explanations in Traditional Chinese; code comments in English.
+**Ziwei Doushu (紫微斗數) Calculator** - A WordPress plugin for real-time astrology chart generation.
 
-**Key constraint**: Desktop-first layout with vertical writing mode (`writing-mode: vertical-rl`) for traditional aesthetic.
+**Architecture**: Three-tier system separating **calculation logic** (pure, reusable) from **UI layer** (display, interaction) via **Adapter pattern**.
 
-## Architecture Patterns
+**Key constraints**: 
+- Desktop-first, vertical writing mode (`writing-mode: vertical-rl`)
+- No external dependencies (vanilla JS only)
+- No database storage (REST API only)
+- All calculations in real-time
 
-### Frontend Module System (`assets/astrology/` & `assets/js/`)
+---
 
-Each calculation layer is a **separate JavaScript file** exposing functions via `window.ziweiXXX` namespace.
+## Three-Tier Architecture
 
-**Config for different schools** (future development): Located in `assets/data/` - currently supports 中州派 (Zhongzhou School)
+### 🔢 Layer 1: Calculation Layer (`assets/calculate/astrology/`)
 
+**Purpose**: Pure mathematical computation, no dependencies, no side effects.
+
+**Modules** (11 files, all under `assets/calculate/astrology/`):
 ```javascript
-// Pattern: assets/astrology/{module}.js
-window.ziweiBasic = { getMonthIndex(), getBasicIndices(), isClockwise() };
-window.ziweiPalaces = { calculatePalacePositions() };
-window.ziweiPrimary = { placePrimaryStars() };
-window.ziweiSecondary = { calculateAllSecondaryStars() };
-window.ziweiLifeCycle = { calculateMajorCycles(), calculateTwelveLongLifePositions() };
-window.ziweiMinorStars = { calculateMinorStars() };  // 43 minor stars (雜曜)
-window.ziweiAttributes = { calculateAttributes(), calculateAllAttributes() };  // 3 spiritual mood descriptors per palace (神煞)
+// All modules export functions via getModule('name')
+// Examples via getAdapterModule():
+
+const basic = getAdapterModule('basic');
+const palaces = getAdapterModule('palaces');
+const primary = getAdapterModule('primary');
+const secondary = getAdapterModule('secondary');
+const minorStars = getAdapterModule('minorStars');
+const attributes = getAdapterModule('attributes');
+const lifeCycle = getAdapterModule('lifeCycle');
+const majorCycle = getAdapterModule('majorCycle');
+const mutations = getAdapterModule('mutations');
+const brightness = getAdapterModule('brightness');
+const genderCalc = getAdapterModule('genderCalculator');
 ```
 
-**Script loading order** (registered in `ziwei-cal.php` lines 220-330):
-1. Data modules first (palaces-name.js, nayin.js)
-2. Core calculators (basic.js, palaces.js, primary.js, secondary.js, life-cycle.js, minor-stars.js, attributes.js)
-3. Display/form modules (form.js, chart.js, calculator.js)
-4. Interaction module (palace-interaction.js)
-5. Cycle controls (cycles.js)
+**Key characteristics**:
+- ✅ Pure functions only
+- ✅ No window object access
+- ✅ No display logic
+- ✅ No form dependencies
+- ✅ Self-contained parameters
+- ✅ Fail-fast principle (log errors, return safe defaults)
 
-Each module **self-documents via console.log** during calculation for debugging.
+**Data structures** (conventions used across all modules):
+- **Palace indices**: 0-11 (0=子, 11=亥)
+- **Month indices**: 0-11 (0=正月)
+- **Time indices**: 0-11 (military hours)
+- **Star positions**: `{ starName: palaceIndex }` objects
+- **Palace data**: `{ index, name, stem, branchZhi, isMing, isShen }`
 
-### Data Structure Conventions
+---
 
-- **Palace indices**: 0-11 (0=子, 11=亥, mapped to grid positions)
-- **Month indices**: 0-11 (0=正月, adjusted for leap months in basic.js line 25)
-- **Time indices**: 0-11 (military hours 子-亥, calculated by lunar-converter.js)
-- **Star positions**: `{ starName: palaceIndex }` objects (see secondary.js line 137)
-- **Palace data**: `{ index, name, stem, branchZhi, stemIndex, isMing, isShen }`
+### 🔗 Layer 2: Adapter Layer (`assets/js/data-adapter.js`)
 
-### Chart Display Logic (`assets/js/chart.js`)
+**Purpose**: Bridge between calculation and display layers, normalize inputs/outputs, handle errors.
 
-**Data flow**: Form input → REST API → Chart rendering via `draw()` function
+**Key responsibilities**:
+1. **Input Normalization** (`adapter.input.normalize(formData)`)
+   - Validates form data
+   - Converts to lunar calendar
+   - Standardizes indices
+   - Returns `{ meta, lunar, indices, normalized }`
 
+2. **Output Processing** (`adapter.output.process(calcResult, normalizedInput)`)
+   - Structures calculation results
+   - Coordinates all modules
+   - Returns complete `{ meta, lunar, indices, sections, derived, constants, errors }`
+
+3. **Module Registration** (`adapter.getModule(name)`)
+   - Loads calculation modules on demand
+   - Provides unified access point
+
+4. **Error Handling** (`adapter.errors.isAdapterError`, `AdapterError`)
+   - Custom error class with context
+   - Field-level error tracking
+
+**Usage pattern**:
+```javascript
+// In calculator.js (coordination layer)
+const normalizedInput = adapter.input.normalize(formData);
+const calcResult = await window.submitToApi(apiPayload);
+const adapterOutput = adapter.output.process(calcResult, normalizedInput);
+
+// Return all layers to display
+return {
+    calcResult,           // Raw API response
+    normalizedInput,      // Standardized input
+    adapterOutput        // Processed output (main data for display)
+};
 ```
+
+---
+
+### 🎨 Layer 3: Display Layer (`assets/display/js/`)
+
+**Purpose**: UI logic, event handling, DOM rendering. **Must not call calculation functions directly.**
+
+**Modules** (6 files, all under `assets/display/js/`):
+
+| Module | Purpose | CSS File | Data Source |
+|--------|---------|----------|-------------|
+| **chart.js** | Render 4x4 chart grid, palace cells | chart.css | adapterOutput |
+| **form.js** | Collect input, show errors | form.css | Form fields only |
+| **control.js** | Manage control bar | control.css | UI state |
+| **config.js** | Settings panel | config.css | UI state |
+| **palace-interaction.js** | Click handling, highlighting, lines | palace-interaction.css | Grid element |
+| **cycles.js** | Display cycle panels | cycles.css | lifeCycleData |
+
+**Strict rules**:
+- ✅ Use `getAdapterModule()` only for helper data (e.g., `cycles.js` uses `basic.getHeavenlyStemIndex()`)
+- ❌ **Never** call `window.ziweiBasic.getBasicIndices()` directly
+- ❌ **Never** perform calculations in display modules
+- ❌ **Never** access form values in chart.js
+- ✅ Always receive data via function parameters (e.g., `draw(adapterOutput)`)
+- ✅ Handle adapter errors via `adapter.errors.isAdapterError()`
+
+---
+
+### 🗂️ Layer 4: Data Layer (`assets/data/`)
+
+**Purpose**: Store constants, configuration tables, and reference data used across calculation and display layers.
+
+**Files**:
+- **constants.js**: Global constants (palace names, heavenly stems, earthly branches, color codes)
+- **palaces-name.js**: Palace names and metadata
+- **nayin.js**: Five-element nayin (納音) configurations
+- **brightness.js**: Star brightness/status table (star positions, palace strength status - 廟旺利陷)
+- **mutation.js**: Four mutations/transformations table (四化 - 祿權科忌)
+
+**Key characteristics**:
+- ✅ Pure data, no logic
+- ✅ No dependencies
+- ✅ Accessed via `adapter.getModule('name')` or direct import
+- ✅ Immutable (never modified at runtime)
+- ✅ Used by calculation layer for lookups, by display layer via Adapter
+
+**Usage pattern**:
+```javascript
+// In calculation modules (e.g., brightness.js calculation)
+const brightnessData = require('../data/brightness.js');
+const starStatus = brightnessData.getStarBrightness(starName, palaceIndex);
+
+// In display modules (via Adapter only)
+const brightnessModule = getAdapterModule('brightness');
+```
+
+---
+
+## CSS Organization
+
+**Principle**: Organize by **visual location and responsibility**, not functional grouping.
+
+| CSS File | Manages | Location |
+|----------|---------|----------|
+| **chart.css** | 4x4 grid, palace cells, all interior content | Inside chart area |
+| **palace-interaction.css** | High-light states, connection lines, overlays | Above chart (z-index layer) |
+| **cycles.css** | Control panels below chart | Below 4x4 grid |
+| **form.css** | Form inputs and validation states | Outside chart |
+| **control.css** | Control bar (time switching, settings) | Above form |
+| **config.css** | Settings panel | Right side or overlay |
+
+**CSS responsibility boundaries**:
+- `chart.css` = 宮位樣式 + 宮位內容（星曜、屬性、大限流年）
+- `palace-interaction.css` = 互動層（高亮、連線）
+- `cycles.css` = 排盤下方的控制面板
+- No transitions on high-light for instant feedback (removed `transition: all 0.2s`)
+- Synchronous canvas drawing for immediate response
+
+---
+
 draw(chartData)
 ├─ calculatePalacePositions() → palaceData
 ├─ placePrimaryStars() → primaryStarsData  
@@ -60,83 +186,30 @@ draw(chartData)
    ├─ .ziwei-attributes-container (3 attributes/mood descriptors, bottom-left)
    ├─ .ziwei-palace-container (name + stem-branch, vertical)
    └─ .ziwei-life-cycle-container (cycles, bottom)
-```
-
-### CSS Grid & Vertical Writing
-
-**Layout**: 4×4 CSS Grid, center 2×2 merged into info box. Palace cells use `writing-mode: vertical-rl` for Chinese text.
-
-```css
 .ziwei-4x4-grid { grid-template-columns: repeat(4, 1fr); }
 .ziwei-cell { writing-mode: vertical-rl; position: relative; }
 .ziwei-stars-container { position: absolute; top: 4px; left: 50%; }
 .ziwei-life-cycle-container { position: absolute; bottom: 3px; }
-```
 
-Main stars positioned at **top-center**, Other stars at **mid-left**, palace name at **bottom-right**, life cycles at **bottom-center**, palace characteristics at **bottom-left** of each cell.
+## Config Settings Standards (for config.js & config.css)
 
-## Development Workflow
+- All settings must be defined in a single SETTINGS_CONFIG array, grouped and commented by functional area.
+- Only dropdowns (<select>) allowed; no toggles, radios, checkboxes, tooltips, loading, or disabled states.
+- Each setting object: label, name, options, defaultValue, affectsChart, handler (function name).
+- Render settings with createSettingsGroup; style only dropdowns/groups/panel in config.css.
+- Handler must apply setting, persist to sessionStorage/localStorage, and log changes.
+- No fallback logic or local calculation; always use constants or adapter modules.
+- Privacy: hide personal info with placeholders, restore originals, always reapply after redraw.
+- All functions use JSDoc; delete unused/commented code immediately.
+- Always check for undefined/null, log warnings, fail fast if data missing.
+- Naming: camelCase (functions), hyphen-case (files), dot-notation (CSS), window.ziwei prefix (exports).
+- When adding/removing settings: update SETTINGS_CONFIG, handler, CSS, docs, and test persistence/redraw.
 
-### Adding New Star Types
-
-1. **Create calculation function** in `assets/astrology/[module].js`
-   - Follow pattern: `calculate[StarName](index)` returns `{ star1: palaceIndex, star2: palaceIndex }`
-   - Add to star data structure in `calculateAllSecondaryStars()` (secondary.js line 137)
-
-2. **Integrate into chart.js `draw()`** function
-   - Call calculation function with extracted indices (month, time, year, body palace)
-   - Pass data to `createPalaceCell()` via function parameter
-
-3. **Display logic in `createPalaceCell()`**
-   - Loop through returned star map, add `.ziwei-[type]-star` elements to `.ziwei-stars-container`
-   - Apply CSS class for styling
-
-4. **Add CSS styling** in `chart.css`
-   - Use `.ziwei-[type]-star` class with `writing-mode: vertical-rl`, `text-orientation: upright`
-   - Primary stars: red (#e74c3c), secondary: gray (#6b7a87), both 18px/700 weight
-
-### Example: Adding 四化 (Four Mutations)
-
-1. Create `assets/astrology/mutations.js` with `calculateFourMutations(lunarYear)`
-2. Register script in ziwei-cal.php with dependency on `ziwei-cal-nayin` (needs five elements loci)
-3. In chart.js `draw()`, call: `const mutationsData = window.ziweiMutations.calculateFourMutations(meta.lunar.lunarYear)`
-4. Pass `mutationsData` to `createPalaceCell()`, display mutations in same container as stars
-
-## PHP Backend (`ziwei-cal.php`)
-
-**Pattern**: Single REST endpoint `/ziwei-cal/v1/calculate` (POST) handles all computation:
-
-```php
-register_rest_route('ziwei-cal/v1', '/calculate', [
-    'methods' => WP_REST_Server::CREATABLE,
-    'callback' => 'ziwei_cal_calculate_chart',
-    'permission_callback' => fn() => true,  // Public access
-    'args' => [ /* strict sanitization for each parameter */ ]
-]);
-```
-
-**No database storage** - all calculations in real-time. Use `sanitize_text_field()` and `absint()` for inputs, always escape outputs with `wp_json_encode()`.
-
-## Code Organization Standards
-
-- **Naming**: Camel case for functions (`calculateMingPalace`), hyphen for file/directory names (`life-cycle.js`)
-- **Comments**: English block comments for functions with JSDoc format `@param`, `@returns`, inline for complex logic
-- **Console logging**: Extensive for debugging - never remove, helps track data flow (e.g., `console.log('Calculation result:', data)`)
-- **No external dependencies**: Use vanilla JavaScript only (no jQuery, no npm packages)
-- **Helper functions**: Extract shared logic (e.g., `isClockwise()` in basic.js for yin/yang direction)
-- **Module structure**: 'use strict'; at top, then calculations, then `window.ziweiXXX = { ...functions };` at end
-- **Object handling**: Always check for undefined/null before accessing nested properties (e.g., `lunar?.lunarMonth`)
-- **Data validation**: Log warnings for invalid inputs, return safe defaults (empty array/object)
-- **No fallbacks**: Assume all required data is present; log errors if not (fail fast principle)
-
-### Code Quality Checklist
-
-✅ **Verified in current codebase:**
-- All astrology modules use `'use strict'` mode
-- All functions documented with JSDoc comments including @param and @returns
-- Console.log extensively used for debugging (search flow: secondary stars → chart display)
-- No npm dependencies - only vanilla ES6 JavaScript
-- Reduce the testing. Let users do the testing instead
+**Do not:**
+- Add fallback logic or local calculation in config.js
+- Use toggles, radios, checkboxes, tooltips, advanced settings, loading, or disabled states in config panel
+- Duplicate constants; always use window.ziweiConstants or adapter modules
+- Leave commented-out code
 
 ## Progressive Development Strategy
  Current phase: **Phase 10 (Major Cycles & Annual Cycles)** - 大限流年 (🚧 in progress - v0.5.0)

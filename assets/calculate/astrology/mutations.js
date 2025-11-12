@@ -110,10 +110,20 @@ function getStarForMutation(mutationType, mutationsData) {
 }
 
 // Export functions to global namespace
-window.ziweiMutations = {
+registerAdapterModule('mutations', {
     calculateBirthYearMutations,
     getMutationForStar,
     getStarForMutation
-};
+});
+
+function registerAdapterModule(name, api) {
+    var adapter = window.ziweiAdapter;
+    if (adapter && typeof adapter.registerModule === 'function') {
+        adapter.registerModule(name, api);
+    } else {
+        window.__ziweiAdapterModules = window.__ziweiAdapterModules || {};
+        window.__ziweiAdapterModules[name] = api;
+    }
+}
 
 console.log('Four Mutations (四化) calculator loaded');

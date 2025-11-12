@@ -3,6 +3,9 @@
 /**
  * Control bar module manages navigation and settings buttons for the Ziwei chart view.
  * Settings UI and logic are delegated to config.js
+ * 
+ * Corresponding CSS: assets/display/css/control.css
+ *                    assets/display/css/config.css (for settings panel)
  */
 (function () {
     const CONTROL_SELECTOR = '.ziwei-control-bar';
@@ -134,55 +137,87 @@
             ? adjustDate(year, month, day, dateOffset)
             : { year, month, day };
 
-        // Convert to lunar locally
-        const lunarData = solarToLunar(
-            newDate.year,
-            newDate.month,
-            newDate.day,
-            newHour,
-            newMinute
-        );
-
-        if (!lunarData) {
-            console.error('[ziweiControl] Lunar conversion failed');
+        const adapter = window.ziweiAdapter;
+        if (!adapter || !adapter.input || !adapter.output) {
+            console.error('[ziweiControl] Data adapter not available');
             return;
         }
 
-        // Prepare local chart data for immediate display
-        const localChartData = {
+        const rawInput = {
+            name: meta.name || '',
+            gender: meta.gender || '',
+            year: String(newDate.year),
+            month: String(newDate.month),
+            day: String(newDate.day),
+            hour: String(newHour),
+            minute: String(newMinute),
+            birthplace: meta.birthplace || '',
+            calendarType: meta.calendarType || 'solar',
+            leapMonth: '',
+            timezone: meta.timezone || 'UTC+8'
+        };
+
+        let normalized;
+        try {
+            normalized = adapter.input.normalize(rawInput);
+        } catch (adapterError) {
+            console.error('[ziweiControl] Adapter normalization failed:', adapterError);
+            if (adapter.errors?.isAdapterError?.(adapterError) && window.ziweiForm?.handleAdapterError) {
+                window.ziweiForm.handleAdapterError(adapterError);
+            } else {
+                window.ziweiForm?.showError(adapterError.message || '資料轉換失敗，請稍後再試');
+            }
+            return;
+        }
+
+        const calcResult = {
             success: true,
             message: '命盤生成成功。',
             data: {
-                name: meta.name || '無名氏',
-                gender: meta.gender || 'M',
-                birthdate: `${newDate.year}-${String(newDate.month).padStart(2, '0')}-${String(newDate.day).padStart(2, '0')}`,
-                birthtime: `${String(newHour).padStart(2, '0')}:${String(newMinute).padStart(2, '0')}`,
-                birthplace: meta.birthplace || '',
-                lunar: lunarData
+                name: normalized.meta.name,
+                gender: normalized.meta.gender,
+                birthdate: normalized.strings?.birthdate || '',
+                birthtime: normalized.strings?.birthtime || '',
+                birthplace: normalized.meta.birthplace || '',
+                lunar: normalized.lunar
             }
         };
 
-        console.log('[ziweiControl] Local chart data prepared:', localChartData);
+        let adapterOutput;
+        try {
+            adapterOutput = adapter.output.process(calcResult, normalized);
+        } catch (processError) {
+            console.error('[ziweiControl] Adapter output processing failed:', processError);
+            window.ziweiForm?.showError('命盤資料處理失敗，請稍後再試');
+            return;
+        }
 
-        // Redraw chart immediately with local data (no API wait)
-        const newChartElement = window.ziweiChart.draw(localChartData);
-        updateChartDisplay(newChartElement, localChartData);
+        console.log('[ziweiControl] Local chart context prepared via adapter:', adapterOutput);
+
+        const newChartElement = window.ziweiChart.draw({
+            calcResult,
+            normalizedInput: normalized,
+            adapterOutput
+        });
+        updateChartDisplay(newChartElement, calcResult);
 
         // Optionally validate with API in background (fire and forget)
         setTimeout(() => {
-            const formData = {
-                name: meta.name || '無名氏',
-                gender: meta.gender || 'M',
-                year: newDate.year,
-                month: newDate.month,
-                day: newDate.day,
-                hour: newHour,
-                minute: newMinute,
-                birthplace: meta.birthplace || '',
-                lunar: lunarData
+            const payload = {
+                name: normalized.meta.name,
+                gender: normalized.meta.gender,
+                year: normalized.solar.year,
+                month: normalized.solar.month,
+                day: normalized.solar.day,
+                hour: normalized.solar.hour,
+                minute: normalized.solar.minute,
+                birthplace: normalized.meta.birthplace || '',
+                calendarType: normalized.meta.calendarType,
+                leapMonth: normalized.meta.leapMonth,
+                lunar: normalized.lunar
             };
-            
-            window.submitToApi(formData).catch(error => {
+
+            window.submitToApi(payload).catch(error => {
                 console.warn('[ziweiControl] Background API validation failed (non-critical):', error);
             });
         }, 0);
@@ -222,6 +257,15 @@
         // This ensures privacy persists and prevents visual flashing
         if (window.ziweiConfig && typeof window.ziweiConfig.reapplyPersonalInfoStateImmediately === 'function') {
             window.ziweiConfig.reapplyPersonalInfoStateImmediately(newChartElement);
+        }
+        
+        // Reapply brightness setting to new chart element
+        // This ensures brightness state is consistent after chart replacement
+        if (typeof sessionStorage !== 'undefined') {
+            const brightnessSetting = sessionStorage.getItem('ziweiStarBrightness');
+            if (brightnessSetting && window.ziweiConfig && typeof window.ziweiConfig.applyStarBrightnessChange === 'function') {
+                window.ziweiConfig.applyStarBrightnessChange(brightnessSetting);
+            }
         }
     }
 

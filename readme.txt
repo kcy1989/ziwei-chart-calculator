@@ -4,7 +4,7 @@ Tags: 紫微斗數, 命理, 排盤, 中州派, astrology
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 0.5.1
+Stable tag: 0.5.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -60,51 +60,77 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 **程式架構：**
 
+本插件採用**三層分離架構**：計算層 → 協調層（Adapter） → 顯示層
+
+```
 ziwei-cal/
 ├── ziwei-cal.php                  # 主插件文件（PHP、REST API 路由）
 ├── readme.txt                     # WordPress 插件說明文件
 ├── templates/
 │   └── form.php                   # 表單模板
 ├── assets/
-│   ├── css/
-│   │   ├── form.css               # 表單樣式
-│   │   └── chart.css              # 命盤樣式
-│   ├── js/
-│   │   ├── form.js                # 表單邏輯與表單驗證
-│   │   ├── calculator.js          # 主計算器（POST 到 API）
-│   │   ├── control.js             # 控制列管理（時辰切換、設定按鈕）
-│   │   ├── config.js              # 設定模組（選項管理、應用邏輯）
-│   │   ├── chart.js               # 命盤渲染引擎
-│   │   ├── lunar-converter.js     # 農曆轉換（LunarSolarConverter）
-│   │   ├── palace-interaction.js  # 宮位三方四正互動
-│   │   └── cycles.js              # 大限盤選取、流年、四化顯示
-│   ├── astrology/
-│   │   ├── basic.js               # 基本索引計算、方向判斷
-│   │   ├── palaces.js             # 宮位計算
-│   │   ├── primary.js             # 主星（紫微、天府等）安置
-│   │   ├── secondary.js           # 輔星（左輔右弼、文昌等）安置
-│   │   ├── minor-stars.js         # 雜曜計算（43 顆星曜）
-│   │   ├── attributes.js          # 神煞計算（太歲、將前、博士）
-│   │   ├── life-cycle.js          # 大運與十二長生計算
-│   │   ├── major-cycle.js         # 大限星、流年星、四化標註
-│   │   ├── gender-calculator.js   # 陰陽性別分類計算
-│   │   └── mutations.js           # 生年四化（祿權科忌）
-│   └── data/
-│       ├── palaces-name.js        # 宮位名稱資料
-│       ├── nayin.js               # 納音五行局資料
-│       └── mutation-zhongzhou.js  # 中州派四化表
+│   ├── calculate/                 # 計算層（純計算邏輯，無依賴）
+│   │   ├── astrology/             # 計算模組
+│   │   │   ├── basic.js           # 基本索引計算、方向判斷
+│   │   │   ├── palaces.js         # 宮位計算
+│   │   │   ├── primary.js         # 主星安置
+│   │   │   ├── secondary.js       # 輔星安置
+│   │   │   ├── minor-stars.js     # 雜曜計算
+│   │   │   ├── attributes.js      # 神煞計算
+│   │   │   ├── life-cycle.js      # 十二長生計算
+│   │   │   ├── major-cycle.js     # 大限/流年計算
+│   │   │   ├── gender-calculator.js # 陰陽性別分類計算
+│   │   │   ├── brightness.js      # 星曜亮度
+│   │   │   └── mutations.js       # 四化計算
+│   │   └── common/
+│   │       ├── calculator.js      # 協調層：整合 Adapter 與 REST API
+│   │       └── lunar-converter.js # 農曆轉換
+│   ├── js/                        # 全域模組
+│       └── data-adapter.js        # Adapter 層：輸入/輸出轉換、模組註冊
+│   ├── display/                   # 顯示層（純 UI 邏輯，依賴 Adapter）
+│   │   ├── css/
+│   │   │   ├── chart.css          # 命盤排盤樣式（4x4 網格、宮位內容）
+│   │   │   ├── form.css           # 表單樣式
+│   │   │   ├── control.css        # 控制列樣式
+│   │   │   ├── config.css         # 設定面板樣式
+│   │   │   ├── palace-interaction.css  # 宮位互動樣式（高亮、連線）
+│   │   │   └── cycles.css         # 大限/流年控制面板樣式
+│   │   └── js/
+│   │       ├── chart.js           # 命盤渲染引擎（使用 adapterOutput）
+│   │       ├── form.js            # 表單邏輯（收集輸入，不驗證）
+│   │       ├── control.js         # 控制列管理（時辰切換、設定）
+│   │       ├── config.js          # 設定模組（選項管理）
+│   │       ├── palace-interaction.js  # 宮位互動邏輯
+│   │       └── cycles.js          # 大限/流年顯示邏輯
+│   └── data/                      # 資料表
+│       ├── constants.js           # 全域常數（宮位名、天干、地支等）
+│       ├── palaces-name.js        # 宮位名稱
+│       ├── nayin.js               # 納音五行局
+│       ├── brightness.js          # 星曜亮度表
+│       └── mutation.js            # 四化表
 └── .github/
     ├── copilot-instructions.md    # GitHub Copilot 開發規範
-    └── CONFIG_MODULE_GUIDE.md     # 設定模組開發指引
+    └── improvement-guide.md       # 代碼改進指南
+```
+
+**架構特點：**
+
+| 層級 | 位置 | 職責 | 特點 |
+|------|------|------|------|
+| **計算層** | `assets/calculate/astrology/` | 純計算邏輯 | 無 window 依賴、無副作用、易於單元測試 |
+| **協調層** | `assets/calculate/common/` + `assets/js/` | Adapter 實現、數據轉換、模組協調 | 規範化輸入/輸出、錯誤處理 |
+| **顯示層** | `assets/display/js/` | UI 邏輯、事件處理、DOM 操作 | 只讀數據，通過 Adapter 與計算層通訊 |
+| **資料層** | `assets/data/` | 常數、表格、配置 | 中立資料，無業務邏輯 |
 
 **技術規範：**
 
 * PHP 7.4+ (strict typing)
 * WordPress 5.0+
-* REST API 架構
+* REST API 架構（無資料庫存儲）
 * 前端：Vanilla JavaScript (ES6+)
-* 樣式：純 CSS (Grid + Flexbox)
+* 樣式：純 CSS (Grid + Flexbox) + Vertical Writing
 * 農曆轉換：LunarSolarConverter (1900-2100)
+* 無外部依賴（無 jQuery、npm 等）
 
 **安全性：**
 
@@ -137,6 +163,13 @@ ziwei-cal/
 此功能將在階段 12 開發。
 
 == Changelog ==
+
+= 0.5.2 - 2025-11-12 =
+* 新增：星曜廟旺利陷（亮度）顯示，支援紫微斗數全書
+* 優化：設置配適層，以便開發新輸出格式
+* 優化：改進顯示算法，提高反應速度
+* 優化：重新設計文件架構，以便開發新功能
+* 修正：多項 UI 細節與錯誤
 
 = 0.5.1 - 2025-11-11 =
 * 新增：個人資料隱藏功能（隱藏姓名、性別、出生日期）
@@ -222,6 +255,7 @@ ziwei-cal/
 
 * 當某宮位同時包含大量主星、輔星與雜曜時，可能出現文字溢出或重疊。後續版本將考慮：
     * 星曜縮排 / 摺疊顯示
+* 廟旺利陷表找不到可靠來源，暫在網上收集，歡迎提供特定門派慣用表
 
 == Credits ==
 

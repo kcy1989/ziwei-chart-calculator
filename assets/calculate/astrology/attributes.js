@@ -164,9 +164,29 @@ function getAttributesForPalace(palaceIndex, attributesMap) {
     return attributesMap[palaceIndex] || attributesMap[String(palaceIndex)] || [];
 }
 
+/**
+ * Helper to register module with adapter
+ */
+function registerAdapterModule(name, api) {
+    var adapter = window.ziweiAdapter;
+    if (adapter && typeof adapter.registerModule === 'function') {
+        adapter.registerModule(name, api);
+    } else {
+        window.__ziweiAdapterModules = window.__ziweiAdapterModules || {};
+        window.__ziweiAdapterModules[name] = api;
+    }
+}
+
 // Expose public API
+registerAdapterModule('attributes', {
+    calculateAttributes: calculateAllAttributes,
+    calculateAllAttributes,
+    getAttributesForPalace
+});
+
+// Keep global reference for backward compatibility
 window.ziweiAttributes = {
-    calculateAttributes: calculateAllAttributes,  // Renamed for consistency with chart.js
+    calculateAttributes: calculateAllAttributes,
     calculateAllAttributes,
     getAttributesForPalace
 };

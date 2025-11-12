@@ -3,9 +3,22 @@
 /**
  * Configuration module for Ziwei chart settings
  * Handles: settings panel generation, option display logic, and chart computation effects
+ * 
+ * Corresponding CSS: assets/display/css/config.css
  */
 (function () {
     const SETTINGS_SELECTOR = '.ziwei-settings-panel';
+    
+    // Cache for mutable elements (not frozen, allows updates)
+    const _elementCache = {
+        chartElement: null,
+        personalInfoElements: {
+            name: null,
+            gender: null,
+            gregorianDate: null,
+            lunarDate: null
+        }
+    };
     
     // Store original personal information for privacy mode toggle
     let originalPersonalInfo = {
@@ -16,24 +29,48 @@
     };
     
     // Track current personal info privacy state to persist across chart redraws
-    let currentPersonalInfoState = 'show';
+    // Initialize from sessionStorage if available, otherwise default to 'show'
+    let currentPersonalInfoState = (() => {
+        if (typeof sessionStorage !== 'undefined') {
+            const stored = sessionStorage.getItem('ziweiSetting_personalInfo');
+            if (stored) {
+                console.log('[ziweiConfig] Restored personal info state from sessionStorage:', stored);
+                return stored;
+            }
+        }
+        return 'show';
+    })();
 
     /**
      * Settings configuration data
      * Each setting defines: label, name, options, and optional computation logic
+     *
+     * === 設定分類說明 ===
+     * 1. 星曜顯示（chart 顯示層）
+     *    - starBrightness: 星曜亮度顯示（只影響 chart 顯示）
+     *    - xunKong: 截空旬空顯示（只影響 chart 顯示）
+     * 2. 命盤計算（adapter 層/後端 API）
+     *    - leapMonthHandling: 閏月處理（影響命盤計算）
+     *    - ziHourHandling: 子時處理（影響命盤計算）
+     * 3. 介面語言（UI 顯示層）
+     *    - language: 介面語言（只影響 UI 顯示）
+     * 4. 個人資料隱私（UI 顯示層）
+     *    - personalInfo: 個人資料顯示/隱藏（只影響 UI 顯示）
      */
     const SETTINGS_CONFIG = [
+        // 1. 星曜顯示（chart 顯示層）
         {
             label: '星曜亮度',
             name: 'starBrightness',
             options: [
                 { value: 'hidden', text: '不顯示 - 預設' },
-                { value: 'shuoshu', text: '斗數全書 (開發中)' }
+                { value: 'shuoshu', text: '斗數全書' }
             ],
             defaultValue: 'hidden',
             affectsChart: false,  // 只影響顯示
             handler: 'applyStarBrightnessChange'
         },
+        // 2. 命盤計算（adapter 層/後端 API）
         {
             label: '閏月處理',
             name: 'leapMonthHandling',
@@ -57,6 +94,7 @@
             affectsChart: true,  // 影響命盤計算
             handler: 'applyZiHourChange'
         },
+        // 1. 星曜顯示（chart 顯示層）
         {
             label: '截空旬空',
             name: 'xunKong',
@@ -69,6 +107,7 @@
             affectsChart: false,  // 只影響顯示
             handler: 'applyXunKongChange'
         },
+        // 3. 介面語言（UI 顯示層）
         {
             label: '介面語言',
             name: 'language',
@@ -80,12 +119,13 @@
             affectsChart: false,  // 只影響顯示
             handler: 'applyLanguageChange'
         },
+        // 4. 個人資料隱私（UI 顯示層）
         {
             label: '個人資料',
             name: 'personalInfo',
             options: [
                 { value: 'show', text: '顯示 - 預設' },
-                { value: 'hide', text: '隱藏 (開發中)' }
+                { value: 'hide', text: '隱藏' }
             ],
             defaultValue: 'show',
             affectsChart: false,  // 只影響顯示
@@ -112,13 +152,23 @@
 
     /**
      * Apply star brightness changes
-     * @param {string} brightnessValue Selected brightness value
+     * @param {string} brightnessValue Selected brightness value ('hidden' or 'shuoshu')
      */
     function applyStarBrightnessChange(brightnessValue) {
-        console.log('[ziweiConfig] Applying star brightness change:', brightnessValue);
-        const chart = document.querySelector('[data-ziwei-chart]');
+        // Always query for the latest chart element (don't rely on cache)
+        let chart = document.querySelector('[data-ziwei-chart]') || 
+                   document.querySelector('.ziwei-chart-wrapper');
+        
         if (chart) {
             chart.setAttribute('data-star-brightness', brightnessValue);
+        } else {
+            console.warn('[ziweiConfig] Chart element not found for brightness change');
+        }
+        
+        // Store in sessionStorage for persistence within this session
+        // (reloading page will clear it, but back button will preserve it)
+        if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.setItem('ziweiStarBrightness', brightnessValue);
         }
     }
 
@@ -160,7 +210,7 @@
      */
     function applyXunKongChange(xunkongValue) {
         console.log('[ziweiConfig] Applying Xun Kong change:', xunkongValue);
-        const chart = document.querySelector('[data-ziwei-chart]');
+        const chart = _elementCache.chartElement || document.querySelector('[data-ziwei-chart]');
         if (chart) {
             chart.setAttribute('data-xun-kong', xunkongValue);
         }
@@ -173,10 +223,11 @@
     function applyPersonalInfoChange(infoValue) {
         console.log('[ziweiConfig] Applying personal info change:', infoValue);
         
-        // Get all personal info elements
+        // Always query for latest elements (don't rely on stale cache)
+        // This ensures we target the most recently rendered chart
         const nameEl = document.querySelector('.ziwei-name');
         const genderEl = document.querySelector('.ziwei-gender-classification');
-        const gregDateEl = document.querySelector('.ziwei-datetime');
+        const gregDateEl = document.querySelector('.ziwei-datetime:not(.ziwei-lunar)');
         const lunarDateEl = document.querySelector('.ziwei-datetime.ziwei-lunar');
         
         if (infoValue === 'hide') {
@@ -260,6 +311,11 @@
             handler(value);
         }
 
+        // Save setting to sessionStorage for persistence within this session
+        if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.setItem(`ziweiSetting_${settingName}`, value);
+        }
+
         // If setting affects chart, trigger redraw
         if (setting.affectsChart) {
             console.log('[ziweiConfig] This setting affects chart display, may need redraw');
@@ -298,6 +354,19 @@
             }
             select.appendChild(option);
         });
+
+        // Restore value from sessionStorage (if available)
+        // Map setting name to sessionStorage key
+        let storedValue = null;
+        if (name === 'starBrightness' && typeof sessionStorage !== 'undefined') {
+            storedValue = sessionStorage.getItem('ziweiStarBrightness');
+        } else if (typeof sessionStorage !== 'undefined') {
+            storedValue = sessionStorage.getItem(`ziweiSetting_${name}`);
+        }
+        
+        if (storedValue) {
+            select.value = storedValue;
+        }
 
         // Add change listener to apply settings
         select.addEventListener('change', (e) => {
@@ -371,22 +440,38 @@
             // Get personal info elements from the NEW chart
             const nameEl = newChartElement?.querySelector('.ziwei-name');
             const genderEl = newChartElement?.querySelector('.ziwei-gender-classification');
-            const gregDateEl = newChartElement?.querySelector('.ziwei-datetime');
+            const gregDateEl = newChartElement?.querySelector('.ziwei-datetime:not(.ziwei-lunar)');
             const lunarDateEl = newChartElement?.querySelector('.ziwei-datetime.ziwei-lunar');
             
-            // Replace immediately without delay to prevent visual flashing
-            if (nameEl && originalPersonalInfo.name) {
+            // If originalPersonalInfo hasn't been saved yet, save it now from the new chart
+            if (!originalPersonalInfo.name && nameEl) {
+                originalPersonalInfo.name = nameEl.textContent;
+            }
+            if (!originalPersonalInfo.gender && genderEl) {
+                originalPersonalInfo.gender = genderEl.textContent;
+            }
+            if (!originalPersonalInfo.gregorianDate && gregDateEl) {
+                originalPersonalInfo.gregorianDate = gregDateEl.textContent;
+            }
+            if (!originalPersonalInfo.lunarDate && lunarDateEl) {
+                originalPersonalInfo.lunarDate = lunarDateEl.textContent;
+            }
+            
+            // Replace with placeholder values (always apply hiding when state is 'hide')
+            if (nameEl) {
                 nameEl.textContent = '有心人';
             }
-            if (genderEl && originalPersonalInfo.gender) {
+            if (genderEl) {
                 genderEl.textContent = '沒有';
             }
-            if (gregDateEl && originalPersonalInfo.gregorianDate) {
+            if (gregDateEl) {
                 gregDateEl.textContent = '西曆：用戶不顯示出生日期';
             }
-            if (lunarDateEl && originalPersonalInfo.lunarDate) {
+            if (lunarDateEl) {
                 lunarDateEl.textContent = '農曆：用戶不顯示出生日期';
             }
+            
+            console.log('[ziweiConfig] Personal info hidden successfully');
         }
     }
 

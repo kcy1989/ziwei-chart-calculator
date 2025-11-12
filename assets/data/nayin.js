@@ -33,7 +33,6 @@
  *   Col 3: 庚辛 (indices 6-7)
  *   Col 4: 壬癸 (indices 8-9)
  * 
- * Values: Loci numbers (2=水, 3=木, 4=金, 5=土, 6=火)
  */
 const nayinMatrix = [
     //     甲乙  丙丁  戊己  庚辛  壬癸
@@ -98,7 +97,23 @@ function getNayinName(loci) {
 }
 
 // Expose public API
+registerAdapterModule('nayin', {
+    getNayin,
+    getNayinName
+});
+
 window.ziweiNayin = {
     getNayin,
     getNayinName
 };
+
+function registerAdapterModule(name, api) {
+    var adapter = window.ziweiAdapter;
+    if (adapter && typeof adapter.registerModule === 'function') {
+        adapter.registerModule(name, api);
+    } else {
+        window.__ziweiAdapterModules = window.__ziweiAdapterModules || {};
+        window.__ziweiAdapterModules[name] = api;
+    }
+}
+

@@ -6,6 +6,14 @@
  */
 
 /**
+ * Helper to get adapter module
+ */
+function getAdapterModule(name) {
+    var adapter = window.ziweiAdapter;
+    return adapter && adapter.getModule ? adapter.getModule(name) : null;
+}
+
+/**
  * Calculate Ziwei Star (紫微星) placement position
  * 古訣:
  * 六五四三一，酉什亥辰丑，
@@ -240,7 +248,29 @@ function placePrimaryStars(chartData) {
     return primaryStars;
 }
 
+/**
+ * Helper to register module with adapter
+ */
+function registerAdapterModule(name, api) {
+    var adapter = window.ziweiAdapter;
+    if (adapter && typeof adapter.registerModule === 'function') {
+        adapter.registerModule(name, api);
+    } else {
+        window.__ziweiAdapterModules = window.__ziweiAdapterModules || {};
+        window.__ziweiAdapterModules[name] = api;
+    }
+}
+
 // Expose public API
+registerAdapterModule('primary', {
+    calculateZiweiStarPosition,
+    calculateZiweiSystemStars,
+    calculateTianfuStarPosition,
+    calculateTianfuSystemStars,
+    placePrimaryStars
+});
+
+// Keep global reference for backward compatibility
 window.ziweiPrimary = {
     calculateZiweiStarPosition,
     calculateZiweiSystemStars,

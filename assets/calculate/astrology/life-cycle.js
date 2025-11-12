@@ -17,6 +17,14 @@
  * - Yin male (陰男) or Yang female (陽女): counter-clockwise
  */
 
+/**
+ * Helper to get adapter module
+ */
+function getAdapterModule(name) {
+    var adapter = window.ziweiAdapter;
+    return adapter && adapter.getModule ? adapter.getModule(name) : null;
+}
+
 const TWELVE_LIFE_STAGES = ['長生', '沐浴', '冠帶', '臨官', '帝旺', '衰', '病', '死', '墓', '絕', '胎', '養'];
 
 const NAYIN_LOCI_TO_PALACE = {
@@ -40,13 +48,14 @@ function calculateTwelveLongLifePositions(nayinLoci, gender, lunarYear) {
         throw new Error('Invalid Nayin loci: no palace mapping available');
     }
     
-    // Get arrangement direction using basic.js function
-    if (!window.ziweiBasic || !window.ziweiBasic.isClockwise) {
-        console.warn('ziweiBasic.isClockwise not available');
+    // Get arrangement direction using basic module via adapter
+    var basicModule = getAdapterModule('basic');
+    if (!basicModule || typeof basicModule.isClockwise !== 'function') {
+        console.warn('Basic module not available for isClockwise calculation');
         return {};
     }
     
-    const clockwise = window.ziweiBasic.isClockwise(gender, lunarYear);
+    const clockwise = basicModule.isClockwise(gender, lunarYear);
     
     const palaceToLifeStage = {};
     for (let i = 0; i < 12; i++) {
@@ -77,13 +86,14 @@ function calculateMajorCycles(nayinLoci, gender, lunarYear, mingPalaceIndex) {
     }
     const startAge = nayinLoci;  // Nayin loci value is the starting age
     
-    // Get arrangement direction using basic.js function
-    if (!window.ziweiBasic || !window.ziweiBasic.isClockwise) {
-        console.warn('ziweiBasic.isClockwise not available');
+    // Get arrangement direction using basic module via adapter
+    var basicModule = getAdapterModule('basic');
+    if (!basicModule || typeof basicModule.isClockwise !== 'function') {
+        console.warn('Basic module not available for isClockwise calculation');
         return [];
     }
     
-    const clockwise = window.ziweiBasic.isClockwise(gender, lunarYear);
+    const clockwise = basicModule.isClockwise(gender, lunarYear);
     
     const cycles = [];
     
@@ -128,7 +138,27 @@ function getMajorCycleForPalace(palaceIndex, cycles) {
     return cycles.find(cycle => cycle.palaceIndex === palaceIndex) || null;
 }
 
+/**
+ * Helper to register module with adapter
+ */
+function registerAdapterModule(name, api) {
+    var adapter = window.ziweiAdapter;
+    if (adapter && typeof adapter.registerModule === 'function') {
+        adapter.registerModule(name, api);
+    } else {
+        window.__ziweiAdapterModules = window.__ziweiAdapterModules || {};
+        window.__ziweiAdapterModules[name] = api;
+    }
+}
+
 // Expose public API
+registerAdapterModule('lifeCycle', {
+    calculateTwelveLongLifePositions,
+    calculateMajorCycles,
+    getMajorCycleForPalace
+});
+
+// Keep global reference for backward compatibility
 window.ziweiLifeCycle = {
     calculateTwelveLongLifePositions,
     calculateMajorCycles,

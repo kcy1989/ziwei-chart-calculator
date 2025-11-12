@@ -287,18 +287,28 @@ function calculateAllMajorCycleStars(majorCycleStemIndex, majorCycleBranchIndex,
     return majorCycleStars;
 }
 
-// Expose public API
-window.ziweiMajorCycleStars = window.ziweiMajorCycleStars || {};
-window.ziweiMajorCycleStars.stemCharToIndex = stemCharToIndex;
-window.ziweiMajorCycleStars.calculateMajorCycleWenChang = calculateMajorCycleWenChang;
-window.ziweiMajorCycleStars.calculateMajorCycleWenQu = calculateMajorCycleWenQu;
-window.ziweiMajorCycleStars.calculateMajorCycleCelestialCanopy = calculateMajorCycleCelestialCanopy;
-window.ziweiMajorCycleStars.calculateMajorCycleCelestialSeal = calculateMajorCycleCelestialSeal;
-window.ziweiMajorCycleStars.calculateMajorCycleProsperity = calculateMajorCycleProsperity;
-window.ziweiMajorCycleStars.calculateMajorCycleWealthStars = calculateMajorCycleWealthStars;
-window.ziweiMajorCycleStars.calculateMajorCycleFire = calculateMajorCycleFire;
-window.ziweiMajorCycleStars.calculateMajorCycleBells = calculateMajorCycleBells;
-window.ziweiMajorCycleStars.calculateMajorCycleHeavenlyHorse = calculateMajorCycleHeavenlyHorse;
-window.ziweiMajorCycleStars.calculateMajorCycleRedLuan = calculateMajorCycleRedLuan;
-window.ziweiMajorCycleStars.calculateMajorCycleHeavenlyJoy = calculateMajorCycleHeavenlyJoy;
-window.ziweiMajorCycleStars.calculateAllMajorCycleStars = calculateAllMajorCycleStars;
+registerAdapterModule('majorCycleStars', {
+    stemCharToIndex,
+    calculateMajorCycleWenChang,
+    calculateMajorCycleWenQu,
+    calculateMajorCycleCelestialCanopy,
+    calculateMajorCycleCelestialSeal,
+    calculateMajorCycleProsperity,
+    calculateMajorCycleWealthStars,
+    calculateMajorCycleFire,
+    calculateMajorCycleBells,
+    calculateMajorCycleHeavenlyHorse,
+    calculateMajorCycleRedLuan,
+    calculateMajorCycleHeavenlyJoy,
+    calculateAllMajorCycleStars
+});
+
+function registerAdapterModule(name, api) {
+    var adapter = window.ziweiAdapter;
+    if (adapter && typeof adapter.registerModule === 'function') {
+        adapter.registerModule(name, api);
+    } else {
+        window.__ziweiAdapterModules = window.__ziweiAdapterModules || {};
+        window.__ziweiAdapterModules[name] = api;
+    }
+}

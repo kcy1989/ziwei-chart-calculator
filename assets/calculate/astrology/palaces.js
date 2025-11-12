@@ -4,6 +4,14 @@
  */
 
 /**
+ * Helper to get adapter module
+ */
+function getAdapterModule(name) {
+    var adapter = window.ziweiAdapter;
+    return adapter && adapter.getModule ? adapter.getModule(name) : null;
+}
+
+/**
  * Calculate all 12 palace positions based on birth data
  * 
  * @param {Object} meta Birth metadata
@@ -30,13 +38,14 @@ function calculatePalacePositions(meta) {
         return {};
     }
 
-    // Get basic indices (handles leap month adjustment)
-    if (!window.ziweiBasic) {
-        console.error('Basic astrology module (ziweiBasic) not loaded');
+    // Get basic module via adapter
+    var basicModule = getAdapterModule('basic');
+    if (!basicModule || typeof basicModule.getBasicIndices !== 'function') {
+        console.error('Basic astrology module not available via adapter');
         return {};
     }
 
-    const { monthIndex, timeIndex } = window.ziweiBasic.getBasicIndices(lunar);
+    const { monthIndex, timeIndex } = basicModule.getBasicIndices(lunar);
 
     const mingPalacePosition = calculateMingPalacePosition(monthIndex, timeIndex);
     const shenPalacePosition = calculateShenPalacePosition(monthIndex, timeIndex);
@@ -81,14 +90,18 @@ function calculateShenPalacePosition(monthIndex, timeIndex) {
  * @returns {Object} Palace mapping { index (0-11) -> { name, isMing, isShen, stem, branchZhi } }
  */
 function createPalaceMapping(mingPalacePosition, shenPalacePosition, school = 'standard', lunarYear) {
-    // Palace names data module is required
-    if (!window.ziweiPalaceNames) {
-        console.error('Palace names data module (ziweiPalaceNames) not loaded. Please check that palaces-name.js is properly enqueued.');
-        throw new Error('Palace names data module not loaded');
+    // Get palace names module via adapter
+    var palaceNamesModule = getAdapterModule('palaceNames');
+    if (!palaceNamesModule || typeof palaceNamesModule.getPalaceNames !== 'function') {
+        console.error('Palace names module not available via adapter');
+        throw new Error('Palace names module not loaded');
     }
     
-    const palaceSequence = window.ziweiPalaceNames.getPalaceNames(school);
-    const combineWithShen = window.ziweiPalaceNames.getShenCombineNames(school);
+    const palaceSequence = palaceNamesModule.getPalaceNames(school);
+    const combineWithShen = palaceNamesModule.getShenCombineNames(school);
+    
+    // Get basic module for stem calculation
+    var basicModule = getAdapterModule('basic');
     
     const palaces = {};
     
@@ -109,21 +122,20 @@ function createPalaceMapping(mingPalacePosition, shenPalacePosition, school = 's
         
         // Calculate heavenly stem for this palace
         let stemInfo = { stem: '', stemIndex: -1 };
-        if (lunarYear && window.ziweiBasic && typeof window.ziweiBasic.getPalaceStemByIndex === 'function') {
+        if (lunarYear && basicModule && typeof basicModule.getPalaceStemByIndex === 'function') {
             try {
-                stemInfo = window.ziweiBasic.getPalaceStemByIndex(palaceIndex, lunarYear);
+                stemInfo = basicModule.getPalaceStemByIndex(palaceIndex, lunarYear);
             } catch (err) {
                 console.error('Error calculating stem for palace:', err);
             }
-        } else if (!window.ziweiBasic) {
-            console.warn('ziweiBasic module not loaded');
-        } else if (typeof window.ziweiBasic.getPalaceStemByIndex !== 'function') {
-            console.warn('getPalaceStemByIndex is not a function in ziweiBasic');
+        } else if (!basicModule) {
+            console.warn('Basic module not available for stem calculation');
+        } else if (typeof basicModule.getPalaceStemByIndex !== 'function') {
+            console.warn('getPalaceStemByIndex is not a function in basic module');
         }
         
-        // Get earthly branch character (地支)
-        const branches = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
-        const branchZhi = branches[palaceIndex];
+    // Get earthly branch character (地支) from constants
+    const branchZhi = window.ziweiConstants.BRANCH_NAMES[palaceIndex];
         
         const palaceInfo = {
             index: palaceIndex,
@@ -132,7 +144,8 @@ function createPalaceMapping(mingPalacePosition, shenPalacePosition, school = 's
             isShen: isShen,
             stem: stemInfo.stem,           // Heavenly stem (天干) character
             stemIndex: stemInfo.stemIndex, // Heavenly stem index (0-9)
-            branchZhi: branchZhi           // Earthly branch (地支) character
+            branchZhi: branchZhi,          // Earthly branch (地支) character
+            branchIndex: palaceIndex       // Earthly branch index (0-11), same as palace index
         };
         
         palaces[palaceIndex] = palaceInfo;
@@ -157,7 +170,29 @@ function formatPalacesForDisplay(palaces) {
     return result;
 }
 
+/**
+ * Helper to register module with adapter
+ */
+function registerAdapterModule(name, api) {
+    var adapter = window.ziweiAdapter;
+    if (adapter && typeof adapter.registerModule === 'function') {
+        adapter.registerModule(name, api);
+    } else {
+        window.__ziweiAdapterModules = window.__ziweiAdapterModules || {};
+        window.__ziweiAdapterModules[name] = api;
+    }
+}
+
 // Expose public API
+registerAdapterModule('palaces', {
+    calculatePalacePositions,
+    formatPalacesForDisplay,
+    calculateMingPalacePosition,
+    calculateShenPalacePosition,
+    createPalaceMapping
+});
+
+// Keep global reference for backward compatibility
 window.ziweiPalaces = {
     calculatePalacePositions,
     formatPalacesForDisplay,

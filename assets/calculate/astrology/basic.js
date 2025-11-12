@@ -184,7 +184,32 @@ function isClockwise(gender, lunarYear) {
     return (gender === 'M' && isYang) || (gender === 'F' && !isYang);
 }
 
+/**
+ * Helper to register module with adapter
+ */
+function registerAdapterModule(name, api) {
+    var adapter = window.ziweiAdapter;
+    if (adapter && typeof adapter.registerModule === 'function') {
+        adapter.registerModule(name, api);
+    } else {
+        window.__ziweiAdapterModules = window.__ziweiAdapterModules || {};
+        window.__ziweiAdapterModules[name] = api;
+    }
+}
+
 // Expose public API
+registerAdapterModule('basic', {
+    getMonthIndex,
+    getBasicIndices,
+    getHeavenlyStemIndex,
+    getEarthlyBranchIndex,
+    getPalaceStemByIndex,
+    getMasterPalace,
+    getBodyPalace,
+    isClockwise
+});
+
+// Keep global reference for backward compatibility
 window.ziweiBasic = {
     getMonthIndex,
     getBasicIndices,

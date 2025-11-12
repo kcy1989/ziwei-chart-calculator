@@ -84,9 +84,27 @@ function getAvailableSchools() {
 }
 
 // Expose public API
+registerAdapterModule('palaceNames', {
+    PALACE_NAMES,
+    getPalaceNames,
+    getShenCombineNames,
+    getAvailableSchools
+});
+
 window.ziweiPalaceNames = {
     PALACE_NAMES,
     getPalaceNames,
     getShenCombineNames,
     getAvailableSchools
 };
+
+function registerAdapterModule(name, api) {
+    var adapter = window.ziweiAdapter;
+    if (adapter && typeof adapter.registerModule === 'function') {
+        adapter.registerModule(name, api);
+    } else {
+        window.__ziweiAdapterModules = window.__ziweiAdapterModules || {};
+        window.__ziweiAdapterModules[name] = api;
+    }
+}
+

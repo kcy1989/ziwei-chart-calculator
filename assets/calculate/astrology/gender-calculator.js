@@ -39,6 +39,16 @@ function getGenderClassification(gender, lunarYear) {
 }
 
 // Expose public API
-window.ziweiGender = {
+registerAdapterModule('gender', {
     getGenderClassification
-};
+});
+
+function registerAdapterModule(name, api) {
+    var adapter = window.ziweiAdapter;
+    if (adapter && typeof adapter.registerModule === 'function') {
+        adapter.registerModule(name, api);
+    } else {
+        window.__ziweiAdapterModules = window.__ziweiAdapterModules || {};
+        window.__ziweiAdapterModules[name] = api;
+    }
+}

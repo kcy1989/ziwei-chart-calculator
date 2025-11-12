@@ -11,6 +11,14 @@
  */
 
 /**
+ * Helper to get adapter module
+ */
+function getAdapterModule(name) {
+    var adapter = window.ziweiAdapter;
+    return adapter && adapter.getModule ? adapter.getModule(name) : null;
+}
+
+/**
  * Calculate positions of all minor stars.
  * 
  * @param {number} monthIndex - Lunar month index (0-11, 0 = 正月)
@@ -262,7 +270,12 @@ function calculateMinorStars(
 
     // Determine clockwise/counterclockwise based on gender and lunar year
     // 陽男及陰女順時針排，陰男及陽女逆時針排
-    const clockwise = window.ziweiBasic.isClockwise(gender, lunarYear);
+    var basicModule = getAdapterModule('basic');
+    if (!basicModule || typeof basicModule.isClockwise !== 'function') {
+        console.error('Basic module not available for isClockwise calculation');
+        throw new Error('基礎模組無法取得');
+    }
+    const clockwise = basicModule.isClockwise(gender, lunarYear);
     const offset = clockwise ? -1 : 1;
     
     // 天傷 (Heavenly Injury) - based on Migration Palace and gender/year
@@ -308,7 +321,25 @@ function calculateMinorStars(
     return minorStars;
 }
 
+/**
+ * Helper to register module with adapter
+ */
+function registerAdapterModule(name, api) {
+    var adapter = window.ziweiAdapter;
+    if (adapter && typeof adapter.registerModule === 'function') {
+        adapter.registerModule(name, api);
+    } else {
+        window.__ziweiAdapterModules = window.__ziweiAdapterModules || {};
+        window.__ziweiAdapterModules[name] = api;
+    }
+}
+
 // Expose functions to global namespace
+registerAdapterModule('minorStars', {
+    calculateMinorStars
+});
+
+// Keep global reference for backward compatibility
 window.ziweiMinorStars = {
     calculateMinorStars
 };

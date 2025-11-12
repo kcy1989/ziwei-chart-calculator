@@ -12,6 +12,14 @@
  */
 
 /**
+ * Helper to get adapter module
+ */
+function getAdapterModule(name) {
+    var adapter = window.ziweiAdapter;
+    return adapter && adapter.getModule ? adapter.getModule(name) : null;
+}
+
+/**
  * Calculate Left Assistant (左輔) and Right Assist (右弼)
  * Both depend on the birth month
  * 左輔: Starts at 辰宮 (index 4) for first month, moves clockwise
@@ -233,7 +241,32 @@ function getSecondaryStarsForPalace(palaceIndex, secondaryStarsMap) {
         .map(([name, index]) => name);
 }
 
+/**
+ * Helper to register module with adapter
+ */
+function registerAdapterModule(name, api) {
+    var adapter = window.ziweiAdapter;
+    if (adapter && typeof adapter.registerModule === 'function') {
+        adapter.registerModule(name, api);
+    } else {
+        window.__ziweiAdapterModules = window.__ziweiAdapterModules || {};
+        window.__ziweiAdapterModules[name] = api;
+    }
+}
+
 // Expose public API
+registerAdapterModule('secondary', {
+    calculateAllSecondaryStars,
+    getSecondaryStarsForPalace,
+    calculateLeftRightAssist,
+    calculateLiteraryStars,
+    calculateEarthlyStars,
+    calculateCelestialStars,
+    calculateWealthStars,
+    calculateFireBells
+});
+
+// Keep global reference for backward compatibility
 window.ziweiSecondary = {
     calculateAllSecondaryStars,
     getSecondaryStarsForPalace,

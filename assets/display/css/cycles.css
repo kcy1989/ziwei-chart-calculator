@@ -1,0 +1,162 @@
+/* ========================================
+   Ziwei Major Cycles & Annual Cycles Styles
+   
+   SCOPE: This file manages ONLY the control panel below the chart
+          (大限/流年標題、按鈕、選擇器)
+          
+   FOR: Cycle-related elements INSIDE the palace cells, see chart.css
+        High-light and connection lines, see palace-interaction.css
+   ======================================== */
+
+/* ========================================
+   1. Major Cycle Controls Panel
+   ======================================== */
+
+.ziwei-cycle-panel {
+    min-width: 640px;
+    margin: 16px auto 30px auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.ziwei-cycle-section {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ziwei-cycle-label {
+    font-size: 18px;
+    font-weight: 600;
+    color: #34495e;
+    text-align: center;
+}
+
+.ziwei-cycle-row {
+    display: grid;
+    gap: 0;
+}
+
+.ziwei-major-cycle-row {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+/* ========================================
+   4. Major Cycle Buttons
+   ======================================== */
+
+.ziwei-cycle-button {
+    height: 44px;
+    border: 1px solid #d0d7de;
+    border-radius: 0;
+    background: #f9fbfc;
+    color: #34495e;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    transition: background 0.2s ease, color 0.2s ease, border 0.2s ease, box-shadow 0.2s ease;
+    padding: 0;
+    margin: -1px 0 0 -1px;
+    text-align: center;
+}
+
+.ziwei-cycle-button:hover {
+    background: #e8eaed;
+    border-color: #d0d7de;
+    color: #34495e;
+    outline: none;
+}
+
+.ziwei-cycle-button-active,
+.ziwei-cycle-button-active:hover,
+.ziwei-cycle-button-active:focus,
+.ziwei-cycle-button-active:active {
+    background: #f3e6ff;
+    color: #512e5f;
+    border: 1px solid #9b59b6;
+    box-shadow: inset 0 0 0 2px #9b59b6;
+    margin: -1px 0 0 -1px;
+    font-weight: 600;
+}
+
+.ziwei-cycle-button-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #34495e;
+    line-height: 1;
+    display: block;
+}
+
+.ziwei-cycle-button-age {
+    font-size: 12px;
+    color: #34495e;
+    line-height: 1;
+    display: block;
+    font-weight: 500;
+}
+
+.ziwei-cycle-button-active .ziwei-cycle-button-label {
+    color: #512e5f;
+    font-weight: 600;
+}
+
+.ziwei-cycle-button-active .ziwei-cycle-button-age {
+    color: #512e5f;
+    font-weight: 500;
+}
+
+/* ========================================
+   5. Annual Cycle Controls
+   ======================================== */
+
+.ziwei-annual-cycle-row {
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+    padding: 0 0 30px 0;
+}
+
+.ziwei-annual-cycle-button {
+    font-weight: 500;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+}
+
+.ziwei-annual-year {
+    font-size: 14px;
+    font-weight: 500;
+    color: #34495e;
+    line-height: 1;
+}
+
+.ziwei-annual-stem-branch {
+    font-size: 12px;
+    color: #34495e;
+    line-height: 1;
+    font-weight: 500;
+}
+
+.ziwei-cycle-button-active .ziwei-annual-year {
+    color: #512e5f;
+    font-weight: 600;
+}
+
+.ziwei-cycle-button-active .ziwei-annual-stem-branch {
+    color: #512e5f;
+    font-weight: 500;
+}
+
+/* ========================================
+   Utility Styles
+   ======================================== */
+
+.hidden {
+    display: none !important;
+}

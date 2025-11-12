@@ -1,9 +1,9 @@
 /* ========================================
-   Ziwei Chart Styles
+   Ziwei Chart Styles - 4×4 Grid Palace Chart Layout
    ======================================== */
 
 /* ========================================
-    1. Overall chart layout
+    1. Chart Container & Grid Layout
     ======================================== */
 
 .ziwei-cal[data-ziwei-mode="chart"] {
@@ -76,7 +76,7 @@
 }
 
 /* ========================================
-    2. Center cell and meta info (main info box)
+    2. Center Cell - Personal Information Box
     ======================================== */
 
 .ziwei-cal[data-ziwei-mode="chart"] .ziwei-4x4-grid .ziwei-center-big {
@@ -167,7 +167,8 @@
 }
 
 /* ========================================
-    3. Palace label container (bottom-right)
+    3. Palace Labels (Bottom-Right)
+    天干地支、宮位名稱、大命、年命
     ======================================== */
 
 .ziwei-palace-container {
@@ -200,68 +201,28 @@
     padding: 0;
 }
 
-/* Palace branch (天干地支 e.g. 辛亥) - gray tone */
 .ziwei-palace-branch {
     color: #34495e;
 }
 
-/* Palace name (斗數宮位名稱 e.g. 命宮) - dark red */
 .ziwei-palace-name {
     color: #a93226;
 }
 
-/* Major cycle label (大限宮位名稱 e.g. 大命) - blue */
 .ziwei-palace-tag-major {
     color: #1f6fbf;
 }
 
-/* Annual cycle label (流年宮位名稱 e.g. 年命) - green */
 .ziwei-palace-tag-annual {
     color: #27ae60;
 }
 
-/* Generic tag for cycle-related palace labels (大命、年命) */
 .ziwei-palace-tag {
     margin-right: 0;
 }
 
 /* ========================================
-    4. Major cycles and twelve life stages
-    ======================================== */
-
-.ziwei-life-cycle-container {
-    position: absolute;
-    bottom: 1px;
-    left: 0;
-    right: 0;
-    margin-left: 36px;
-    margin-right: 60px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 1px;
-    writing-mode: horizontal-tb;
-    color: #34495e;
-    font-weight: 500;
-    padding: 2px 2px;
-}
-
-.ziwei-major-cycle,
-.ziwei-life-stage {
-    line-height: 1;
-}
-
-.ziwei-major-cycle {
-    font-size: 12px;
-}
-
-.ziwei-life-stage {
-    font-size: 14px;
-}
-
-/* ========================================
-    5. Main and secondary stars (top-center)
+    4. Primary & Secondary Stars (Top-Center)
     ======================================== */
 
 .ziwei-stars-container {
@@ -271,9 +232,12 @@
     transform: translateX(-50%);
     display: flex;
     flex-direction: row;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     gap: 1px;
+    flex-wrap: nowrap;
+    width: auto;
+    overflow: visible;
 }
 
 /* Primary star display */
@@ -291,9 +255,11 @@
     align-items: center;
     justify-content: center;
     min-height: 44px;
+    width: auto;
+    flex-shrink: 0;
 }
 
-/* Secondary star display - same size and weight as primary stars, different color only */
+/* Secondary star display */
 .ziwei-secondary-star {
     font-size: 20px;
     font-weight: 700;
@@ -308,38 +274,63 @@
     align-items: center;
     justify-content: center;
     min-height: 44px;
+    width: auto;
+    flex-shrink: 0;
 }
 
-/* Star and mutation group wrapper */
+/* ========================================
+    5. Star + Mutation Groups & Indicators
+    (包含生年四化、大運四化、流年四化)
+    ======================================== */
+
+/* Star and mutation group wrapper - vertical layout (star + brightness stacked) */
 .ziwei-star-mutation-group {
     display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    padding: 0;
+    margin: 0;
+    border-radius: 0;
+    writing-mode: horizontal-tb;
+    height: auto;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* Star + Mutation inner box (horizontal layout with star on left, mutations on right) */
+.ziwei-star-mutation-box {
+    display: inline-flex;
+    flex-direction: row;
     align-items: center;
     gap: 0;
     padding: 1px 1px;
     margin: 0;
     border-radius: 4px;
     writing-mode: horizontal-tb;
-    min-height: 44px;
-}
-
-.ziwei-star-no-mutation {
+    height: 44px;
     background-color: transparent;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
 }
 
-.ziwei-star-with-mutation {
+.ziwei-star-mutation-box.ziwei-with-mutation {
     background-color: #fffacd;
 }
 
-/* Mutation group wrapper */
+/* Mutation slots wrapper - single column, 3 vertical positions (birth/major/annual) */
 .ziwei-mutations-wrapper {
     display: grid;
+    grid-template-columns: 14px;
     grid-template-rows: repeat(3, 14px);
     row-gap: 1px;
+    column-gap: 0;
     align-items: center;
     justify-items: center;
     width: 14px;
     height: 44px;
     flex-shrink: 0;
+    margin-left: 0px;
 }
 
 /* Mutation character base style */
@@ -403,22 +394,82 @@
         0.5px 0.5px 0 #1e8449;
     grid-row: 3;
 }
+/* ========================================
+    6. Star Brightness Indicator (廟旺利陷)
+    ======================================== */
+
+.ziwei-star-brightness {
+    font-size: 12px;
+    font-weight: 400;
+    color: #6b7a87;
+    writing-mode: horizontal-tb;
+    text-align: left;
+    line-height: 1.1;
+    letter-spacing: 0px;
+    padding: 0;
+    margin: 1px 0 0 6px;
+    display: block;
+    height: 10px;
+}
+
+[data-star-brightness="hidden"] .ziwei-star-brightness {
+    display: none;
+}
+
+[data-star-brightness="shuoshu"] .ziwei-star-brightness {
+    display: block;
+}
+
+/* Birth year mutation (生年四化) */
+.ziwei-mutation-birth {
+    background-color: #e74c3c;
+    border: 1px solid #a93226;
+    text-shadow: 
+        -0.5px -0.5px 0 #a93226,
+        0.5px -0.5px 0 #a93226,
+        -0.5px 0.5px 0 #a93226,
+        0.5px 0.5px 0 #a93226;
+    grid-row: 1;
+}
+
+/* Major cycle mutation (大運四化) */
+.ziwei-mutation-major {
+    background-color: #2980b9;
+    border: 1px solid #1f618d;
+    text-shadow: 
+        -0.5px -0.5px 0 #1f618d,
+        0.5px -0.5px 0 #1f618d,
+        -0.5px 0.5px 0 #1f618d,
+        0.5px 0.5px 0 #1f618d;
+    grid-row: 2;
+}
+
+/* Annual mutation (流年四化) */
+.ziwei-mutation-annual {
+    background-color: #27ae60;
+    border: 1px solid #1e8449;
+    text-shadow: 
+        -0.5px -0.5px 0 #1e8449,
+        0.5px -0.5px 0 #1e8449,
+        -0.5px 0.5px 0 #1e8449,
+        0.5px 0.5px 0 #1e8449;
+    grid-row: 3;
+}
 
 /* ========================================
-    6. Minor stars container
+    7. Minor Stars Container (Mid-Left)
     ======================================== */
 
 .ziwei-minor-stars-container {
     position: absolute;
     left: 2px;
-    top: 60px;
+    top: 62px;
     display: flex;
     flex-direction: row;
     align-items: flex-start;
     justify-content: flex-start;
     gap: 1px;
 }
-
 
 /* Minor star (vertical small text) */
 .ziwei-minor-star {
@@ -440,7 +491,74 @@
 }
 
 /* ========================================
-    7. Major-cycle and annual-cycle stars
+    8. Attributes Container (Bottom-Left)
+    Spiritual stars, Tai Sui, etc.
+    ======================================== */
+
+.ziwei-attributes-container {
+    position: absolute;
+    bottom: 2px;
+    left: 2px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: 0;
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+}
+
+.ziwei-attribute {
+    font-size: 12px;
+    font-weight: 400;
+    color: #34495e;
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    line-height: 1;
+    letter-spacing: 0px;
+    padding: 0;
+    margin: 0;
+}
+
+/* ========================================
+    9. Life Cycle Display in Palace
+    Major-cycle and annual-cycle info (bottom-center)
+    ======================================== */
+
+.ziwei-life-cycle-container {
+    position: absolute;
+    bottom: 1px;
+    left: 0;
+    right: 0;
+    margin-left: 36px;
+    margin-right: 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    writing-mode: horizontal-tb;
+    color: #34495e;
+    font-weight: 500;
+    padding: 2px 2px;
+}
+
+.ziwei-major-cycle,
+.ziwei-life-stage {
+    line-height: 1;
+}
+
+.ziwei-major-cycle {
+    font-size: 12px;
+}
+
+.ziwei-life-stage {
+    font-size: 14px;
+}
+
+/* ========================================
+    10. Cycle Stars in Palace (Lower section)
+    Major-cycle (blue) and annual-cycle (green) stars
     ======================================== */
 
 .ziwei-cycle-stars-wrapper {
@@ -495,202 +613,8 @@
 }
 
 /* ========================================
-    8. Attributes (spiritual stars / Tai Sui)
+    Utility Classes
     ======================================== */
-
-.ziwei-attributes-container {
-    position: absolute;
-    bottom: 4px;
-    left: 2px;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: flex-end;
-    gap: 0;
-    writing-mode: vertical-rl;
-    text-orientation: upright;
-}
-
-.ziwei-attribute {
-    font-size: 12px;
-    font-weight: 400;
-    color: #34495e;
-    writing-mode: vertical-rl;
-    text-orientation: upright;
-    line-height: 1;
-    letter-spacing: 0px;
-    padding: 0;
-    margin: 0;
-}
-
-
-
-/* ========================================
-    9. Major cycle controls (bottom)
-    ======================================== */
-
-.ziwei-cycle-section {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.ziwei-cycle-label {
-    font-size: 18px;
-    font-weight: 600;
-    color: #34495e;
-    text-align: center;
-}
-
-.ziwei-cycle-row {
-    display: grid;
-    gap: 0;
-}
-
-.ziwei-major-cycle-row {
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-}
-
-.ziwei-cycle-button {
-    height: 44px;
-    border: 1px solid #d0d7de;
-    border-radius: 0;
-    background: #f9fbfc;
-    color: #34495e;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-    transition: background 0.2s ease, color 0.2s ease, border 0.2s ease, box-shadow 0.2s ease;
-    padding: 0;
-    margin: -1px 0 0 -1px;
-    text-align: center;
-}
-
-.ziwei-cycle-button:hover {
-    background: #e8eaed;
-    border-color: #d0d7de;
-    color: #34495e;
-    outline: none;
-}
-
-.ziwei-cycle-button-active,
-.ziwei-cycle-button-active:hover,
-.ziwei-cycle-button-active:focus,
-.ziwei-cycle-button-active:active {
-    background: #f3e6ff;
-    color: #512e5f;
-    border: 1px solid #9b59b6;
-    box-shadow: inset 0 0 0 2px #9b59b6;
-    margin: -1px 0 0 -1px;
-    font-weight: 600;
-}
-
-.ziwei-cycle-button-label {
-    font-size: 14px;
-    font-weight: 500;
-    color: #34495e;
-    line-height: 1;
-    display: block;
-}
-
-.ziwei-cycle-button-age {
-    font-size: 12px;
-    color: #34495e;
-    line-height: 1;
-    display: block;
-    font-weight: 500;
-}
-
-.ziwei-cycle-button-active .ziwei-cycle-button-label {
-    color: #512e5f;
-    font-weight: 600;
-}
-
-.ziwei-cycle-button-active .ziwei-cycle-button-age {
-    color: #512e5f;
-    font-weight: 500;
-}
-
-/* ========================================
-    10. Annual cycle controls (below major)
-    ======================================== */
-
-.ziwei-annual-cycle-row {
-    grid-template-columns: repeat(10, minmax(0, 1fr));
-    padding: 0 0 30px 0;
-}
-
-.ziwei-annual-cycle-button {
-    font-weight: 500;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-}
-
-.ziwei-annual-year {
-    font-size: 14px;
-    font-weight: 500;
-    color: #34495e;
-    line-height: 1;
-}
-
-.ziwei-annual-stem-branch {
-    font-size: 12px;
-    color: #34495e;
-    line-height: 1;
-    font-weight: 500;
-}
-
-.ziwei-cycle-button-active .ziwei-annual-year {
-    color: #512e5f;
-    font-weight: 600;
-}
-
-.ziwei-cycle-button-active .ziwei-annual-stem-branch {
-    color: #512e5f;
-    font-weight: 500;
-}
-
-.ziwei-cycle-panel {
-    min-width: 640px;
-    margin: 16px auto 30px auto;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-/* ========================================
-    11. Highlight & selection states
-    ======================================== */
-
-.ziwei-cal[data-ziwei-mode="chart"] .ziwei-cell-selected {
-    background: #f3e6ff;
-    border-color: #9b59b6;
-    box-shadow: inset 0 0 0 2px #9b59b6;
-    transition: background 0.2s ease, box-shadow 0.2s ease;
-}
-
-.ziwei-cal[data-ziwei-mode="chart"] .ziwei-cell-highlighted {
-    background: #e8f4f8;
-    border-color: #3498db;
-    box-shadow: inset 0 0 0 1px #3498db;
-    transition: background 0.2s ease, box-shadow 0.2s ease;
-}
-
-.ziwei-connection-lines {
-    display: block;
-}
-
-/* ========================================
-   Utility Styles
-   ======================================== */
 
 .hidden {
     display: none !important;
