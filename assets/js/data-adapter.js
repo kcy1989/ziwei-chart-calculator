@@ -179,33 +179,6 @@
         return pad2(hour) + ':' + pad2(minute);
     }
 
-    function resolveTimeIndex(hour, minute) {
-        var h = parseInteger(hour, 0);
-        var m = parseInteger(minute, 0);
-        if (!Number.isFinite(h)) {
-            h = 0;
-        }
-        if (!Number.isFinite(m)) {
-            m = 0;
-        }
-        var effectiveHour = h;
-        if (m >= 60) {
-            effectiveHour = (h + 1) % 24;
-        }
-        if (effectiveHour >= 23 || effectiveHour < 1) return 0;
-        if (effectiveHour >= 1 && effectiveHour < 3) return 1;
-        if (effectiveHour >= 3 && effectiveHour < 5) return 2;
-        if (effectiveHour >= 5 && effectiveHour < 7) return 3;
-        if (effectiveHour >= 7 && effectiveHour < 9) return 4;
-        if (effectiveHour >= 9 && effectiveHour < 11) return 5;
-        if (effectiveHour >= 11 && effectiveHour < 13) return 6;
-        if (effectiveHour >= 13 && effectiveHour < 15) return 7;
-        if (effectiveHour >= 15 && effectiveHour < 17) return 8;
-        if (effectiveHour >= 17 && effectiveHour < 19) return 9;
-        if (effectiveHour >= 19 && effectiveHour < 21) return 10;
-        if (effectiveHour >= 21 && effectiveHour < 23) return 11;
-        return 0;
-    }
 
     function validateRequiredFields(values, errors) {
         if (!values.gender) errors.gender = '請選擇性別';
@@ -249,7 +222,9 @@
         }
         if (typeof basic.getBasicIndices === 'function') {
             try {
-                var result = basic.getBasicIndices(lunar);
+                // Pass leapMonthHandling from meta to basic.getBasicIndices as leapMonthMode
+                var leapMonthMode = meta.leapMonthHandling || 'mid';
+                var result = basic.getBasicIndices(lunar, leapMonthMode);
                 if (result && typeof result === 'object') {
                     if (result.monthIndex !== undefined) indices.monthIndex = result.monthIndex;
                     if (result.timeIndex !== undefined) indices.timeIndex = result.timeIndex;
@@ -259,22 +234,16 @@
             }
         }
         if (indices.timeIndex === undefined) {
-            // 使用 calculator.js 的 getMilitaryHourIndex
-            try {
-                var calculator = window.ziweiCalculator || {};
-                if (typeof calculator.getMilitaryHourIndex === 'function') {
-                    // 組合 HH:MM 字串
-                    var timeStr = '';
-                    if (solar.hour !== undefined && solar.minute !== undefined) {
-                        timeStr = String(solar.hour).padStart(2, '0') + ':' + String(solar.minute).padStart(2, '0');
-                    }
-                    indices.timeIndex = calculator.getMilitaryHourIndex(timeStr);
-                } else {
-                    indices.timeIndex = resolveTimeIndex(solar.hour, solar.minute);
+            // Use only calculator.js getMilitaryHourIndex, no fallback
+            var calculator = window.ziweiCalculator || {};
+            if (typeof calculator.getMilitaryHourIndex === 'function') {
+                var timeStr = '';
+                if (solar.hour !== undefined && solar.minute !== undefined) {
+                    timeStr = String(solar.hour).padStart(2, '0') + ':' + String(solar.minute).padStart(2, '0');
                 }
-            } catch (err) {
-                warn('getMilitaryHourIndex failed', err);
-                indices.timeIndex = resolveTimeIndex(solar.hour, solar.minute);
+                indices.timeIndex = calculator.getMilitaryHourIndex(timeStr);
+            } else {
+                throw AdapterError('CALCULATOR_MISSING', 'calculator.getMilitaryHourIndex not found. Please ensure calculator.js is loaded.');
             }
         }
         if (typeof basic.getBodyPalace === 'function') {
@@ -320,7 +289,21 @@
         }
 
         if (Object.keys(errors).length > 0) {
-            throw AdapterError('INPUT_VALIDATION_FAILED', '輸入資料驗證失敗。', { errors: errors, rawData: deepClone(rawData) });
+            // If there's only one validation error, present that message directly
+            var errorKeys = Object.keys(errors);
+            var friendlyMessage = '輸入資料驗證失敗。';
+            if (errorKeys.length === 1) {
+                friendlyMessage = errors[errorKeys[0]] || friendlyMessage;
+            } else {
+                // Combine multiple field messages into a single user-friendly string
+                try {
+                    friendlyMessage = errorKeys.map(function(k) { return errors[k]; }).filter(Boolean).join('；');
+                } catch (e) {
+                    friendlyMessage = '輸入資料驗證失敗。';
+                }
+            }
+
+            throw AdapterError('INPUT_VALIDATION_FAILED', friendlyMessage, { errors: errors, rawData: deepClone(rawData) });
         }
 
         var calendarType = normalizeCalendarType(rawData.calendarType);
@@ -356,7 +339,16 @@
             lunar.minute = solar.minute;
         }
         if (lunar.timeIndex === undefined || lunar.timeIndex === null) {
-            lunar.timeIndex = resolveTimeIndex(solar.hour, solar.minute);
+            var calculator = window.ziweiCalculator || {};
+            if (typeof calculator.getMilitaryHourIndex === 'function') {
+                var timeStr = '';
+                if (solar.hour !== undefined && solar.minute !== undefined) {
+                    timeStr = String(solar.hour).padStart(2, '0') + ':' + String(solar.minute).padStart(2, '0');
+                }
+                lunar.timeIndex = calculator.getMilitaryHourIndex(timeStr);
+            } else {
+                throw AdapterError('CALCULATOR_MISSING', 'calculator.getMilitaryHourIndex not found. Please ensure calculator.js is loaded.');
+            }
         }
 
         var meta = {
@@ -364,7 +356,9 @@
             gender: sanitized.gender || 'M',
             birthplace: sanitizeText(rawData.birthplace),
             calendarType: calendarType,
-            leapMonth: leapMonth
+            leapMonth: leapMonth,
+            // Propagate leapMonthHandling setting from raw input (expected values: 'mid','current','next')
+            leapMonthHandling: rawData.leapMonthHandling || null
         };
 
         var strings = {

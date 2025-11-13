@@ -75,11 +75,11 @@
             label: '閏月處理',
             name: 'leapMonthHandling',
             options: [
-                { value: 'monthMid', text: '月中換月 - 預設' },
-                { value: 'currentMonth', text: '視為本月 (開發中)' },
-                { value: 'nextMonth', text: '視為下月 (開發中)' }
+                { value: 'mid', text: '月中換月 - 預設' },
+                { value: 'current', text: '視為本月' },
+                { value: 'next', text: '視為下月' }
             ],
-            defaultValue: 'monthMid',
+            defaultValue: 'mid',
             affectsChart: true,  // 影響命盤計算
             handler: 'applyLeapMonthChange'
         },
@@ -178,7 +178,80 @@
      */
     function applyLeapMonthChange(handlingValue) {
         console.log('[ziweiConfig] Applying leap month handling change:', handlingValue);
-        // TODO: Trigger chart recalculation with new leap month logic
+        // 1. Save setting to sessionStorage
+        if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.setItem('ziweiSetting_leapMonthHandling', handlingValue);
+        }
+
+    // 2. Get last used form data (from form, or from last rendered chart if available)
+    let formData = null;
+    if (window.ziweiForm && typeof window.ziweiForm.getLastFormData === 'function') {
+        formData = window.ziweiForm.getLastFormData();
+    } else if (window.ziweiForm && window.ziweiForm.formData) {
+        formData = window.ziweiForm.formData;
+    }
+
+    // If no formData from the form module, try to recover from last chart data
+    if (!formData && window.ziweiChartData && window.ziweiChartData.normalized && window.ziweiChartData.normalized.raw) {
+        try {
+            formData = Object.assign({}, window.ziweiChartData.normalized.raw);
+        } catch (e) {
+            formData = null;
+        }
+    }
+
+    // If still no formData, silently abort (no user-facing error)
+    if (!formData) {
+        console.debug('[ziweiConfig] No form data available and no prior chart data to recover; aborting leap month redraw silently');
+        return;
+    }
+
+    // 3. Update formData with new leapMonthHandling setting
+    formData.leapMonthHandling = handlingValue;
+
+    // 4. Recompute chart and update display
+    if (window.ziweiCalculator && typeof window.ziweiCalculator.compute === 'function') {
+        window.ziweiCalculator.compute(formData).then(result => {
+            // Persist normalized/raw back to global chart cache for future changes
+            try {
+                window.ziweiChartData = window.ziweiChartData || {};
+                if (result.normalizedInput) window.ziweiChartData.normalized = result.normalizedInput;
+                if (result.adapterOutput && result.adapterOutput.meta) window.ziweiChartData.meta = result.adapterOutput.meta;
+                if (result.calcResult && result.calcResult.data) window.ziweiChartData.data = result.calcResult.data;
+            } catch (e) {
+                // ignore
+            }
+
+                if (window.showChart && typeof window.showChart === 'function') {
+                    // Pass the full computation result to showChart (it supports calcResult or adapterOutput)
+                    window.showChart(result).then(chartElement => {
+                        // If a chart is already present in the DOM, use the control module's
+                        // update method which replaces the existing chart without expecting
+                        // the form element. Otherwise fall back to the normal updateDisplay
+                        // which replaces the form with the chart.
+                        const hasExistingChart = !!document.querySelector('[data-ziwei-chart]');
+
+                        if (hasExistingChart && window.ziweiControl && typeof window.ziweiControl.updateChartDisplay === 'function') {
+                            try {
+                                window.ziweiControl.updateChartDisplay(chartElement, result);
+                                return;
+                            } catch (e) {
+                                console.warn('[ziweiConfig] ziweiControl.updateChartDisplay failed, falling back to updateDisplay', e);
+                            }
+                        }
+
+                        if (typeof window.updateDisplay === 'function') {
+                            window.updateDisplay(chartElement, result);
+                        }
+                    }).catch(err2 => {
+                        console.error('[ziweiConfig] showChart failed after leapMonthChange', err2);
+                    });
+                }
+        }).catch(err => {
+            // Log but do not surface a blocking UI message for settings changes
+            console.error('[ziweiConfig] Recompute failed after leapMonthChange:', err);
+        });
+    }
     }
 
     /**
@@ -363,9 +436,17 @@
         } else if (typeof sessionStorage !== 'undefined') {
             storedValue = sessionStorage.getItem(`ziweiSetting_${name}`);
         }
-        
+
+        // Always set defaultValue if no stored value
         if (storedValue) {
             select.value = storedValue;
+        } else {
+            // Use setting defaultValue as fallback to ensure proper visible text
+            var settingCfg = getSetting(name);
+            var defaultVal = settingCfg && settingCfg.defaultValue ? settingCfg.defaultValue : null;
+            if (defaultVal) {
+                select.value = defaultVal;
+            }
         }
 
         // Add change listener to apply settings

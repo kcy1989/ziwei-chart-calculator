@@ -407,6 +407,10 @@
 
     // Expose public API
     window.ziweiControl = {
-        createBar
+        createBar,
+        // Allow other modules to replace the current chart element with a new one
+        // This is used when the settings panel triggers a recompute and only the
+        // chart (not the form) is present in the DOM.
+        updateChartDisplay
     };
 })();

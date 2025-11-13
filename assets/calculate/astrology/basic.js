@@ -7,30 +7,45 @@
 /**
  * Convert lunar month to month index (0-11)
  * 一月 = 0, 二月 = 1, ..., 十二月 = 11
- * Handles leap month adjustment based on lunar day
- * 
+ * Handles leap month adjustment based on lunar day and mode
+ *
  * @param {number} month Lunar month (1-12)
  * @param {number} day Lunar day (1-30)
  * @param {boolean} isLeapMonth Whether this is a leap month
+ * @param {string} [leapMonthMode] Leap month handling mode:
+ *   - 'current' (視為本月): always use current month
+ *   - 'next' (視為下月): always add 1 to month index
+ *   - 'mid' (月中換月, default): add 1 if day >= 15
  * @returns {number} Month index (0-11)
  */
-function getMonthIndex(month, day, isLeapMonth) {
+function getMonthIndex(month, day, isLeapMonth, leapMonthMode) {
     // Convert month (1-12) to month index (0-11)
     let monthIndex = month - 1;
-    
-    // Leap month adjustment rule:
-    // - If day >= 15: month index = month (add 1)
-    // - If day < 15: month index = month - 1 (no change)
-    // - Only apply if it's actually a leap month
-    
-    if (isLeapMonth && day >= 15) {
-        monthIndex = month;
-        // Wrap around if exceeds 11
-        if (monthIndex > 11) {
-            monthIndex = monthIndex - 12;
+
+    // Only apply leap month logic if isLeapMonth is true
+    if (isLeapMonth) {
+        switch (leapMonthMode) {
+            case 'current': // 視為本月
+                // Always use current month index
+                monthIndex = month - 1;
+                break;
+            case 'next': // 視為下月
+                // Always add 1 to month index
+                monthIndex = month;
+                if (monthIndex > 11) monthIndex = monthIndex - 12;
+                break;
+            case 'mid': // 月中換月 (default)
+            default:
+                // Add 1 if day >= 15
+                if (day >= 15) {
+                    monthIndex = month;
+                    if (monthIndex > 11) monthIndex = monthIndex - 12;
+                }
+                // else keep as current month
+                break;
         }
     }
-    
+
     return monthIndex;
 }
 
@@ -42,19 +57,20 @@ function getMonthIndex(month, day, isLeapMonth) {
  * @param {Object} lunar Lunar date from lunar-converter { lunarMonth, lunarDay, timeIndex, isLeapMonth }
  * @returns {Object} Indices { monthIndex: 0-11, timeIndex: 0-11 }
  */
-function getBasicIndices(lunar) {
+function getBasicIndices(lunar, leapMonthMode) {
     const month = lunar.lunarMonth || lunar.month;
     const day = lunar.lunarDay || lunar.day;
     const timeIndex = lunar.timeIndex;
     const isLeapMonth = lunar.isLeapMonth || lunar.isleap || false;
-    
+
     if (!month || !day || timeIndex === undefined) {
         console.warn('Invalid lunar date for basic indices:', lunar);
         return { monthIndex: 0, timeIndex: 0 };
     }
-    
-    const monthIndex = getMonthIndex(month, day, isLeapMonth);
-    
+
+    // Pass leapMonthMode to getMonthIndex
+    const monthIndex = getMonthIndex(month, day, isLeapMonth, leapMonthMode);
+
     return { monthIndex, timeIndex };
 }
 

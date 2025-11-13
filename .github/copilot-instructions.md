@@ -212,7 +212,7 @@ draw(chartData)
 - Leave commented-out code
 
 ## Progressive Development Strategy
- Current phase: **Phase 10 (Major Cycles & Annual Cycles)** - 大限流年 (🚧 in progress - v0.5.0)
+ Current phase: **Phase 11: School/Config systems** - (🚧 in progress - v0.5.3)
  
  - Phase 1-3: Form + palaces + basic information display (✅ complete)
  - Phase 4: Primary stars (✅ complete)
@@ -223,8 +223,8 @@ draw(chartData)
  - Phase 9: Three-direction Four-square interaction & UI refinement (✅ complete)
  - Phase 10: Major cycles (大運) and annual cycles (流年) (✅ complete)
  - Phase 11: School/Config systems (🚧 ongoing)
-      - Phase 11a: Star status (廟旺利陷) configurations (⏳ not started)
-      - Phase 11b: Different school rules (⏳ not started)
+      - Phase 11a: Star status (廟旺利陷) configurations (✅ complete)
+      - Phase 11b: Different school rules (🚧 in progress)
       - Phase 11c: Month, Day and time handling differences (⏳ not started)
  - Phase 12: Export as PNG and PDF (⏳ not started)
  - Phase 13: True Sun time & location adjustments (⏳ not started)

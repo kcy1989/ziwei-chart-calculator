@@ -36,7 +36,12 @@ function getCacheKey(formData) {
         solar.minute,
         meta.gender || formData.gender || 'unknown',
         meta.calendarType || formData.calendarType || 'solar',
-        meta.leapMonth || formData.leapMonth ? '1' : '0'
+        // Include leapMonthHandling in cache key so different handling modes produce distinct keys
+        (meta.leapMonthHandling !== undefined && meta.leapMonthHandling !== null)
+            ? String(meta.leapMonthHandling)
+            : (formData.leapMonthHandling !== undefined && formData.leapMonthHandling !== null)
+                ? String(formData.leapMonthHandling)
+                : (meta.leapMonth || formData.leapMonth ? 'leap' : 'noleap')
     ].join('|');
     return key;
 }

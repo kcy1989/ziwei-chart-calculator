@@ -1009,9 +1009,20 @@ function draw(context) {
     chartWrapper.style.marginBottom = '30px';
     chartWrapper.appendChild(grid);
 
+    // Ensure the global chart cache includes the original normalized input
+    // returned by the adapter pipeline (which stores it at adapterOutput.raw.normalizedInput)
+    // so other modules (config.js) can recover the last submitted form via
+    // `window.ziweiChartData.normalized.raw`.
+    var normalizedForCache = (adapterOutput && adapterOutput.raw && adapterOutput.raw.normalizedInput)
+        ? adapterOutput.raw.normalizedInput
+        : (adapterOutput && adapterOutput.normalized) || {};
+
     window.ziweiChartData = Object.assign({}, adapterOutput, {
         calcResult,
-        normalizedInput: adapterOutput.normalized || {},
+        // Keep both shapes for compatibility: normalized (full normalized input with .raw)
+        // and normalizedInput (legacy field used elsewhere)
+        normalized: normalizedForCache,
+        normalizedInput: normalizedForCache,
         lunarYear,
         data: calcResult.data,
         meta: Object.assign({}, meta, { lunar: adapterOutput.lunar })
