@@ -59,23 +59,7 @@ function calculateMinorStars(
     literaryTalentIndex,
     lunarDay
 ) {
-    console.log('Calculating minor stars with:', {
-        monthIndex,
-        timeIndex,
-        yearBranchIndex,
-        dayBranchIndex,
-        yearStemIndex,
-        mingPalaceIndex,
-        shenPalaceIndex,
-        gender,
-        lunarYear,
-        migrationPalaceIndex,
-        literaryCraftIndex,
-        leftAssistantIndex,
-        rightAssistIndex,
-        literaryTalentIndex,
-        lunarDay
-    });
+    // Calculation started (inputs are intentionally not logged to reduce console noise)
 
     const minorStars = {};
 
@@ -117,7 +101,7 @@ function calculateMinorStars(
     const xunKongSecond = (xunKongBase + 2) % 12;  // Second Xun Void position (palace after that)
     minorStars['旬空'] = [xunKongFirst, xunKongSecond];
     
-    console.log(`旬空 calculation: stem=${yearStemIndex}, branch=${yearBranchIndex}, steps=${xunKongSteps}, base=${xunKongBase}, positions=[${xunKongFirst}, ${xunKongSecond}]`);
+    // xunKong positions computed (debug logging removed)
 
     // 天馬 (Heavenly Horse) - based on year branch
     // Pattern: 子至亥 (0-11): 2,11,8,5,2,11,8,5,2,11,8,5 (repeats every 4, decreasing by 3 mod 12)
@@ -316,7 +300,7 @@ function calculateMinorStars(
     // Formula: (文曲 + lunarDay - 2 + 12) % 12
     minorStars['天貴'] = (literaryCraftIndex + lunarDay - 2 + 12) % 12;
 
-    console.log('Minor stars calculated:', minorStars);
+    // minor stars calculated; result returned (logging removed)
 
     return minorStars;
 }

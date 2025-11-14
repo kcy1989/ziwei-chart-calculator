@@ -212,7 +212,7 @@ draw(chartData)
 - Leave commented-out code
 
 ## Progressive Development Strategy
- Current phase: **Phase 11: School/Config systems** - (🚧 in progress - v0.5.3)
+ Current phase: **Phase 11: School/Config systems** - (🚧 in progress - v0.5.4)
  
  - Phase 1-3: Form + palaces + basic information display (✅ complete)
  - Phase 4: Primary stars (✅ complete)

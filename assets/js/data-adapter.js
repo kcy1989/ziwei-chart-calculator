@@ -25,6 +25,80 @@
         };
     }
 
+    // Simple settings store for adapter-level effective settings
+    // Persisted to sessionStorage under key 'ziweiAdapter_settings'
+    adapter._settings = adapter._settings || {};
+    (function initAdapterSettings() {
+        try {
+            if (typeof sessionStorage !== 'undefined') {
+                var raw = sessionStorage.getItem('ziweiAdapter_settings');
+                if (raw) {
+                    try { adapter._settings = JSON.parse(raw) || {}; } catch (e) { adapter._settings = {}; }
+                }
+            }
+        } catch (e) {
+            adapter._settings = adapter._settings || {};
+        }
+    })();
+
+    adapter.settings = adapter.settings || {};
+    adapter.settings.get = function(name) {
+        if (!name) return null;
+        return adapter._settings[name] !== undefined ? adapter._settings[name] : null;
+    };
+
+    // Generic storage for adapter-level transient data (persisted to sessionStorage)
+    adapter._storage = adapter._storage || {};
+    (function initAdapterStorage() {
+        try {
+            if (typeof sessionStorage !== 'undefined') {
+                var rawStore = sessionStorage.getItem('ziweiAdapter_storage');
+                if (rawStore) {
+                    try { adapter._storage = JSON.parse(rawStore) || {}; } catch (e) { adapter._storage = {}; }
+                }
+            }
+        } catch (e) {
+            adapter._storage = adapter._storage || {};
+        }
+    })();
+
+    adapter.storage = adapter.storage || {};
+    adapter.storage.get = function(name) {
+        if (!name) return null;
+        return adapter._storage.hasOwnProperty(name) ? deepClone(adapter._storage[name]) : null;
+    };
+    adapter.storage.set = function(name, value) {
+        if (!name) return;
+        try {
+            adapter._storage[name] = deepClone(value);
+            if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.setItem('ziweiAdapter_storage', JSON.stringify(adapter._storage));
+            }
+        } catch (e) {
+            // ignore
+        }
+    };
+    adapter.storage.remove = function(name) {
+        if (!name) return;
+        try {
+            delete adapter._storage[name];
+            if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.setItem('ziweiAdapter_storage', JSON.stringify(adapter._storage));
+            }
+        } catch (e) {}
+    };
+    adapter.settings.set = function(name, value) {
+        if (!name) return;
+        adapter._settings[name] = value;
+        try {
+            if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.setItem('ziweiAdapter_settings', JSON.stringify(adapter._settings));
+            }
+        } catch (e) {
+            // ignore storage errors
+        }
+    };
+
     if (typeof adapter.getModule !== 'function') {
         adapter.getModule = function(name) {
             if (!name) {
@@ -323,7 +397,32 @@
                 throw AdapterError('LUNAR_CONVERTER_MISSING', '找不到農曆轉換函式。');
             }
             try {
-                lunar = solarToLunar(solar.year, solar.month, solar.day, solar.hour, solar.minute);
+                // If ziHourHandling requests 子時換日, do NOT mutate the solar (Gregorian)
+                // instead compute the conversion date as solar +1 day for the lunar conversion only.
+                var convYear = solar.year;
+                var convMonth = solar.month;
+                var convDay = solar.day;
+                var convHour = solar.hour;
+                var convMinute = solar.minute;
+
+                try {
+                    if (rawData.ziHourHandling === 'ziChange') {
+                        // Only shift lunar-conversion day when time is between 23:00 and 23:55
+                        var baseHour = Number(solar.hour);
+                        var baseMinute = Number(solar.minute) || 0;
+                        if (baseHour === 23 && baseMinute >= 0 && baseMinute <= 55) {
+                            var convDate = new Date(solar.year, solar.month - 1, solar.day, solar.hour, solar.minute || 0);
+                            convDate.setDate(convDate.getDate() + 1);
+                            convYear = convDate.getFullYear();
+                            convMonth = convDate.getMonth() + 1;
+                            convDay = convDate.getDate();
+                        }
+                    }
+                } catch (ziErr) {
+                    warn('ziHourHandling detection failed, falling back to original solar date', ziErr);
+                }
+
+                lunar = solarToLunar(convYear, convMonth, convDay, convHour, convMinute);
             } catch (convertError) {
                 throw AdapterError('LUNAR_CONVERSION_FAILED', '國曆轉農曆失敗。', { solar: deepClone(solar) }, convertError);
             }
@@ -351,6 +450,23 @@
             }
         }
 
+        // Determine ziHourHandling: prefer explicit rawData value, then adapter-level
+        // stored setting, then default to 'midnightChange'. This ensures the
+        // adapter is the canonical source of currently active settings.
+        var ziHourHandling = null;
+        if (typeof rawData.ziHourHandling === 'string') {
+            ziHourHandling = rawData.ziHourHandling;
+        } else {
+            try {
+                if (adapter && adapter.settings && typeof adapter.settings.get === 'function') {
+                    ziHourHandling = adapter.settings.get('ziHourHandling');
+                }
+            } catch (e) {
+                // ignore
+            }
+        }
+        if (!ziHourHandling) ziHourHandling = 'midnightChange';
+
         var meta = {
             name: sanitizeName(rawData.name),
             gender: sanitized.gender || 'M',
@@ -358,7 +474,9 @@
             calendarType: calendarType,
             leapMonth: leapMonth,
             // Propagate leapMonthHandling setting from raw input (expected values: 'mid','current','next')
-            leapMonthHandling: rawData.leapMonthHandling || null
+            leapMonthHandling: rawData.leapMonthHandling || null,
+            // Record ziHour handling selection so later stages can cache on it
+            ziHourHandling: ziHourHandling
         };
 
         var strings = {
@@ -378,19 +496,26 @@
             lunar: lunar,
             indices: indices,
             strings: strings,
-            raw: deepClone(rawData)
+            raw: deepClone(rawData),
+            ziHourHandling: meta.ziHourHandling
         };
     }
 
     function mergeMeta(normalized, calcMeta) {
         var meta = Object.assign({}, normalized.meta || {});
-        var merged = Object.assign(meta, calcMeta || {});
+        // Prefer server-provided meta fields but allow normalized input to override
+        // specific fields when appropriate (notably lunar conversion results).
+        var merged = Object.assign({}, meta, calcMeta || {});
+        // If normalized input contains a lunar object, prefer it to ensure client-side
+        // adjustments (eg. zi-hour lunar+1) are reflected in display meta.
+        if (normalized && normalized.lunar) {
+            merged.lunar = normalized.lunar;
+        }
         if (!merged.name) merged.name = '無名氏';
-        if (!merged.gender) merged.gender = normalized.meta.gender || 'M';
-        if (!merged.birthdate) merged.birthdate = normalized.strings.birthdate;
-        if (!merged.birthtime) merged.birthtime = normalized.strings.birthtime;
-        if (!merged.birthplace) merged.birthplace = normalized.meta.birthplace;
-        if (!merged.lunar) merged.lunar = normalized.lunar;
+        if (!merged.gender) merged.gender = normalized.meta && normalized.meta.gender ? normalized.meta.gender : 'M';
+        if (!merged.birthdate) merged.birthdate = (normalized.strings && normalized.strings.birthdate) || '';
+        if (!merged.birthtime) merged.birthtime = (normalized.strings && normalized.strings.birthtime) || '';
+        if (!merged.birthplace) merged.birthplace = (normalized.meta && normalized.meta.birthplace) || '';
         return merged;
     }
 
@@ -452,6 +577,76 @@
         }
         return null;
     }
+
+        function toIntOrNull(value) {
+            if (value === undefined || value === null || value === '') {
+                return null;
+            }
+            var num = parseInt(value, 10);
+            return Number.isFinite(num) ? num : null;
+        }
+
+        function buildSolarNumericSnapshot(solar) {
+            if (!solar) return null;
+            var snapshot = {
+                year: toIntOrNull(solar.year),
+                month: toIntOrNull(solar.month),
+                day: toIntOrNull(solar.day),
+                hour: toIntOrNull(solar.hour),
+                minute: toIntOrNull(solar.minute)
+            };
+            if (snapshot.year && snapshot.month && snapshot.day) {
+                if (snapshot.hour === null) snapshot.hour = 0;
+                if (snapshot.minute === null) snapshot.minute = 0;
+                return snapshot;
+            }
+            return null;
+        }
+
+        function formatGregorianDisplayString(solarSnapshot) {
+            if (!solarSnapshot) return null;
+            var year = solarSnapshot.year;
+            var month = solarSnapshot.month;
+            var day = solarSnapshot.day;
+            if (!year || !month || !day) {
+                return null;
+            }
+            var hour = (solarSnapshot.hour !== undefined && solarSnapshot.hour !== null) ? solarSnapshot.hour : 0;
+            var minute = (solarSnapshot.minute !== undefined && solarSnapshot.minute !== null) ? solarSnapshot.minute : 0;
+            return '西曆：' + year + '年' + month + '月' + day + '日' + hour + '時' + minute + '分';
+        }
+
+        function buildLunarNumericSnapshot(lunar) {
+            if (!lunar) return null;
+            var snapshot = {
+                lunarYear: toIntOrNull(lunar.lunarYear || lunar.year),
+                lunarMonth: toIntOrNull(lunar.lunarMonth || lunar.month),
+                lunarDay: toIntOrNull(lunar.lunarDay || lunar.day),
+                isLeapMonth: !!lunar.isLeapMonth,
+                timeIndex: (Number.isInteger(lunar.timeIndex) ? lunar.timeIndex : null)
+            };
+            if (snapshot.lunarYear || snapshot.lunarMonth || snapshot.lunarDay) {
+                return snapshot;
+            }
+            return null;
+        }
+
+        function formatLunarDisplayString(lunar) {
+            if (!lunar) return null;
+            if (lunar.formatted && lunar.formatted.full) {
+                return '農曆：' + lunar.formatted.full;
+            }
+            var parts = [];
+            if (lunar.year) parts.push(String(lunar.year));
+            if (lunar.date) parts.push(String(lunar.date));
+            if (lunar.formatted && lunar.formatted.timeName) {
+                parts.push(lunar.formatted.timeName);
+            }
+            if (!parts.length) {
+                return null;
+            }
+            return '農曆：' + parts.join('');
+        }
 
     function computeNayinInfo(mingPalace) {
         if (!window.ziweiNayin) {
@@ -670,11 +865,18 @@
             throw AdapterError('INPUT_CONTEXT_REQUIRED', '缺少標準化輸入。');
         }
         var calcMeta = extractMeta(calcResult);
+        // Prefer client-normalized lunar data (normalizedInput.lunar) when present
+        // so that client-side adjustments (eg. zi-hour lunar+1) are reflected
+        // even if the server calcResult contains a lunar object. Server-provided
+        // lunar fields will be used as fallback where client-normalized fields
+        // are missing.
+        var lunarMerged = Object.assign({}, calcMeta.lunar || {}, normalizedInput.lunar || {});
         var context = {
             meta: mergeMeta(normalizedInput, calcMeta),
-            lunar: Object.assign({}, normalizedInput.lunar, calcMeta.lunar || {}),
+            lunar: lunarMerged,
             indices: Object.assign({}, normalizedInput.indices),
-            normalized: normalizedInput
+            normalized: normalizedInput,
+            solar: normalizedInput.solar ? Object.assign({}, normalizedInput.solar) : null
         };
         ensureBasicIndex(context, calcMeta);
         var errors = {};
@@ -720,6 +922,62 @@
         }, errors, null);
 
         var brightness = computeBrightness(primaryStars, secondaryStars, palaces);
+        // Add friendly formatted strings to lunar/meta so display layer can render
+        try {
+            var branchNames = (constants && constants.BRANCH_NAMES) ? constants.BRANCH_NAMES : ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+            var tIndex = context.lunar && (context.lunar.timeIndex !== undefined) ? context.lunar.timeIndex : (context.lunar && context.lunar.timeIndex ? context.lunar.timeIndex : null);
+            var timeName = null;
+            if (tIndex !== null && tIndex !== undefined && branchNames[tIndex]) {
+                timeName = branchNames[tIndex] + '時';
+            }
+            // lunar.year may include 
+            var lunarYearText = context.lunar && context.lunar.year ? String(context.lunar.year).split('，')[0] : '';
+            var lunarDateText = context.lunar && context.lunar.date ? String(context.lunar.date) : '';
+            var lunarFull = [lunarYearText, lunarDateText].filter(Boolean).join('');
+            // Concatenate timeName without additional spaces so adapter provides
+            // a display-ready string (e.g. '乙巳年九月廿五子時') — display layer
+            // must consume this exact field to avoid inserting its own spacing.
+            if (timeName) lunarFull = lunarFull + timeName;
+            // attach formatted fields
+            context.lunar = Object.assign({}, context.lunar, { formatted: { year: lunarYearText, date: lunarDateText, timeName: timeName, full: lunarFull } });
+
+            // prefer gender classification from indices if available
+            if (context.indices && context.indices.genderClassification) {
+                context.meta.genderClassification = context.indices.genderClassification;
+            } else {
+                var genderModule = getAdapterModule('gender');
+                try {
+                    if (genderModule && typeof genderModule.getGenderClassification === 'function') {
+                        context.meta.genderClassification = genderModule.getGenderClassification(context.meta.gender, context.lunar.lunarYear);
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            }
+        } catch (e) {
+            // ignore formatting errors
+        }
+
+        try {
+            var solarNumeric = buildSolarNumericSnapshot(context.solar || (context.normalized && context.normalized.solar));
+            if (solarNumeric) {
+                context.meta.birthdateSolarNumeric = solarNumeric;
+                var solarDisplay = formatGregorianDisplayString(solarNumeric);
+                if (solarDisplay) {
+                    context.meta.birthdateSolarText = solarDisplay;
+                }
+            }
+            var lunarNumericSnapshot = buildLunarNumericSnapshot(context.lunar);
+            if (lunarNumericSnapshot) {
+                context.meta.birthdateLunarNumeric = lunarNumericSnapshot;
+            }
+            var lunarDisplayText = formatLunarDisplayString(context.lunar);
+            if (lunarDisplayText) {
+                context.meta.birthdateLunarText = lunarDisplayText;
+            }
+        } catch (metaFormatErr) {
+            // ignore
+        }
 
         return {
             meta: context.meta,
@@ -755,6 +1013,26 @@
         if (!rawData || typeof rawData !== 'object') {
             throw AdapterError('INPUT_INVALID', '原始表單資料格式錯誤。', { rawData: rawData });
         }
+        // Temporary debug trace to help diagnose ziHourAdjustment issues
+        try {
+            // Only emit normalize debug traces when adapter-level DEBUG is enabled
+            if (DEBUG && typeof console !== 'undefined' && console.log) {
+                console.log('[ziweiAdapter] normalize() called. rawData snapshot:', {
+                    birthdate: rawData.birthdate || rawData.date || null,
+                    birthtime: rawData.birthtime || rawData.time || null,
+                    year: rawData.year,
+                    month: rawData.month,
+                    day: rawData.day,
+                    hour: rawData.hour,
+                    minute: rawData.minute,
+                    ziHourHandling: rawData.ziHourHandling || null,
+                    _debugMarker: rawData._ziChangeApplied || null
+                });
+            }
+        } catch (dbgErr) {
+            // swallow debug errors
+        }
+
         return buildNormalizedInput(rawData);
     };
 

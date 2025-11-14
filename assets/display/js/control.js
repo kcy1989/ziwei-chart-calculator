@@ -11,6 +11,50 @@
     const CONTROL_SELECTOR = '.ziwei-control-bar';
     const SETTINGS_SELECTOR = '.ziwei-settings-panel';
 
+    function getAdapterInstance() {
+        return window.ziweiAdapter || null;
+    }
+
+    function getAdapterStorageValue(key) {
+        const adapter = getAdapterInstance();
+        if (!adapter || !adapter.storage || typeof adapter.storage.get !== 'function') {
+            return null;
+        }
+        try {
+            return adapter.storage.get(key);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function getAdapterSettingValue(name) {
+        if (!name) {
+            return null;
+        }
+        const adapter = getAdapterInstance();
+        if (!adapter || !adapter.settings || typeof adapter.settings.get !== 'function') {
+            return null;
+        }
+        try {
+            return adapter.settings.get(name);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function getLatestMetaFromAdapter() {
+        const adapterOutput = getAdapterStorageValue('adapterOutput');
+        if (adapterOutput && adapterOutput.meta) {
+            return adapterOutput.meta;
+        }
+        const storedMeta = getAdapterStorageValue('meta');
+        if (storedMeta) {
+            return storedMeta;
+        }
+        console.error('[ziweiControl] Adapter meta not found in storage');
+        return null;
+    }
+
     /**
      * Calculate next 2-hour interval with special handling for transitions
      * @param {number} hour Current hour (0-23)
@@ -96,27 +140,33 @@
      * @param {string} direction 'prev' or 'next'
      */
     function handleHourChange(direction) {
-        const chartData = window.ziweiChartData;
-        if (!chartData || !chartData.meta) {
+        const adapter = getAdapterInstance();
+        if (!adapter || !adapter.input || !adapter.output) {
+            console.error('[ziweiControl] Data adapter not available');
+            return;
+        }
+
+        const meta = getLatestMetaFromAdapter();
+        if (!meta) {
             console.warn('[ziweiControl] No chart data available');
             return;
         }
 
-        // Extract metadata from cached chart data
-        const meta = chartData.meta;
+        const solarNumeric = meta.birthdateSolarNumeric || null;
+        if (!solarNumeric) {
+            console.error('[ziweiControl] Missing birthdateSolarNumeric in adapter meta');
+            return;
+        }
 
-        // Parse current birthtime (format: "HH:MM")
-        const birthtimeStr = meta.birthtime || '';
-        const [hourStr, minuteStr] = birthtimeStr.split(':');
-        const hour = parseInt(hourStr, 10) || 0;
-        const minute = parseInt(minuteStr, 10) || 0;
-
-        // Parse birth date from birthdate field (format: "YYYY-MM-DD")
-        const birthdateStr = meta.birthdate || '';
-        const [yearStr, monthStr, dayStr] = birthdateStr.split('-');
-        const year = parseInt(yearStr, 10);
-        const month = parseInt(monthStr, 10);
-        const day = parseInt(dayStr, 10);
+        const hour = Number.isFinite(solarNumeric.hour) ? solarNumeric.hour : 0;
+        const minute = Number.isFinite(solarNumeric.minute) ? solarNumeric.minute : 0;
+        const year = Number.isFinite(solarNumeric.year) ? solarNumeric.year : null;
+        const month = Number.isFinite(solarNumeric.month) ? solarNumeric.month : null;
+        const day = Number.isFinite(solarNumeric.day) ? solarNumeric.day : null;
+        if (!year || !month || !day) {
+            console.error('[ziweiControl] Incomplete solar snapshot in adapter meta', solarNumeric);
+            return;
+        }
 
         let newHour, newMinute, dateOffset;
 
@@ -137,10 +187,25 @@
             ? adjustDate(year, month, day, dateOffset)
             : { year, month, day };
 
-        const adapter = window.ziweiAdapter;
-        if (!adapter || !adapter.input || !adapter.output) {
-            console.error('[ziweiControl] Data adapter not available');
-            return;
+        // Include ziHourHandling from adapter settings when available so normalization
+        // computes lunar with the correct 子時換日 mode.
+        var ziHandling = null;
+        var leapHandling = null;
+        try {
+            ziHandling = getAdapterSettingValue('ziHourHandling');
+        } catch (e) {
+            ziHandling = null;
+        }
+        try {
+            leapHandling = getAdapterSettingValue('leapMonthHandling');
+        } catch (e) {
+            leapHandling = null;
+        }
+        if (!leapHandling && meta.leapMonthHandling) {
+            leapHandling = meta.leapMonthHandling;
+        }
+        if (!leapHandling) {
+            leapHandling = 'mid';
         }
 
         const rawInput = {
@@ -154,6 +219,8 @@
             birthplace: meta.birthplace || '',
             calendarType: meta.calendarType || 'solar',
             leapMonth: '',
+            leapMonthHandling: leapHandling,
+            ziHourHandling: ziHandling || undefined,
             timezone: meta.timezone || 'UTC+8'
         };
 
@@ -192,14 +259,27 @@
             return;
         }
 
-        console.log('[ziweiControl] Local chart context prepared via adapter:', adapterOutput);
+    // adapterOutput prepared and persisted to adapter.storage
+
+        // Persist the adjusted normalized / adapterOutput into adapter storage
+        try {
+            if (adapter && adapter.storage && typeof adapter.storage.set === 'function') {
+                adapter.storage.set('normalizedInput', normalized);
+                adapter.storage.set('adapterOutput', adapterOutput);
+                adapter.storage.set('calcResult', calcResult);
+                adapter.storage.set('formInput', normalized.raw ? normalized.raw : rawInput);
+                if (adapterOutput && adapterOutput.meta) {
+                    adapter.storage.set('meta', adapterOutput.meta);
+                }
+            }
+        } catch (e) {}
 
         const newChartElement = window.ziweiChart.draw({
             calcResult,
             normalizedInput: normalized,
             adapterOutput
         });
-        updateChartDisplay(newChartElement, calcResult);
+    updateChartDisplay(newChartElement, { adapterOutput });
 
         // Optionally validate with API in background (fire and forget)
         setTimeout(() => {
@@ -226,9 +306,9 @@
     /**
      * Update chart display without form replacement
      * @param {HTMLElement} newChartElement New chart element
-     * @param {Object} [chartData] Optional chart data (used to update stored personal info in hide state)
+     * @param {Object} [adapterContext] Optional adapter context (expects { adapterOutput })
      */
-    function updateChartDisplay(newChartElement, chartData) {
+    function updateChartDisplay(newChartElement, adapterContext) {
         const currentChart = document.querySelector('[data-ziwei-chart]');
         if (!currentChart) {
             console.error('[ziweiControl] Current chart not found');
@@ -247,8 +327,8 @@
         
         // If personal info is in hide state, update stored values BEFORE replacing chart
         // This prevents stored data from being out of sync with displayed data
-        if (window.ziweiConfig && typeof window.ziweiConfig.updateStoredPersonalInfoIfHidden === 'function' && chartData) {
-            window.ziweiConfig.updateStoredPersonalInfoIfHidden(chartData);
+        if (window.ziweiConfig && typeof window.ziweiConfig.updateStoredPersonalInfoIfHidden === 'function') {
+            window.ziweiConfig.updateStoredPersonalInfoIfHidden(adapterContext);
         }
         
         currentChart.replaceWith(newChartElement);
@@ -261,11 +341,9 @@
         
         // Reapply brightness setting to new chart element
         // This ensures brightness state is consistent after chart replacement
-        if (typeof sessionStorage !== 'undefined') {
-            const brightnessSetting = sessionStorage.getItem('ziweiStarBrightness');
-            if (brightnessSetting && window.ziweiConfig && typeof window.ziweiConfig.applyStarBrightnessChange === 'function') {
-                window.ziweiConfig.applyStarBrightnessChange(brightnessSetting);
-            }
+        const brightnessSetting = getAdapterSettingValue('starBrightness');
+        if (brightnessSetting && window.ziweiConfig && typeof window.ziweiConfig.applyStarBrightnessChange === 'function') {
+            window.ziweiConfig.applyStarBrightnessChange(brightnessSetting);
         }
     }
 
@@ -389,7 +467,6 @@
                 if (panel) {
                     panel.classList.remove('active');
                 }
-                console.log('ziweiControl: settings panel closed');
             } else {
                 // Open settings panel
                 settingsBtn.classList.add('active');
@@ -397,20 +474,16 @@
                 if (panel) {
                     panel.classList.add('active');
                 }
-                console.log('ziweiControl: settings panel opened');
             }
         });
-
-        console.log('ziweiControl: control bar rendered', { mountNode, beforeNode: referenceNode });
         return bar;
     }
 
     // Expose public API
     window.ziweiControl = {
         createBar,
-        // Allow other modules to replace the current chart element with a new one
-        // This is used when the settings panel triggers a recompute and only the
-        // chart (not the form) is present in the DOM.
+        // Expose updateChartDisplay so other modules (config.js) can replace the
+        // existing chart when the form is not present (chart-only view).
         updateChartDisplay
     };
 })();

@@ -58,9 +58,7 @@ function calculatePrimaryBrightness(primaryStars, palaceMapping, school = 'shuos
                 branchZhi: palaceInfo?.branchZhi || ''
             };
 
-            if (window.ziweiCalData?.env?.isDebug) {
-                console.log(`[Brightness] Primary ${starName}: ${brightness} at ${palaceInfo?.branchZhi} (idx ${branchIndex})`);
-            }
+            // Debug logging intentionally removed to reduce console noise.
         }
     }
 
@@ -110,9 +108,7 @@ function calculateSecondaryBrightness(secondaryStars, palaceMapping, school = 's
                 branchZhi: palaceInfo?.branchZhi || ''
             };
 
-            if (window.ziweiCalData?.env?.isDebug) {
-                console.log(`[Brightness] Secondary ${starName}: ${brightness} at ${palaceInfo?.branchZhi} (idx ${branchIndex})`);
-            }
+            // Debug logging intentionally removed to reduce console noise.
         }
     }
 
@@ -168,6 +164,4 @@ function registerAdapterModule(name, api) {
     }
 }
 
-if (window.ziweiCalData?.env?.isDebug) {
-    console.log('[zweiBrightness] Module loaded');
-}
+// Module loaded log removed to avoid verbose console output in production.

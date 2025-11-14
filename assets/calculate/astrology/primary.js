@@ -61,17 +61,7 @@ function calculateZiweiStarPosition(lunarDay, nayinLoci) {
     // Handle negative modulo correctly in JavaScript
     const normalizedPalaceIndex = palaceIndex < 0 ? palaceIndex + 12 : palaceIndex;
     
-    if (window.ziweiCalData?.env?.isDebug) {
-        console.log('Ziwei Star Calculation:', {
-            lunarDay,
-            nayinLoci,
-            step,
-            remainder,
-            remainderParity: remainder % 2 === 0 ? 'even' : 'odd',
-            totalStep,
-            palaceIndex: normalizedPalaceIndex
-        });
-    }
+    // Debug logging removed to reduce console noise
     
     return {
         palaceIndex: normalizedPalaceIndex,
@@ -112,12 +102,7 @@ function calculateZiweiSystemStars(ziweiPalaceIndex) {
         systemStars[starName] = palaceIndex;
     }
     
-    if (window.ziweiCalData?.env?.isDebug) {
-        console.log('Ziwei System Stars Calculation:', {
-            ziweiPalaceIndex,
-            systemStars
-        });
-    }
+    // Debug logging removed to reduce console noise
     
     return systemStars;
 }
@@ -146,12 +131,7 @@ function calculateTianfuStarPosition(ziweiPalaceIndex) {
     // Formula: (4 - ziweiIndex) % 12 with proper modulo for negative numbers
     const tianfuIndex = ((4 - ziweiPalaceIndex) % 12 + 12) % 12;
     
-    if (window.ziweiCalData?.env?.isDebug) {
-        console.log('Tianfu Star Calculation:', {
-            ziweiPalaceIndex,
-            tianfuIndex
-        });
-    }
+    // Debug logging removed to reduce console noise
     
     return tianfuIndex;
 }
@@ -189,12 +169,7 @@ function calculateTianfuSystemStars(tianfuPalaceIndex) {
         systemStars[starName] = palaceIndex;
     }
     
-    if (window.ziweiCalData?.env?.isDebug) {
-        console.log('Tianfu System Stars Calculation:', {
-            tianfuPalaceIndex,
-            systemStars
-        });
-    }
+    // Debug logging removed to reduce console noise
     
     return systemStars;
 }
@@ -241,9 +216,7 @@ function placePrimaryStars(chartData) {
         }
     }
     
-    if (window.ziweiCalData?.env?.isDebug) {
-        console.log('Primary stars placement:', primaryStars);
-    }
+    // Primary stars computed (debug logging removed)
     
     return primaryStars;
 }

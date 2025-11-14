@@ -4,7 +4,7 @@ Tags: 紫微斗數, 命理, 排盤, 中州派, astrology
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 0.5.3
+Stable tag: 0.5.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -163,6 +163,11 @@ ziwei-cal/
 此功能將在階段 12 開發。
 
 == Changelog ==
+
+= 0.5.4 - 2025-11-15 =
+* 新增：子時（午夜）處理功能
+* 優化：優化後台計算程序
+* 清理：減少多餘的後台除錯訊息
 
 = 0.5.3 - 2025-11-14 =
 * 新增：閏月處理設定（月中換月 - 預設、視為本月、視為下月）

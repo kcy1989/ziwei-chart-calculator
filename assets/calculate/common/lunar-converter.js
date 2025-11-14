@@ -226,6 +226,12 @@ function getTimeIndex(hour) {
  */
 function solarToLunar(year, month, day, hour, minute) {
     try {
+        // Debug input values to help trace zi-hour adjustments
+        try {
+            if (typeof console !== 'undefined' && console.log) {
+                console.log('[lunar-converter] solarToLunar inputs:', { year: year, month: month, day: day, hour: hour, minute: minute });
+            }
+        } catch (dbg) {}
         // Validate year range (library supports 1900-2100)
         if (year < 1900 || year > 2100) {
             console.error('Lunar conversion: Year out of range (1900-2100)');

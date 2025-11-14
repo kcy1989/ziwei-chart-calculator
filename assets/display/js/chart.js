@@ -719,7 +719,8 @@ function createStarGroupElement(starName, starClass, mutationBirth, mutationMajo
 
     groupEl.appendChild(starMutationBox);
 
-    // Add brightness indicator below the star (靠左对齐，固定左边距离)
+    // Add brightness indicator below the star (left-aligned, fixed left offset)
+    // Displays brightness status (e.g. 廟/旺/利/平/陷). Keep the DOM minimal so CSS can position it.
     if (brightness) {
         const brightnessEl = document.createElement('div');
         brightnessEl.className = 'ziwei-star-brightness';
@@ -829,44 +830,20 @@ function draw(context) {
 
     const isAdapterError = adapter.errors?.isAdapterError;
 
-    let calcResult = context?.calcResult || context;
-    let adapterOutput = context?.adapterOutput || null;
+    let adapterOutput = null;
+    let calcResult = null;
 
-    // Support both direct calcResult (from REST API) and adapterOutput (from adapter.output.process)
-    // If adapterOutput not provided, treat context as calcResult and extract what we need
-    if (!adapterOutput && calcResult) {
-        console.log('[ziweiChart] adapterOutput not provided, using calcResult directly');
-        adapterOutput = {
-            meta: calcResult.meta || {},
-            lunar: calcResult.lunar || {},
-            indices: calcResult.indices || {},
-            sections: calcResult.sections || {},
-            derived: calcResult.derived || {},
-            constants: calcResult.constants || {},
-            errors: calcResult.errors || {},
-            normalized: calcResult.normalized || {}
-        };
+    if (context && context.adapterOutput) {
+        adapterOutput = context.adapterOutput;
+        calcResult = context.calcResult || null;
+    } else if (context && context.meta && context.sections) {
+        adapterOutput = context;
     }
 
     if (!adapterOutput) {
-        console.error('[ziweiChart] No valid data provided (neither adapterOutput nor calcResult)');
-        failAndAbort('命盤資料不足，無法繪製命盤');
+        console.error('[ziweiChart] No adapter output supplied to renderer');
+        failAndAbort('命盤資料不足，顯示層僅接受轉接層資料');
         return document.createElement('div');
-    }
-
-    if (!calcResult || !calcResult.data) {
-        calcResult = {
-            success: true,
-            message: '命盤生成成功。',
-            data: {
-                name: adapterOutput.meta?.name || '無名氏',
-                gender: adapterOutput.meta?.gender || 'M',
-                birthdate: adapterOutput.meta?.birthdate || '',
-                birthtime: adapterOutput.meta?.birthtime || '',
-                birthplace: adapterOutput.meta?.birthplace || '',
-                lunar: adapterOutput.lunar
-            }
-        };
     }
 
     const grid = document.createElement('div');
@@ -995,38 +972,26 @@ function draw(context) {
     chartWrapper.className = 'ziwei-chart-wrapper';
     chartWrapper.setAttribute('data-ziwei-chart', '1');
     
-    // Restore brightness setting from sessionStorage (current session only)
-    // If not in sessionStorage, use 'hidden' as default
-    let brightnessSetting = 'hidden';
-    if (typeof sessionStorage !== 'undefined') {
-        const stored = sessionStorage.getItem('ziweiStarBrightness');
-        if (stored) {
-            brightnessSetting = stored;
-        }
-    }
+    const adapterSettings = window.ziweiAdapter && window.ziweiAdapter.settings;
+    const brightnessSetting = adapterSettings && typeof adapterSettings.get === 'function'
+        ? adapterSettings.get('starBrightness') || 'hidden'
+        : 'hidden';
     chartWrapper.setAttribute('data-star-brightness', brightnessSetting);
     
     chartWrapper.style.marginBottom = '30px';
     chartWrapper.appendChild(grid);
 
-    // Ensure the global chart cache includes the original normalized input
-    // returned by the adapter pipeline (which stores it at adapterOutput.raw.normalizedInput)
-    // so other modules (config.js) can recover the last submitted form via
-    // `window.ziweiChartData.normalized.raw`.
-    var normalizedForCache = (adapterOutput && adapterOutput.raw && adapterOutput.raw.normalizedInput)
-        ? adapterOutput.raw.normalizedInput
-        : (adapterOutput && adapterOutput.normalized) || {};
-
-    window.ziweiChartData = Object.assign({}, adapterOutput, {
-        calcResult,
-        // Keep both shapes for compatibility: normalized (full normalized input with .raw)
-        // and normalizedInput (legacy field used elsewhere)
-        normalized: normalizedForCache,
-        normalizedInput: normalizedForCache,
-        lunarYear,
-        data: calcResult.data,
-        meta: Object.assign({}, meta, { lunar: adapterOutput.lunar })
-    });
+    try {
+        const adapter = window.ziweiAdapter;
+        if (adapter && adapter.storage && typeof adapter.storage.set === 'function') {
+            adapter.storage.set('adapterOutput', adapterOutput);
+            if (calcResult) {
+                adapter.storage.set('calcResult', calcResult);
+            }
+            adapter.storage.set('meta', Object.assign({}, meta, { lunar: adapterOutput.lunar }));
+            adapter.storage.set('normalizedInput', adapterOutput.normalized || {});
+        }
+    } catch (e) {}
 
     const palaceInteraction = window.initializePalaceInteraction
         ? window.initializePalaceInteraction(grid) || null
@@ -1096,20 +1061,9 @@ function createCenterCell(meta, palaceData = {}, lunarYear = 0, mingPalaceData =
         nayinEl = document.createElement('div');
         nayinEl.className = 'ziwei-nayin';
         nayinEl.textContent = mingNayinName;
-    } else if (meta.lunar && palaceData) {
-        const nayinModule = getAdapterModule('nayin');
-        if (nayinModule) {
-            const fallbackMing = mingPalaceData || Object.values(palaceData).find((p) => p.isMing);
-            if (fallbackMing) {
-                const stemIndex = fallbackMing.stemIndex;
-                const branchIndex = fallbackMing.index;
-                const loci = nayinModule.getNayin(stemIndex, branchIndex);
-                const lociName = nayinModule.getNayinName(loci);
-                nayinEl = document.createElement('div');
-                nayinEl.className = 'ziwei-nayin';
-                nayinEl.textContent = lociName;
-            }
-        }
+    } else {
+        console.error('[ziweiChart] Missing nayin data from adapter output for Ming palace');
+        failAndAbort('命盤資料缺少納音資訊，顯示層不進行計算，請確認計算模組已提供納音結果');
     }
 
     // Add all elements to the same row
@@ -1123,30 +1077,25 @@ function createCenterCell(meta, palaceData = {}, lunarYear = 0, mingPalaceData =
     
     left.appendChild(nameGenderRow);
     
-    // Format Gregorian date and time display
+    // Format Gregorian date and time display from adapter meta
     const whenEl = document.createElement('div');
     whenEl.className = 'ziwei-datetime';
-    const gregDate = meta.birthdate || '';
-    const gregTime = meta.birthtime || '';
-    const [year, month, day] = gregDate.split('-').map(v => parseInt(v, 10));
-    const [hour, minute] = gregTime.split(':').map(v => parseInt(v, 10));
-    const gregText = (year && month && day) 
-        ? `西曆：${year}年${month}月${day}日${hour || 0}時${minute || 0}分`
-        : `西曆：${gregDate} ${gregTime}`;
-    whenEl.textContent = gregText;
-
-    // Get lunar date from API response (already converted by backend)
-    let lunarStr = '';
-    const lunarData = meta.lunar;
-    
-    if (lunarData) {
-        lunarStr = formatLunar(lunarData);
+    if (meta.birthdateSolarText) {
+        whenEl.textContent = meta.birthdateSolarText;
+    } else {
+        console.error('[ziweiChart] Adapter meta missing birthdateSolarText');
+        whenEl.textContent = '西曆：資料缺失';
     }
 
-    // Lunar display element (always show — if conversion failed show placeholder)
+    // Lunar display element (adapter supplies fully formatted text)
     const lunarEl = document.createElement('div');
     lunarEl.className = 'ziwei-datetime ziwei-lunar';
-    lunarEl.textContent = lunarStr ? (`農曆：${lunarStr}`) : '農曆：查無資料';
+    if (meta.birthdateLunarText) {
+        lunarEl.textContent = meta.birthdateLunarText;
+    } else {
+        console.error('[ziweiChart] Adapter meta missing birthdateLunarText');
+        lunarEl.textContent = '農曆：資料缺失';
+    }
 
     // Master and Body Palace information
     let masterBodyEl = null;
@@ -1187,42 +1136,7 @@ function createCenterCell(meta, palaceData = {}, lunarYear = 0, mingPalaceData =
  * Returns format: { year: "癸卯年，兔", date: "二月初十", lunarYear, lunarMonth, lunarDay, ... }
  * Example output: 癸卯年二月初十午時
  */
-function formatLunar(lunar) {
-    if (!lunar) return '';
-    if (typeof lunar.year === 'string' && typeof lunar.date === 'string') {
-        // Format: { year: "癸卯年，兔", date: "二月初十", ... }
-        const yearPart = lunar.year.split('，')[0]; // Extract "癸卯年" from "癸卯年，兔"
-        const datePart = lunar.date;
-        const hourPart = (lunar.hour !== undefined && lunar.hour !== null) ? hourToChinese(lunar.hour) : '';
-        return `${yearPart}${datePart}${hourPart}`;
-    }
-    return '';
-}
-
-function chineseNumber(n) {
-    const nums = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二'];
-    return nums[n] || String(n);
-}
-
-function formatLunarDay(d) {
-    // Rules: 20 -> 二十, 21-29 -> 廿一..廿九, 30 -> 三十. No '日' suffix.
-    if (d === 20) return '二十';
-    if (d >= 21 && d <= 29) return '廿' + chineseNumber(d - 20);
-    if (d === 30) return '三十';
-    // For 1-19 use standard Chinese numerals without '日'
-    if (d <= 10) return chineseNumber(d);
-    return chineseNumber(d);
-}
-
-function hourToChinese(hour) {
-    // Map hour (0-23) to traditional 12 double-hour names (子-亥)
-    const branches = window.ziweiConstants && window.ziweiConstants.BRANCH_NAMES;
-    if (!Array.isArray(branches) || branches.length !== 12) {
-        throw new Error('[chart.js] BRANCH_NAMES not available from constants');
-    }
-    const index = hour >= 23 ? 0 : Math.floor((hour + 1) / 2) % 12;
-    return branches[index] + '時';
-}
+// Adapter provides fully formatted lunar strings; legacy formatters removed.
 
 /**
  * Create a palace cell for the chart (represents one of 12 palaces)

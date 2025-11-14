@@ -32,8 +32,7 @@ const MUTATION_TYPES = ['祿', '權', '科', '忌'];
  *                   }
  */
 function calculateBirthYearMutations(stemIndex) {
-    console.log('=== Calculating Birth Year Mutations (生年四化) ===');
-    console.log('Stem index:', stemIndex);
+    // Calculation of birth year mutations started (logging removed to reduce noise)
     
     // Validate stem index
     if (stemIndex < 0 || stemIndex > 9) {
@@ -43,7 +42,6 @@ function calculateBirthYearMutations(stemIndex) {
     
     // Get heavenly stem character
     const stem = HEAVENLY_STEMS[stemIndex];
-    console.log('Heavenly stem (天干):', stem);
     
     // Check if mutation table is available
     if (typeof MutationZhongzhou === 'undefined') {
@@ -59,7 +57,7 @@ function calculateBirthYearMutations(stemIndex) {
         return { byType: {}, byStar: {} };
     }
     
-    console.log('Mutations by type:', mutations);
+    // Mutations by type computed
     
     // Create reverse mapping: star name -> mutation type
     const byStar = {};
@@ -67,14 +65,14 @@ function calculateBirthYearMutations(stemIndex) {
         byStar[star] = type;
     }
     
-    console.log('Mutations by star:', byStar);
+    // Mutations by star computed
     
     const result = {
         byType: mutations,  // { 祿: '廉貞', 權: '破軍', 科: '武曲', 忌: '太陽' }
         byStar: byStar      // { '廉貞': '祿', '破軍': '權', '武曲': '科', '太陽': '忌' }
     };
     
-    console.log('=== Birth Year Mutations Calculation Complete ===');
+    // Calculation complete
     
     return result;
 }
@@ -126,4 +124,4 @@ function registerAdapterModule(name, api) {
     }
 }
 
-console.log('Four Mutations (四化) calculator loaded');
+// Four Mutations module loaded (startup log removed to reduce console noise)
