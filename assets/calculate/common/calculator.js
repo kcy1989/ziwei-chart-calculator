@@ -102,7 +102,18 @@ function getCacheKey(formData) {
         : (formData.ziHourHandling !== undefined && formData.ziHourHandling !== null)
             ? String(formData.ziHourHandling)
             : 'midnightChange';
-    return key + '|' + ziHandling;
+    
+    // Include stem interpretations in cache key so different mutation settings produce distinct keys
+    var stemInterpretations = '';
+    const rawData = formData.raw || formData;
+    if (rawData.stemInterpretations && typeof rawData.stemInterpretations === 'object') {
+        // Sort keys to ensure consistent ordering
+        const sortedKeys = Object.keys(rawData.stemInterpretations).sort();
+        const interpretations = sortedKeys.map(key => `${key}:${rawData.stemInterpretations[key]}`);
+        stemInterpretations = interpretations.join(',');
+    }
+    
+    return key + '|' + ziHandling + '|' + stemInterpretations;
 }
 
 /**
@@ -237,6 +248,59 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
     });
+
+    // T041: Listen for settings changes and trigger chart recalculation
+    document.addEventListener('ziwei-settings-changed', (e) => {
+        // Only recalculate if the changed setting affects chart computation
+        const detail = e && e.detail ? e.detail : {};
+        const setting = detail.setting;
+        // These settings affect calculation: school, leapMonthHandling, ziHourHandling, stem interpretations
+        // (school is not yet implemented, but leapMonthHandling and ziHourHandling are)
+        const affectsCalculation = [
+            'school',
+            'leapMonthHandling',
+            'ziHourHandling',
+            // Stem interpretation settings (甲、戊、庚、辛、壬、癸)
+            'stemInterpretation_甲',
+            'stemInterpretation_戊',
+            'stemInterpretation_庚',
+            'stemInterpretation_辛',
+            'stemInterpretation_壬',
+            'stemInterpretation_癸'
+        ];
+        if (!affectsCalculation.includes(setting)) return;
+
+        // Get the latest form data from adapter storage (canonical)
+        let formData = null;
+        try {
+            const adapter = window.ziweiAdapter;
+            if (adapter && adapter.storage && typeof adapter.storage.get === 'function') {
+                formData = adapter.storage.get('formInput');
+            }
+        } catch (e) {}
+        if (!formData) {
+            // Fallback: try to get from normalizedInput
+            try {
+                const adapter = window.ziweiAdapter;
+                if (adapter && adapter.storage && typeof adapter.storage.get === 'function') {
+                    const normalized = adapter.storage.get('normalizedInput');
+                    if (normalized && normalized.raw) formData = Object.assign({}, normalized.raw);
+                }
+            } catch (e) {}
+        }
+        if (!formData) return;
+
+        // Update formData with the changed setting value
+        formData[setting] = detail.value;
+
+        // Dispatch a centralized submit event so calculator clears/primes adapter and runs the canonical compute pipeline
+        const container = document.querySelector('.ziwei-cal') || document;
+        try {
+            container.dispatchEvent(new CustomEvent('ziwei-form-submit', { detail: { formData } }));
+        } catch (err) {
+            console.error('[calculator.js] Failed to dispatch ziwei-form-submit for settings change', err);
+        }
+    });
 });
 
 // ============================================================================
@@ -344,6 +408,22 @@ async function computeChartWithCache(formData) {
                     }
                 } catch (e) {}
 
+                // Persist cached context into adapter memory
+                try {
+                    if (adapter && typeof adapter.setCurrentChart === 'function') {
+                        adapter.setCurrentChart(cachedResult.adapterOutput || null);
+                    }
+                } catch (e) {}
+
+                // Emit event to notify display modules of the chart being ready
+                try {
+                    // If adapterOutput contains errors, notify display layer for partial chart rendering
+                    if (cachedResult && cachedResult.adapterOutput && cachedResult.adapterOutput.errors && Object.keys(cachedResult.adapterOutput.errors).length) {
+                        document.dispatchEvent(new CustomEvent('ziwei-chart-error', { detail: { adapterOutput: cachedResult.adapterOutput, calcResult: cachedResult.calcResult, errors: cachedResult.adapterOutput.errors } }));
+                    }
+                    document.dispatchEvent(new CustomEvent('ziwei-chart-generated', { detail: { adapterOutput: cachedResult.adapterOutput, calcResult: cachedResult.calcResult } }));
+                } catch (e) {}
+
                 return {
                     calcResult: cachedResult.calcResult,
                     normalizedInput: normalizedInput,
@@ -356,7 +436,7 @@ async function computeChartWithCache(formData) {
         }
 
         const calcResult = await computeChartInternal(normalizedInput);
-        const adapterOutput = adapter.output.process(calcResult, normalizedInput);
+    const adapterOutput = adapter.output.process(calcResult, normalizedInput);
         const duration = performance.now() - startTime;
 
             // Persist computed context into adapter storage for UI flows and snapshotting
@@ -374,6 +454,44 @@ async function computeChartWithCache(formData) {
                 adapterOutput
             });
 
+        // Persist current chart in adapter memory for display modules
+        try {
+            if (adapter && typeof adapter.setCurrentChart === 'function') {
+                adapter.setCurrentChart(adapterOutput);
+            }
+        } catch (e) {
+            // ignore
+        }
+
+        // Emit global event so display modules can react to new chart
+        try {
+            // If there were errors during the process, emit ziwei-chart-error so display can show partial results
+            if (adapterOutput && adapterOutput.errors && Object.keys(adapterOutput.errors).length) {
+                document.dispatchEvent(new CustomEvent('ziwei-chart-error', { detail: { adapterOutput: adapterOutput, calcResult: calcResult, errors: adapterOutput.errors } }));
+            }
+            document.dispatchEvent(new CustomEvent('ziwei-chart-generated', { detail: { adapterOutput: adapterOutput, calcResult: calcResult } }));
+        } catch (e) {
+            // ignore
+        }
+
+        // Check if we need to restore cycle state after chart generation
+        try {
+            if (adapter && adapter.storage && typeof adapter.storage.get === 'function') {
+                const formData = adapter.storage.get('formInput');
+                if (formData && formData._cycleStateToRestore) {
+                    // Schedule cycle state restoration after a short delay to ensure DOM is ready
+                    setTimeout(() => {
+                        restoreCycleState(formData._cycleStateToRestore);
+                        // Clean up the temporary state
+                        delete formData._cycleStateToRestore;
+                        adapter.storage.set('formInput', formData);
+                    }, 100);
+                }
+            }
+        } catch (e) {
+            console.warn('[ziweiCalculator] Failed to schedule cycle state restoration:', e);
+        }
+
         if (CACHE_CONFIG.debug) {
             console.log(`[ziweiCalculator] Computation completed in ${duration.toFixed(2)}ms`);
         }
@@ -386,6 +504,16 @@ async function computeChartWithCache(formData) {
     } catch (error) {
         if (CACHE_CONFIG.debug) {
             console.log('[ziweiCalculator] Computation failed:', error);
+        }
+        // Record error in adapter memory and broadcast event for display logic
+        try {
+            const adapter = window.ziweiAdapter;
+            if (adapter && typeof adapter.setCurrentChart === 'function') {
+                adapter.setCurrentChart(null);
+            }
+            document.dispatchEvent(new CustomEvent('ziwei-chart-error', { detail: { error: error } }));
+        } catch (e) {
+            // ignore
         }
         throw error;
     }
@@ -554,12 +682,39 @@ window.ziweiCalculator = {
 };
 
 /**
- * Convert birth time (HH:MM) to military hour index (0-11)
- * Military hours (十二時辰): 子(23-1), 丑(1-3), 寅(3-5), ... 亥(21-23)
- * Index 0=子, 1=丑, 2=寅, ... 11=亥
- * @param {string} timeStr Birth time in format "HH:MM"
- * @returns {number} Military hour index (0-11), defaults to 0 if invalid
+ * Restore cycle view state after chart recomputation
+ * @param {Object} cycleState State object from captureCurrentCycleState
  */
+function restoreCycleState(cycleState) {
+    if (!cycleState) return;
+
+    try {
+        // Restore major cycle selection
+        if (cycleState.majorCycleIndex !== null) {
+            const majorButton = document.querySelector(`.ziwei-major-cycle-button[data-cycle-index="${cycleState.majorCycleIndex}"]`);
+            if (majorButton) {
+                majorButton.click();
+            }
+        }
+
+        // Restore annual cycle selection after a short delay to ensure major cycle is processed
+        if (cycleState.annualCycleAge !== null || cycleState.annualCycleYear !== null) {
+            setTimeout(() => {
+                let annualButton;
+                if (cycleState.annualCycleAge !== null) {
+                    annualButton = document.querySelector(`.ziwei-annual-cycle-button[data-age="${cycleState.annualCycleAge}"]`);
+                } else if (cycleState.annualCycleYear !== null) {
+                    annualButton = document.querySelector(`.ziwei-annual-cycle-button[data-year="${cycleState.annualCycleYear}"]`);
+                }
+                if (annualButton) {
+                    annualButton.click();
+                }
+            }, 200); // Wait a bit longer for major cycle processing
+        }
+    } catch (e) {
+        console.warn('[ziweiCalculator] Failed to restore cycle state:', e);
+    }
+}
 function getMilitaryHourIndex(timeStr) {
     if (!timeStr) return 0;  // Default to 子 (midnight)
     const parts = timeStr.split(':');

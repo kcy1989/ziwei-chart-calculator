@@ -27,13 +27,18 @@ const PALACE_NAMES_STANDARD = [
  * Shen Palace Combined Names
  * When Shen Palace (身宮) overlaps with other palaces,
  * use these combined names to indicate both locations
+ * 
+ * Note: Shen Palace cannot be Friends Palace (交友) per Ziwei system rules,
+ * so only Career/Official (事業/官祿) combinations are needed.
  */
 const SHEN_PALACE_COMBINE = {
+    // Default/Standard combinations
     '命宮': '身命',     // Shen + Ming
     '夫妻': '身夫',     // Shen + Spouse
     '財帛': '身財',     // Shen + Wealth
     '遷移': '身遷',     // Shen + Travel
-    '事業': '身事',     // Shen + Career
+    '事業': '身事',     // Shen + Career (default)
+    '官祿': '身官',     // Shen + Official
     '福德': '身福'      // Shen + Fortune
 };
 

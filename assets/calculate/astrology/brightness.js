@@ -146,6 +146,21 @@ function getStarBrightness(starName, branchIndex, school = 'shuoshu') {
     return database?.getBrightness(starName, branchIndex) || '';
 }
 
+/**
+ * Helper to register module with adapter
+ */
+function registerAdapterModule(name, api) {
+    // Try to register with window adapter
+    if (window.ziweiAdapter && typeof window.ziweiAdapter.registerModule === 'function') {
+        window.ziweiAdapter.registerModule(name, api);
+        return;
+    }
+    
+    // Store in pending queue for later registration
+    window.__ziweiAdapterModules = window.__ziweiAdapterModules || {};
+    window.__ziweiAdapterModules[name] = api;
+}
+
 // Expose public API via adapter module registration
 registerAdapterModule('brightness', {
     calculatePrimaryBrightness,
@@ -153,15 +168,5 @@ registerAdapterModule('brightness', {
     getStarBrightness,
     getBrightnessDatabase
 });
-
-function registerAdapterModule(name, api) {
-    var adapter = window.ziweiAdapter;
-    if (adapter && typeof adapter.registerModule === 'function') {
-        adapter.registerModule(name, api);
-    } else {
-        window.__ziweiAdapterModules = window.__ziweiAdapterModules || {};
-        window.__ziweiAdapterModules[name] = api;
-    }
-}
 
 // Module loaded log removed to avoid verbose console output in production.

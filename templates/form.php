@@ -1,7 +1,7 @@
     <div class="ziwei-cal" data-ziwei-mode="form">
         <div class="ziwei-cal-title">
             <h1>紫微斗數排盤工具</h1>
-            <p class="ziwei-cal-version-link"><a href="https://little-yin.com/2025/11/08/calculator/" target="_blank" rel="noopener noreferrer">版本 0.5.4 • 更新於 2025-11-15</a></p>
+            <p class="ziwei-cal-version-link"><a href="https://little-yin.com/2025/11/08/calculator/" target="_blank" rel="noopener noreferrer">版本 0.6.0 • 更新於 2025-11-16</a></p>
         </div>
         <form class="ziwei-cal-form" id="ziwei-cal-form" novalidate>
         <!-- Name and Gender -->
@@ -30,14 +30,14 @@
                         女
                     </label>
                 </div>
-                <span class="ziwei-cal-error-message" id="gender-error" style="display: none;"></span>
+                <span class="ziwei-cal-error-message" id="gender-error" style="display: none;">請選擇性別</span>
             </div>
         </div>
 
         <!-- Birth Date and Time -->
         <div class="ziwei-cal-datetime-group">
             <label class="ziwei-cal-label">
-                出生日期與時間（西曆） <span class="ziwei-cal-required">*</span>
+                出生日期與時間 (西曆)<span class="ziwei-cal-required">*</span>
             </label>
             <div class="ziwei-cal-datetime-row">
                 <div class="ziwei-cal-date-section">

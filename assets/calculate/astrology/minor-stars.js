@@ -36,10 +36,11 @@ function getAdapterModule(name) {
  * @param {number} rightAssistIndex - Right Assist (右弼) position index (0-11) from secondary stars
  * @param {number} literaryTalentIndex - Literary Talent (文昌) position index (0-11) from secondary stars
  * @param {number} lunarDay - Birth lunar day (1-30) for Three Terraces and Eight Thrones calculation
+ * @param {string} woundedServantHandling - Handling method: 'zhongzhou' (default) or 'noDistinction'
  * @returns {Object} Object mapping star names to palace indices (or arrays for stars appearing in multiple palaces)
  * 
  * @example
- * const minorStars = calculateMinorStars(2, 4, 3, 7, 0, 3, 9, 'M', 2024, 5, 8, 7, 1, 10, 15);
+ * const minorStars = calculateMinorStars(2, 4, 3, 7, 0, 3, 9, 'M', 2024, 5, 8, 7, 1, 10, 15, 'zhongzhou');
  * // Returns: { '天官': 7, ..., '恩光': 6, '天貴': 11 }
  */
 function calculateMinorStars(
@@ -57,7 +58,8 @@ function calculateMinorStars(
     leftAssistantIndex,
     rightAssistIndex,
     literaryTalentIndex,
-    lunarDay
+    lunarDay,
+    woundedServantHandling
 ) {
     // Calculation started (inputs are intentionally not logged to reduce console noise)
 
@@ -78,7 +80,7 @@ function calculateMinorStars(
     const tianChuPositions = [5, 6, 0, 5, 6, 8, 2, 6, 9, 11];
     minorStars['天廚'] = tianChuPositions[yearStemIndex];
 
-    // 截空 (Cut Void) - appears in TWO palaces, based on year stem
+    // 截空/副截 (Cut Void and Deputy Cut) - appears in TWO palaces, based on year stem
     // Pattern analysis:
     // 甲(0): 8,9   乙(1): 6,7   丙(2): 4,5   丁(3): 2,3   戊(4): 0,1
     // 己(5): 8,9   庚(6): 6,7   辛(7): 4,5   壬(8): 2,3   癸(9): 0,1
@@ -86,7 +88,21 @@ function calculateMinorStars(
     // Formula: first = (8 - (stem % 5) * 2) % 12, second = (first + 1) % 12
     const jieKongBase = (8 - (yearStemIndex % 5) * 2 + 12) % 12;
     const jieKongSecond = (jieKongBase + 1) % 12;
-    minorStars['截空'] = [jieKongBase, jieKongSecond];
+
+    // Primary/deputy parity rule applied below.
+    // - If the palace branch (地支) for a position and the birth year's branch are both
+    //   陰 or both 陽, that palace keeps the primary name; otherwise it is labeled as the deputy.
+    const isYang = (idx) => (idx % 2) === 0; // true for 陽, false for 陰
+    const yearYang = isYang(yearBranchIndex);
+    const firstIsMatch = isYang(jieKongBase) === yearYang;
+
+    if (firstIsMatch) {
+        minorStars['截空'] = jieKongBase;
+        minorStars['副截'] = jieKongSecond;
+    } else {
+        minorStars['截空'] = jieKongSecond;
+        minorStars['副截'] = jieKongBase;
+    }
 
     // 旬空 (Xun Void) - appears in TWO palaces, based on year stem and branch
     // Formula:
@@ -99,7 +115,16 @@ function calculateMinorStars(
     const xunKongBase = (yearBranchIndex + xunKongSteps) % 12;  // Base position
     const xunKongFirst = (xunKongBase + 1) % 12;  // First Xun Void position (next palace)
     const xunKongSecond = (xunKongBase + 2) % 12;  // Second Xun Void position (palace after that)
-    minorStars['旬空'] = [xunKongFirst, xunKongSecond];
+
+    // Apply the parity rule above to select primary 旬空 / deputy 副旬.
+    const firstXunMatch = isYang(xunKongFirst) === yearYang;
+    if (firstXunMatch) {
+        minorStars['旬空'] = xunKongFirst;
+        minorStars['副旬'] = xunKongSecond;
+    } else {
+        minorStars['旬空'] = xunKongSecond;
+        minorStars['副旬'] = xunKongFirst;
+    }
     
     // xunKong positions computed (debug logging removed)
 
@@ -262,15 +287,34 @@ function calculateMinorStars(
     const clockwise = basicModule.isClockwise(gender, lunarYear);
     const offset = clockwise ? -1 : 1;
     
-    // 天傷 (Heavenly Injury) - based on Migration Palace and gender/year
-    // 陽男陰女: 遷移宮 - 1 = 交友宮
-    // 陰男陽女: 遷移宮 + 1 = 疾厄宮
-    minorStars['天傷'] = (migrationPalaceIndex + offset + 12) % 12;
-
-    // 天使 (Heavenly Blessing Star) - based on Migration Palace and gender/year
-    // 陽男陰女: 遷移宮 + 1 = 疾厄宮
-    // 陰男陽女: 遷移宮 - 1 = 交友宮
-    minorStars['天使'] = (migrationPalaceIndex - offset + 12) % 12;
+    // 天傷 (Heavenly Injury) and 天使 (Heavenly Blessing Star)
+    // IMPORTANT: These stars MUST be calculated using migrationPalaceIndex
+    // Validation: if migrationPalaceIndex is null/undefined, throw error
+    // NO fallback options allowed - must fail loudly rather than display incorrect chart
+    
+    if (migrationPalaceIndex === null || migrationPalaceIndex === undefined) {
+        throw new Error('遷移宮位置無法確定，無法計算天傷和天使位置。天傷和天使的計算必須依賴遷移宮。');
+    }
+    
+    // Two handling methods:
+    // 1. 'zhongzhou' (中州排法 - default): Based on gender/year, uses offset
+    //    - 陽男陰女 (clockwise): 天傷 at 交友宮 (遷移-1), 天使 at 疾厄宮 (遷移+1)
+    //    - 陰男陽女 (counter-clockwise): 天傷 at 疾厄宮 (遷移+1), 天使 at 交友宮 (遷移-1)
+    // 2. 'noDistinction' (不分陰陽): Ignore gender, always fixed positions relative to 遷移
+    //    - 天傷 always at 遷移 - 1 (交友宮)
+    //    - 天使 always at 遷移 + 1 (疾厄宮)
+    
+    if (woundedServantHandling === 'noDistinction') {
+        // 不分陰陽: Fixed offset from 遷移 (交友=遷移-1, 疾厄=遷移+1)
+        minorStars['天傷'] = (migrationPalaceIndex - 1 + 12) % 12;  // 交友宮 (always)
+        minorStars['天使'] = (migrationPalaceIndex + 1) % 12;      // 疾厄宮 (always)
+    } else {
+        // 'zhongzhou' (default): Depends on gender via offset
+        // 陽男陰女: 遷移宮 - 1 = 交友宮, 遷移宮 + 1 = 疾厄宮
+        // 陰男陽女: 遷移宮 + 1 = 疾厄宮, 遷移宮 - 1 = 交友宮
+        minorStars['天傷'] = (migrationPalaceIndex + offset + 12) % 12;
+        minorStars['天使'] = (migrationPalaceIndex - offset + 12) % 12;
+    }
 
     // 台輔 (Terrace Deputy) - based on Literary Craft (文曲) position
     // Formula: 文曲 + 2
@@ -309,21 +353,18 @@ function calculateMinorStars(
  * Helper to register module with adapter
  */
 function registerAdapterModule(name, api) {
-    var adapter = window.ziweiAdapter;
-    if (adapter && typeof adapter.registerModule === 'function') {
-        adapter.registerModule(name, api);
-    } else {
-        window.__ziweiAdapterModules = window.__ziweiAdapterModules || {};
-        window.__ziweiAdapterModules[name] = api;
+    // Try to register with window adapter
+    if (window.ziweiAdapter && typeof window.ziweiAdapter.registerModule === 'function') {
+        window.ziweiAdapter.registerModule(name, api);
+        return;
     }
+    
+    // Store in pending queue for later registration
+    window.__ziweiAdapterModules = window.__ziweiAdapterModules || {};
+    window.__ziweiAdapterModules[name] = api;
 }
 
-// Expose functions to global namespace
+// Expose public API through adapter (T076: No global backward compat references)
 registerAdapterModule('minorStars', {
     calculateMinorStars
 });
-
-// Keep global reference for backward compatibility
-window.ziweiMinorStars = {
-    calculateMinorStars
-};

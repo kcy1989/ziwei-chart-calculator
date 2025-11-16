@@ -25,20 +25,37 @@
         };
     }
 
+    // Robust module registration with multiple fallback strategies
+    function registerAdapterModule(name, api) {
+        function doRegister(targetAdapter) {
+            if (targetAdapter && typeof targetAdapter.registerModule === 'function') {
+                targetAdapter.registerModule(name, api);
+                return true;
+            }
+            return false;
+        }
+        
+        // Try with local adapter first (during initialization)
+        if (doRegister(adapter)) {
+            return;
+        }
+        
+        // Try with window adapter (after initialization)
+        if (doRegister(window.ziweiAdapter)) {
+            return;
+        }
+        
+        // Store in pending queue as last resort
+        var pending = window.__ziweiAdapterModules = window.__ziweiAdapterModules || {};
+        pending[name] = api;
+    }
+
     // Simple settings store for adapter-level effective settings
-    // Persisted to sessionStorage under key 'ziweiAdapter_settings'
+    // Session-only, memory-only (do NOT persist to sessionStorage or localStorage)
     adapter._settings = adapter._settings || {};
     (function initAdapterSettings() {
-        try {
-            if (typeof sessionStorage !== 'undefined') {
-                var raw = sessionStorage.getItem('ziweiAdapter_settings');
-                if (raw) {
-                    try { adapter._settings = JSON.parse(raw) || {}; } catch (e) { adapter._settings = {}; }
-                }
-            }
-        } catch (e) {
-            adapter._settings = adapter._settings || {};
-        }
+        // Intentionally in-memory only per privacy-first policy
+        adapter._settings = adapter._settings || {};
     })();
 
     adapter.settings = adapter.settings || {};
@@ -47,19 +64,11 @@
         return adapter._settings[name] !== undefined ? adapter._settings[name] : null;
     };
 
-    // Generic storage for adapter-level transient data (persisted to sessionStorage)
+    // Generic storage for adapter-level transient data (in-memory only)
     adapter._storage = adapter._storage || {};
     (function initAdapterStorage() {
-        try {
-            if (typeof sessionStorage !== 'undefined') {
-                var rawStore = sessionStorage.getItem('ziweiAdapter_storage');
-                if (rawStore) {
-                    try { adapter._storage = JSON.parse(rawStore) || {}; } catch (e) { adapter._storage = {}; }
-                }
-            }
-        } catch (e) {
-            adapter._storage = adapter._storage || {};
-        }
+        // Intentionally in-memory only
+        adapter._storage = adapter._storage || {};
     })();
 
     adapter.storage = adapter.storage || {};
@@ -71,9 +80,7 @@
         if (!name) return;
         try {
             adapter._storage[name] = deepClone(value);
-            if (typeof sessionStorage !== 'undefined') {
-                sessionStorage.setItem('ziweiAdapter_storage', JSON.stringify(adapter._storage));
-            }
+            // do NOT persist to sessionStorage for privacy — keep in-memory only
         } catch (e) {
             // ignore
         }
@@ -82,18 +89,14 @@
         if (!name) return;
         try {
             delete adapter._storage[name];
-            if (typeof sessionStorage !== 'undefined') {
-                sessionStorage.setItem('ziweiAdapter_storage', JSON.stringify(adapter._storage));
-            }
+            // in-memory only; do not persist changes to sessionStorage
         } catch (e) {}
     };
     adapter.settings.set = function(name, value) {
         if (!name) return;
         adapter._settings[name] = value;
         try {
-            if (typeof sessionStorage !== 'undefined') {
-                sessionStorage.setItem('ziweiAdapter_settings', JSON.stringify(adapter._settings));
-            }
+            // In-memory only — do not persist user preferences to session/local storage
         } catch (e) {
             // ignore storage errors
         }
@@ -114,8 +117,27 @@
         };
     }
 
+    // Current computed NatalChart object (in-memory). Use getCurrentChart() from display modules.
+    adapter._currentChart = adapter._currentChart || null;
+
+    /**
+     * Set the in-memory cached result of the most recent chart calculation.
+     * This is intentionally internal (but exposed) and should not be persisted.
+     */
+    adapter.setCurrentChart = function(chart) {
+        adapter._currentChart = deepClone(chart);
+    };
+
+    /**
+     * Get the cached NatalChart object. Returns a deep-cloned copy to prevent mutation.
+     */
+    adapter.getCurrentChart = function() {
+        return deepClone(adapter._currentChart) || null;
+    };
+
     function getAdapterModule(name) {
-        var module = adapter.getModule ? adapter.getModule(name) : null;
+        var targetAdapter = window.ziweiAdapter || adapter;
+        var module = targetAdapter.getModule ? targetAdapter.getModule(name) : null;
         return module;
     }
 
@@ -467,6 +489,22 @@
         }
         if (!ziHourHandling) ziHourHandling = 'midnightChange';
 
+        // Handle stem interpretations from rawData if provided
+        if (rawData.stemInterpretations && typeof rawData.stemInterpretations === 'object') {
+            try {
+                // Update adapter settings with stem interpretations
+                Object.entries(rawData.stemInterpretations).forEach(([stem, interpretation]) => {
+                    const settingName = `stemInterpretation_${stem}`;
+                    if (adapter && adapter.settings && typeof adapter.settings.set === 'function') {
+                        adapter.settings.set(settingName, interpretation);
+                    }
+                });
+                console.log('[ziweiAdapter] Updated stem interpretations from rawData:', rawData.stemInterpretations);
+            } catch (e) {
+                console.warn('[ziweiAdapter] Failed to update stem interpretations:', e);
+            }
+        }
+
         var meta = {
             name: sanitizeName(rawData.name),
             gender: sanitized.gender || 'M',
@@ -725,9 +763,34 @@
         var indices = context.indices;
         var lunar = context.lunar;
         var shenPalaceIndex = derived.shenPalace ? derived.shenPalace.index : null;
+        
         var migrationPalace = findPalace(derived.palaceList, function(item) {
-            return item && item.name === '遷移';
+            // Check for 遷移 or any palace name that contains '遷' (migration character)
+            // This handles cases where Shen Palace coincides with Migration Palace (e.g., '身遷')
+            return item && (item.name === '遷移' || (item.name && item.name.indexOf('遷') !== -1));
         });
+        
+        // CRITICAL VALIDATION: migrationPalaceIndex is required for 天傷 and 天使 calculations
+        // Must validate before passing to calculateMinorStars
+        if (!migrationPalace || migrationPalace.index === null || migrationPalace.index === undefined) {
+            throw AdapterError('MIGRATION_PALACE_NOT_FOUND', '遷移宮不存在，無法計算天傷和天使。', { derived: derived });
+        }
+        
+        var migrationPalaceIndex = migrationPalace.index;
+        
+        // Validate migrationPalaceIndex is a valid palace index (0-11)
+        if (typeof migrationPalaceIndex !== 'number' || migrationPalaceIndex < 0 || migrationPalaceIndex > 11) {
+            throw AdapterError('INVALID_MIGRATION_INDEX', '遷移宮位置無效：' + migrationPalaceIndex, { migrationPalaceIndex: migrationPalaceIndex });
+        }
+        
+        // Get woundedServantHandling setting from adapter
+        var woundedServantHandling = 'zhongzhou';  // default
+        var adapter = window.ziweiAdapter;
+        if (adapter && adapter.settings && typeof adapter.settings.get === 'function') {
+            var val = adapter.settings.get('woundedServantHandling');
+            if (val) woundedServantHandling = val;
+        }
+        
         var payload = {
             monthIndex: indices.monthIndex,
             timeIndex: indices.timeIndex,
@@ -738,12 +801,13 @@
             shenPalaceIndex: shenPalaceIndex,
             gender: context.meta.gender,
             lunarYear: lunar.lunarYear,
-            migrationPalaceIndex: migrationPalace ? migrationPalace.index : null,
+            migrationPalaceIndex: migrationPalaceIndex,
             literaryCraftIndex: resolveSecondaryPosition(secondaryStars, '文曲'),
             leftAssistantIndex: resolveSecondaryPosition(secondaryStars, '左輔'),
             rightAssistIndex: resolveSecondaryPosition(secondaryStars, '右弼'),
             literaryTalentIndex: resolveSecondaryPosition(secondaryStars, '文昌'),
-            lunarDay: lunar.lunarDay
+            lunarDay: lunar.lunarDay,
+            woundedServantHandling: woundedServantHandling
         };
         try {
             return minorModule.calculateMinorStars(
@@ -761,7 +825,8 @@
                 payload.leftAssistantIndex,
                 payload.rightAssistIndex,
                 payload.literaryTalentIndex,
-                payload.lunarDay
+                payload.lunarDay,
+                payload.woundedServantHandling
             );
         } catch (err) {
             throw AdapterError('MINOR_STARS_FAILED', '雜曜計算失敗。', { payload: payload }, err);
@@ -834,15 +899,20 @@
             console.warn('[ziweiAdapter] Brightness module not found');
             return brightness;
         }
+        // Get the current starBrightness setting from adapter.settings
+        var adapter = window.ziweiAdapter;
+        var starBrightnessSetting = 'hidden';
+        if (adapter && adapter.settings && typeof adapter.settings.get === 'function') {
+            var val = adapter.settings.get('starBrightness');
+            if (val) starBrightnessSetting = val;
+        }
         try {
-            // Use 'shuoshu' (斗數全書) as default brightness school
-            // This maps to the brightness table from "紫微斗數全書" in assets/data/brightness.js
-            brightness.primary = brightnessModule.calculatePrimaryBrightness(primaryStars, palaces, 'shuoshu') || {};
+            brightness.primary = brightnessModule.calculatePrimaryBrightness(primaryStars, palaces, starBrightnessSetting) || {};
         } catch (err) {
             warn('calculatePrimaryBrightness failed', err);
         }
         try {
-            brightness.secondary = brightnessModule.calculateSecondaryBrightness(secondaryStars, palaces, 'shuoshu') || {};
+            brightness.secondary = brightnessModule.calculateSecondaryBrightness(secondaryStars, palaces, starBrightnessSetting) || {};
         } catch (err2) {
             warn('calculateSecondaryBrightness failed', err2);
         }
@@ -1037,7 +1107,14 @@
     };
 
     adapter.output.process = function(calcResult, normalizedInput) {
-        return processCalculation(calcResult, normalizedInput);
+        var result = processCalculation(calcResult, normalizedInput);
+        // Store the last output for use by other modules (e.g., chart updates)
+        adapter._lastOutput = result;
+        return result;
+    };
+
+    adapter.output.getLastOutput = function() {
+        return adapter._lastOutput || null;
     };
 
     adapter.errors = {

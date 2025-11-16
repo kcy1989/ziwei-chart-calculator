@@ -394,6 +394,31 @@
         0.5px 0.5px 0 #1e8449;
     grid-row: 3;
 }
+
+/* Major cycle mutation (大運四化) */
+.ziwei-mutation-major {
+    background-color: #2980b9;
+    border: 1px solid #1f618d;
+    text-shadow: 
+        -0.5px -0.5px 0 #1f618d,
+        0.5px -0.5px 0 #1f618d,
+        -0.5px 0.5px 0 #1f618d,
+        0.5px 0.5px 0 #1f618d;
+    grid-row: 2;
+}
+
+/* Annual mutation (流年四化) */
+.ziwei-mutation-annual {
+    background-color: #27ae60;
+    border: 1px solid #1e8449;
+    text-shadow: 
+        -0.5px -0.5px 0 #1e8449,
+        0.5px -0.5px 0 #1e8449,
+        -0.5px 0.5px 0 #1e8449,
+        0.5px 0.5px 0 #1e8449;
+    grid-row: 3;
+}
+
 /* ========================================
     6. Star Brightness Indicator (廟旺利陷)
     ======================================== */
@@ -420,40 +445,20 @@
     display: block;
 }
 
-/* Birth year mutation (生年四化) */
-.ziwei-mutation-birth {
-    background-color: #e74c3c;
-    border: 1px solid #a93226;
-    text-shadow: 
-        -0.5px -0.5px 0 #a93226,
-        0.5px -0.5px 0 #a93226,
-        -0.5px 0.5px 0 #a93226,
-        0.5px 0.5px 0 #a93226;
-    grid-row: 1;
+/* ========================================
+    6.5. Xun Kong (截空旬空) Display Control
+    ======================================== */
+
+/* Xun Kong display modes - placeholder CSS for future implementation */
+/* 'marked': Show xun kong indicators for all applicable stars */
+/* 'primaryOnly': Show xun kong indicators only for primary stars */
+/* TODO: Implement actual xun kong display elements and styling */
+[data-xunkong-mode="marked"] {
+    /* Placeholder for marked mode - implementation pending */
 }
 
-/* Major cycle mutation (大運四化) */
-.ziwei-mutation-major {
-    background-color: #2980b9;
-    border: 1px solid #1f618d;
-    text-shadow: 
-        -0.5px -0.5px 0 #1f618d,
-        0.5px -0.5px 0 #1f618d,
-        -0.5px 0.5px 0 #1f618d,
-        0.5px 0.5px 0 #1f618d;
-    grid-row: 2;
-}
-
-/* Annual mutation (流年四化) */
-.ziwei-mutation-annual {
-    background-color: #27ae60;
-    border: 1px solid #1e8449;
-    text-shadow: 
-        -0.5px -0.5px 0 #1e8449,
-        0.5px -0.5px 0 #1e8449,
-        -0.5px 0.5px 0 #1e8449,
-        0.5px 0.5px 0 #1e8449;
-    grid-row: 3;
+[data-xunkong-mode="primaryOnly"] {
+    /* Placeholder for primaryOnly mode - implementation pending */
 }
 
 /* ========================================

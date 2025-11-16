@@ -245,13 +245,15 @@ function getSecondaryStarsForPalace(palaceIndex, secondaryStarsMap) {
  * Helper to register module with adapter
  */
 function registerAdapterModule(name, api) {
-    var adapter = window.ziweiAdapter;
-    if (adapter && typeof adapter.registerModule === 'function') {
-        adapter.registerModule(name, api);
-    } else {
-        window.__ziweiAdapterModules = window.__ziweiAdapterModules || {};
-        window.__ziweiAdapterModules[name] = api;
+    // Try to register with window adapter
+    if (window.ziweiAdapter && typeof window.ziweiAdapter.registerModule === 'function') {
+        window.ziweiAdapter.registerModule(name, api);
+        return;
     }
+    
+    // Store in pending queue for later registration
+    window.__ziweiAdapterModules = window.__ziweiAdapterModules || {};
+    window.__ziweiAdapterModules[name] = api;
 }
 
 // Expose public API
@@ -264,16 +266,4 @@ registerAdapterModule('secondary', {
     calculateCelestialStars,
     calculateWealthStars,
     calculateFireBells
-});
-
-// Keep global reference for backward compatibility
-window.ziweiSecondary = {
-    calculateAllSecondaryStars,
-    getSecondaryStarsForPalace,
-    calculateLeftRightAssist,
-    calculateLiteraryStars,
-    calculateEarthlyStars,
-    calculateCelestialStars,
-    calculateWealthStars,
-    calculateFireBells
-};
+}); // T076: No global backward compat references

@@ -431,5 +431,6 @@ function initializePalaceInteraction(grid) {
     return api;
 }
 
+
 // Expose to global scope
 window.initializePalaceInteraction = initializePalaceInteraction;

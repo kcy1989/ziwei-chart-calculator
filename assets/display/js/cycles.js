@@ -85,8 +85,73 @@
     let activeMajorButton = null;
         let isProcessingCycleClick = false;
 
-    // Fixed clockwise labels for 大限 display starting at 命宮
-    const MAJOR_LABELS = ['大命','大父','大福','大田','大事','大友','大遷','大疾','大財','大子','大夫','大兄'];
+        /**
+         * Generate major cycle labels (大限 clockwise sequence)
+         * Dynamically applies user's palace name preferences:
+         * - Position 4: 大事 (default) or 大官 (if user selected 官祿)
+         * - Position 5: 大友 (default) or 大僕/大僕 (if user selected 奴僕/僕役)
+         * @returns {Array<string>} Array of 12 labels for 大限
+         */
+        const generateMajorLabels = () => {
+            const adapter = window.ziweiAdapter;
+            const baseLabels = ['大命','大父','大福','大田','大事','大友','大遷','大疾','大財','大子','大夫','大兄'];
+            
+            // Read user's palace name settings from adapter
+            if (!adapter || !adapter.settings || typeof adapter.settings.get !== 'function') {
+                return baseLabels;
+            }
+            
+            const careerSetting = adapter.settings.get('palaceNameCareer') || 'career';
+            const friendsSetting = adapter.settings.get('palaceNameFriends') || 'friends';
+            
+            // Apply career palace setting (position 4)
+            if (careerSetting === 'official') {
+                baseLabels[4] = '大官';
+            }
+            
+            // Apply friends palace setting (position 5)
+            if (friendsSetting === 'servants') {
+                baseLabels[5] = '大僕';
+            } else if (friendsSetting === 'servants_alt') {
+                baseLabels[5] = '大僕';
+            }
+            
+            return baseLabels;
+        };
+
+        /**
+         * Generate annual cycle labels (流年 clockwise sequence, excluding main palace)
+         * Dynamically applies user's palace name preferences:
+         * - Position 4: 流事 (default) or 流官 (if user selected 官祿)
+         * - Position 5: 流友 (default) or 流僕 (if user selected 奴僕/僕役)
+         * @returns {Array<string>} Array of 11 labels for 流年 (skip main palace)
+         */
+        const generateAnnualLabels = () => {
+            const adapter = window.ziweiAdapter;
+            const baseLabels = ['流父','流福','流田','流事','流友','流遷','流疾','流財','流子','流夫','流兄'];
+            
+            // Read user's palace name settings from adapter
+            if (!adapter || !adapter.settings || typeof adapter.settings.get !== 'function') {
+                return baseLabels;
+            }
+            
+            const careerSetting = adapter.settings.get('palaceNameCareer') || 'career';
+            const friendsSetting = adapter.settings.get('palaceNameFriends') || 'friends';
+            
+            // Apply career palace setting (position 3 in ANNUAL_LABELS array = position 4 relative to Ming)
+            if (careerSetting === 'official') {
+                baseLabels[3] = '流官';
+            }
+            
+            // Apply friends palace setting (position 4 in ANNUAL_LABELS array = position 5 relative to Ming)
+            if (friendsSetting === 'servants') {
+                baseLabels[4] = '流僕';
+            } else if (friendsSetting === 'servants_alt') {
+                baseLabels[4] = '流僕';
+            }
+            
+            return baseLabels;
+        };
 
         const clearCycleState = () => {
             // Don't clear if we're in the middle of processing a cycle button click
@@ -290,8 +355,14 @@
                         });
 
                         // Also render the clockwise sequence of annual labels (skip the main 年命 palace)
-                        const ANNUAL_LABELS = ['流父','流福','流田','流事','流友','流遷','流疾','流財','流子','流夫','流兄'];
+                        // Apply user's palace name preferences dynamically
+                        const ANNUAL_LABELS = generateAnnualLabels();
                         window.ziweiChartHelpers?.setAnnualCycleLabels?.(branchIndex, ANNUAL_LABELS);
+
+                        // Apply annual cycle mutations (流年四化)
+                        if (stemChar) {
+                            window.ziweiChartHelpers?.applyAnnualCycleMutations?.(stemChar);
+                        }
 
                         // Allow deferred clear callbacks to run after highlight completes
                         setTimeout(() => {
@@ -320,9 +391,14 @@
                 timeIndex: timeIndex,
                 palaceData: palaceData
             });
-            window.ziweiChartHelpers?.applyMajorCycleMutations?.(cycleStem);
+            // Apply major cycle mutations (大限四化)
+            if (cycleStem) {
+                window.ziweiChartHelpers?.applyMajorCycleMutations?.(cycleStem);
+            }
             // Render the full clockwise sequence of 大限 labels around 命宮
+            // Apply user's palace name preferences dynamically
             if (Number.isInteger(cycleBranchIndex)) {
+                const MAJOR_LABELS = generateMajorLabels();
                 window.ziweiChartHelpers?.setMajorCycleLabels?.(cycleBranchIndex, MAJOR_LABELS);
             }
         };
@@ -394,6 +470,57 @@
                     }
                 });
             }
+
+        // Listen for palace name setting changes and update cycle labels in real-time
+        document.addEventListener('ziwei-palace-name-changed', function handleCyclePalaceNameChange(e) {
+            const detail = e && e.detail ? e.detail : {};
+            const settingName = detail.settingName || '';
+            
+            // Only update if the affected setting is career or friends palace name
+            if (settingName !== 'palaceNameCareer' && settingName !== 'palaceNameFriends') {
+                return;
+            }
+            
+            // If there's an active major cycle button, regenerate and apply major labels
+            if (activeMajorButton && typeof window.ziweiChartHelpers?.setMajorCycleLabels === 'function') {
+                const cycleIndex = parseInt(activeMajorButton.dataset.cycleIndex, 10);
+                const palaceIndex = parseInt(activeMajorButton.dataset.palaceIndex, 10);
+                
+                // Reconstruct cycle object for label generation
+                if (Number.isInteger(palaceIndex)) {
+                    const palace = palaceData?.[palaceIndex] || null;
+                    if (palace && Number.isInteger(palace.index)) {
+                        const MAJOR_LABELS = generateMajorLabels();
+                        window.ziweiChartHelpers.setMajorCycleLabels(palace.index, MAJOR_LABELS);
+                    }
+                }
+            }
+            
+            // If annual row is visible, regenerate and apply annual labels
+            if (annualRow && annualRow.style.display !== 'none' && typeof window.ziweiChartHelpers?.setAnnualCycleLabels === 'function') {
+                const annualBtnActive = annualRow.querySelector('.ziwei-cycle-button-active');
+                if (annualBtnActive) {
+                    const annualAge = parseInt(annualBtnActive.dataset.age, 10);
+                    const cycleIndex = parseInt(annualBtnActive.dataset.cycleIndex, 10);
+                    
+                    if (Number.isInteger(cycleIndex)) {
+                        // Find the cycle object to get branchIndex
+                        const cycleLookup = majorCycles.find(c => c.cycleIndex === cycleIndex);
+                        if (cycleLookup && palaceData) {
+                            const stemBranch = getPalaceStemBranch(cycleLookup.palaceIndex);
+                            if (stemBranch && stemBranch.length >= 2) {
+                                const branchChar = stemBranch.charAt(1);
+                                const branchIndex = branchCharToIndex(branchChar);
+                                if (Number.isInteger(branchIndex) && branchIndex >= 0) {
+                                    const ANNUAL_LABELS = generateAnnualLabels();
+                                    window.ziweiChartHelpers.setAnnualCycleLabels(branchIndex, ANNUAL_LABELS);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
 
         return panel;
     }

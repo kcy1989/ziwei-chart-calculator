@@ -132,6 +132,28 @@ function initForm() {
     
     state.isInitialized = true;
     log('Form initialized with', state.inputs.length, 'fields');
+
+    // Listen for global calculation events so UI can respond to computed result
+    document.addEventListener('ziwei-chart-generated', function (e) {
+        // Calculation finished, ensure busy state cleared
+        state.isSubmitting = false;
+        toggleBusy(false);
+    });
+    // When there is an adapter-level error, show adapter error and clear busy state
+    document.addEventListener('ziwei-chart-error', function (e) {
+        try {
+            var detail = e && e.detail ? e.detail : {};
+            console.error('[ziweiForm] ziwei-chart-error event:', detail);
+            if (detail.error && typeof window.ziweiForm?.handleAdapterError === 'function') {
+                window.ziweiForm.handleAdapterError(detail.error);
+            }
+        } catch (err) {
+            console.error('[ziweiForm] Error handling ziwei-chart-error:', err);
+        } finally {
+            state.isSubmitting = false;
+            toggleBusy(false);
+        }
+    });
 }
 
 /**
@@ -332,6 +354,9 @@ function collectValues() {
         if (el.type === 'checkbox' || el.type === 'radio') {
             if (el.checked) {
                 values[el.name] = v;
+            } else if (el.type === 'radio' && !values.hasOwnProperty(el.name)) {
+                // For radio buttons, if none are checked, set to empty string
+                values[el.name] = '';
             }
         } else {
             values[el.name] = v;
@@ -420,25 +445,25 @@ function toggleBusy(busy) {
  */
 async function handleSubmit(e) {
     e.preventDefault();
-    
     if (!state.form) return;
-    
-    // Prevent reentry - check again immediately in case rapid clicks occur
     if (state.isSubmitting) {
         warn('Form already submitting, ignoring duplicate submission');
         return;
     }
-    
     state.isSubmitting = true;
     toggleBusy(true);
-    
     try {
-        // Clear previous errors
         clearAllErrors();
-        
-        // Collect values
         const rawValues = collectValues();
-
+        
+        // Frontend validation before API call
+        if (!rawValues.gender) {
+            showError('請選擇性別');
+            state.isSubmitting = false;
+            toggleBusy(false);
+            return;
+        }
+        
         const rawPayload = {
             name: rawValues.name || '',
             gender: rawValues.gender || '',
@@ -452,67 +477,82 @@ async function handleSubmit(e) {
             leapMonth: rawValues.leapMonth ?? rawValues.leap_month ?? '',
             timezone: rawValues.timezone || 'UTC+8'
         };
-
         log('Raw form payload collected:', rawPayload);
-        
-        // Check nonce
         if (!window.ziweiCalData || !window.ziweiCalData.nonce) {
             err('Missing required WordPress configuration');
             if (typeof showError === 'function') {
                 showError('系統配置錯誤，請重新載入頁面');
             }
-            // Reset state before returning from nonce check failure
             state.isSubmitting = false;
             toggleBusy(false);
             return;
         }
-        
-        // Save values snapshot
         state.lastValues = rawPayload;
-        
-        // Wait 500ms with "計算中..." showing
+    // Call REST API
+        let apiResponse = null;
+        try {
+            const resp = await fetch('/wp-json/ziwei-cal/v1/calculate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-WP-Nonce': window.ziweiCalData.nonce
+                },
+                body: JSON.stringify({
+                    name: rawPayload.name,
+                    gender: rawPayload.gender,
+                    year: Number(rawPayload.year),
+                    month: Number(rawPayload.month),
+                    day: Number(rawPayload.day),
+                    hour: Number(rawPayload.hour),
+                    minute: Number(rawPayload.minute),
+                    birthplace: rawPayload.birthplace
+                })
+            });
+            apiResponse = await resp.json();
+            if (!resp.ok || !apiResponse.success) {
+                throw new Error(apiResponse.message || 'API 錯誤');
+            }
+            log('REST API 回應:', apiResponse);
+        } catch (apiErr) {
+            err('REST API error:', apiErr);
+            if (typeof showError === 'function') {
+                showError(apiErr.message || '系統錯誤，請稍後再試', true);
+            }
+            state.isSubmitting = false;
+            toggleBusy(false);
+            return;
+        }
+    // Wait 500ms to show 'Calculating...'
         await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Dispatch event
+    // Dispatch event to calculation/display modules
         const detail = Object.freeze({
             formData: rawPayload,
-            nonce: window.ziweiCalData.nonce
+            nonce: window.ziweiCalData.nonce,
+            apiResponse
         });
-        
         const event = new CustomEvent('ziwei-form-submit', {
             bubbles: true,
             cancelable: true,
             detail
         });
-        
         const dispatched = state.form.dispatchEvent(event);
-        
         log('Form submit event dispatched:', dispatched);
-        
         if (!dispatched) {
             if (typeof showError === 'function') {
                 showError('表單提交被取消');
             }
         }
-        
-        // Note: toggleBusy(false) is called by calculator.js after chart display
-        
+    // toggleBusy(false) is handled by calculator.js
     } catch (ex) {
         err('Error in form submission:', ex);
         if (typeof showError === 'function') {
             showError('提交時發生錯誤，請稍後再試');
         }
-        // Reset state on exception
         state.isSubmitting = false;
         toggleBusy(false);
     } finally {
-        // CRITICAL: Always ensure state is properly reset
-        // This prevents form lockup if validation/nonce check fails
-        // Note: If event dispatch succeeded, calculator.js will manage toggleBusy(false) later
-        // If we reach here with isSubmitting=true, it means dispatch failed or error occurred
         if (state.isSubmitting === true) {
             state.isSubmitting = false;
-            // Only reset busy state if it's still busy (means dispatch didn't happen)
             if (state.form?.hasAttribute('aria-busy')) {
                 toggleBusy(false);
             }

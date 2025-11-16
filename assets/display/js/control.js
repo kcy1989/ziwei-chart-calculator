@@ -339,11 +339,38 @@
             window.ziweiConfig.reapplyPersonalInfoStateImmediately(newChartElement);
         }
         
-        // Reapply brightness setting to new chart element
-        // This ensures brightness state is consistent after chart replacement
+        // Reapply all display-only settings via events (unified event-driven pattern)
+        // This ensures all settings persist across chart replacements
+        
+        // Brightness setting
         const brightnessSetting = getAdapterSettingValue('starBrightness');
-        if (brightnessSetting && window.ziweiConfig && typeof window.ziweiConfig.applyStarBrightnessChange === 'function') {
-            window.ziweiConfig.applyStarBrightnessChange(brightnessSetting);
+        if (brightnessSetting) {
+            document.dispatchEvent(new CustomEvent('ziwei-starBrightness-changed', {
+                detail: { value: brightnessSetting, settingName: 'starBrightness' }
+            }));
+        }
+        
+        // Palace name settings
+        const careerSetting = getAdapterSettingValue('palaceNameCareer');
+        if (careerSetting && careerSetting !== 'career') {
+            document.dispatchEvent(new CustomEvent('ziwei-palace-name-changed', {
+                detail: { settingName: 'palaceNameCareer', newValue: careerSetting }
+            }));
+        }
+        
+        const friendsSetting = getAdapterSettingValue('palaceNameFriends');
+        if (friendsSetting && friendsSetting !== 'friends') {
+            document.dispatchEvent(new CustomEvent('ziwei-palace-name-changed', {
+                detail: { settingName: 'palaceNameFriends', newValue: friendsSetting }
+            }));
+        }
+        
+        // XunKong setting
+        const xunKongSetting = getAdapterSettingValue('xunKong');
+        if (xunKongSetting) {
+            document.dispatchEvent(new CustomEvent('ziwei-xunkong-changed', {
+                detail: { value: xunKongSetting, settingName: 'xunKong' }
+            }));
         }
     }
 

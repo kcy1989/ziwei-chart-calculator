@@ -6,6 +6,7 @@
    1. Palace Selection & Highlight States
    ======================================== */
 
+
 .ziwei-cal[data-ziwei-mode="chart"] .ziwei-cell-selected {
     background: #f3e6ff;
     border-color: #9b59b6;

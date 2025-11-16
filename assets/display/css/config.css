@@ -9,28 +9,73 @@
 .ziwei-settings-panel {
     width: 640px;
     margin: 0 auto 30px auto;
-    padding: 20px;
+    padding: 16px 20px;
     background: #f8f9fa;
     border: 1px solid #e9ecef;
     border-radius: 8px;
     display: none;
+    flex-direction: column;
 }
 
 .ziwei-settings-panel.active {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px 12px;
+    display: flex;
 }
 
 /* ========================================
    2. Settings Groups
    ======================================== */
 
+.ziwei-settings-category-wrapper {
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    background: #ffffff;
+}
+
+.ziwei-settings-category-wrapper:last-child {
+    margin-bottom: 0;
+}
+
+.ziwei-settings-category {
+    font-size: 16px;
+    font-weight: 700;
+    color: #2c3e50;
+    margin: 0 0 8px 0;
+    padding: 0;
+    text-align: left;
+    letter-spacing: 0.3px;
+}
+
+.ziwei-settings-category-content {
+    display: grid;
+    gap: 6px 8px;
+    margin-bottom: 0;
+    padding-left: 0;
+}
+
+.ziwei-settings-category-content.one-col {
+    grid-template-columns: 1fr;
+    width: calc(100% / 3);
+}
+
+.ziwei-settings-category-content.two-col {
+    grid-template-columns: repeat(2, 1fr);
+    width: calc(100% / 3 * 2);
+}
+
+.ziwei-settings-category-content.three-col {
+    grid-template-columns: repeat(3, 1fr);
+    width: 100%;
+}
+
 .ziwei-settings-group {
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
 }
 
 .ziwei-settings-label {
@@ -39,6 +84,7 @@
     color: #34495e;
     white-space: nowrap;
     flex-shrink: 0;
+    margin-right: 2px;
 }
 
 /* ========================================
@@ -47,10 +93,10 @@
 
 .ziwei-settings-select {
     flex: 1;
-    padding: 4px 8px;
+    padding: 4px 6px;
     font-size: 12px;
     border: 1px solid #d0d7de;
-    border-radius: 6px;
+    border-radius: 4px;
     background: #ffffff;
     color: #34495e;
     cursor: pointer;
