@@ -15,10 +15,10 @@
    ================== */
 
 .ziwei-share-btn {
-  padding: 8px 20px;
-  font-size: 14px;
+  padding: 0;
+  font-size: 18px;
   font-weight: 600;
-  line-height: 1.5;
+  line-height: 1;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -27,14 +27,16 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
   box-sizing: border-box;
   background: #ecf0f1;
   color: #34495e;
   text-decoration: none;
-  white-space: nowrap;
   font-family: inherit;
   position: relative;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
 }
 
 .ziwei-share-btn:hover {
@@ -143,11 +145,11 @@
 
 .ziwei-watermark {
   position: absolute;
-  bottom: 8px;
-  right: 8px;
+  bottom: 6px;
+  right: 6px;
   text-align: right;
   opacity: 0.75;
-  font-size: 11px;
+  font-size: 13px;
   color: #999;
   pointer-events: none;
   user-select: none;

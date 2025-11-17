@@ -22,12 +22,12 @@
   const MODULE_NAME = "ziwei-share";
   const WATERMARK_CONFIG = {
     enabled: true,
-    text: ["www.little-yin.com", "紫微斗數排盤工具"],
+    text: ["little-yin.com", "生成工具: 晉賢紫微斗數"],
     position: "bottom-right",
     opacity: 0.75,
-    fontSize: 11,
+    fontSize: 13,
     color: "#999",
-    padding: 8,
+    padding: 6,
   };
 
   let browserSupport = {};
@@ -95,8 +95,8 @@
   /**
    * 生成文件名稱
    * 規則:
-   * - 有姓名: 命盤_[完整姓名]_[YYYY-MM-DD].[format]
-   * - 無姓名: 命盤_[YYYY-MM-DD].[format]
+   * - 有姓名: [完整姓名]_[YYYY-MM-DD].[format]
+   * - 無姓名: 無名氏_[YYYY-MM-DD].[format]
    * - 移除禁止字符: / \ : * ? " < > |
    */
   function getFileName(format, name, date) {
@@ -114,16 +114,17 @@
     const dateStr = date.toISOString().split("T")[0]; // YYYY-MM-DD
 
     // 清理姓名 (移除禁止字符)
+    let cleanName = "無名氏";
     if (name && typeof name === "string") {
       name = name.trim();
       // 移除禁止字符: / \ : * ? " < > |
       name = name.replace(/[/\\:*?"<>|]/g, "");
       if (name) {
-        return "命盤_" + name + "_" + dateStr + "." + format;
+        cleanName = name;
       }
     }
 
-    return "命盤_" + dateStr + "." + format;
+    return cleanName + "_" + dateStr + "." + format;
   }
 
   // ==================
@@ -145,10 +146,10 @@
     try {
       showLoadingState("正在生成 PNG...");
 
-      // 找到命盤容器
-      const chartElement = document.querySelector(".ziwei-chart-wrapper");
-      if (!chartElement) {
-        throw new Error("命盤元素未找到 (.ziwei-chart-wrapper)");
+      // 只捕獲 4x4 命盤，不包含大限流年面板
+      const gridElement = document.querySelector(".ziwei-4x4-grid");
+      if (!gridElement) {
+        throw new Error("命盤 4x4 網格未找到 (.ziwei-4x4-grid)");
       }
 
       // 使用 html2canvas 捕獲 (需要從 CDN 加載)
@@ -158,12 +159,32 @@
 
       console.log("[" + MODULE_NAME + "] 開始捕獲命盤...");
 
-      const canvas = await window.html2canvas(chartElement, {
+      const canvas = await window.html2canvas(gridElement, {
         scale: 2,
         backgroundColor: "#ffffff",
         useCORS: true,
         allowTaint: true,
         logging: false,
+        windowWidth: gridElement.scrollWidth,
+        windowHeight: gridElement.scrollHeight,
+        onclone: function(clonedDoc) {
+          // 確保複製的文檔保留所有 CSS 樣式，特別是 writing-mode
+          const clonedGrid = clonedDoc.querySelector(".ziwei-4x4-grid");
+          if (clonedGrid) {
+            // 確保所有宮位單元格保持直排
+            const cells = clonedGrid.querySelectorAll(".ziwei-cell");
+            cells.forEach(function(cell) {
+              cell.style.writingMode = "vertical-rl";
+              cell.style.textOrientation = "upright";
+            });
+            
+            // 確保中央宮位也保持直排
+            const centerCell = clonedGrid.querySelector(".ziwei-center-big");
+            if (centerCell) {
+              centerCell.style.writingMode = "vertical-rl";
+            }
+          }
+        }
       });
 
       console.log(
