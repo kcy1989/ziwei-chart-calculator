@@ -6,7 +6,8 @@
 
 **Architecture**: Three-tier system separating **calculation logic** (pure, reusable) from **UI layer** (display, interaction) via **Adapter pattern**.
 
-**Key constraints**: 
+**Key constraints**:
+
 - Desktop-first, vertical writing mode (`writing-mode: vertical-rl`)
 - No external dependencies (vanilla JS only)
 - No database storage (REST API only)
@@ -21,24 +22,26 @@
 **Purpose**: Pure mathematical computation, no dependencies, no side effects.
 
 **Modules** (11 files, all under `assets/calculate/astrology/`):
+
 ```javascript
 // All modules export functions via getModule('name')
 // Examples via getAdapterModule():
 
-const basic = getAdapterModule('basic');
-const palaces = getAdapterModule('palaces');
-const primary = getAdapterModule('primary');
-const secondary = getAdapterModule('secondary');
-const minorStars = getAdapterModule('minorStars');
-const attributes = getAdapterModule('attributes');
-const lifeCycle = getAdapterModule('lifeCycle');
-const majorCycle = getAdapterModule('majorCycle');
-const mutations = getAdapterModule('mutations');
-const brightness = getAdapterModule('brightness');
-const genderCalc = getAdapterModule('genderCalculator');
+const basic = getAdapterModule("basic");
+const palaces = getAdapterModule("palaces");
+const primary = getAdapterModule("primary");
+const secondary = getAdapterModule("secondary");
+const minorStars = getAdapterModule("minorStars");
+const attributes = getAdapterModule("attributes");
+const lifeCycle = getAdapterModule("lifeCycle");
+const majorCycle = getAdapterModule("majorCycle");
+const mutations = getAdapterModule("mutations");
+const brightness = getAdapterModule("brightness");
+const genderCalc = getAdapterModule("genderCalculator");
 ```
 
 **Key characteristics**:
+
 - ✅ Pure functions only
 - ✅ No window object access
 - ✅ No display logic
@@ -47,6 +50,7 @@ const genderCalc = getAdapterModule('genderCalculator');
 - ✅ Fail-fast principle (log errors, return safe defaults)
 
 **Data structures** (conventions used across all modules):
+
 - **Palace indices**: 0-11 (0=子, 11=亥)
 - **Month indices**: 0-11 (0=正月)
 - **Time indices**: 0-11 (military hours)
@@ -60,18 +64,22 @@ const genderCalc = getAdapterModule('genderCalculator');
 **Purpose**: Bridge between calculation and display layers, normalize inputs/outputs, handle errors.
 
 **Key responsibilities**:
+
 1. **Input Normalization** (`adapter.input.normalize(formData)`)
+
    - Validates form data
    - Converts to lunar calendar
    - Standardizes indices
    - Returns `{ meta, lunar, indices, normalized }`
 
 2. **Output Processing** (`adapter.output.process(calcResult, normalizedInput)`)
+
    - Structures calculation results
    - Coordinates all modules
    - Returns complete `{ meta, lunar, indices, sections, derived, constants, errors }`
 
 3. **Module Registration** (`adapter.getModule(name)`)
+
    - Loads calculation modules on demand
    - Provides unified access point
 
@@ -80,6 +88,7 @@ const genderCalc = getAdapterModule('genderCalculator');
    - Field-level error tracking
 
 **Usage pattern**:
+
 ```javascript
 // In calculator.js (coordination layer)
 const normalizedInput = adapter.input.normalize(formData);
@@ -88,9 +97,9 @@ const adapterOutput = adapter.output.process(calcResult, normalizedInput);
 
 // Return all layers to display
 return {
-    calcResult,           // Raw API response
-    normalizedInput,      // Standardized input
-    adapterOutput        // Processed output (main data for display)
+  calcResult, // Raw API response
+  normalizedInput, // Standardized input
+  adapterOutput, // Processed output (main data for display)
 };
 ```
 
@@ -102,16 +111,17 @@ return {
 
 **Modules** (6 files, all under `assets/display/js/`):
 
-| Module | Purpose | CSS File | Data Source |
-|--------|---------|----------|-------------|
-| **chart.js** | Render 4x4 chart grid, palace cells | chart.css | adapterOutput |
-| **form.js** | Collect input, show errors | form.css | Form fields only |
-| **control.js** | Manage control bar | control.css | UI state |
-| **config.js** | Settings panel | config.css | UI state |
-| **palace-interaction.js** | Click handling, highlighting, lines | palace-interaction.css | Grid element |
-| **cycles.js** | Display cycle panels | cycles.css | lifeCycleData |
+| Module                    | Purpose                             | CSS File               | Data Source      |
+| ------------------------- | ----------------------------------- | ---------------------- | ---------------- |
+| **chart.js**              | Render 4x4 chart grid, palace cells | chart.css              | adapterOutput    |
+| **form.js**               | Collect input, show errors          | form.css               | Form fields only |
+| **control.js**            | Manage control bar                  | control.css            | UI state         |
+| **config.js**             | Settings panel                      | config.css             | UI state         |
+| **palace-interaction.js** | Click handling, highlighting, lines | palace-interaction.css | Grid element     |
+| **cycles.js**             | Display cycle panels                | cycles.css             | lifeCycleData    |
 
 **Strict rules**:
+
 - ✅ Use `getAdapterModule()` only for helper data (e.g., `cycles.js` uses `basic.getHeavenlyStemIndex()`)
 - ❌ **Never** call `window.ziweiBasic.getBasicIndices()` directly
 - ❌ **Never** perform calculations in display modules
@@ -126,6 +136,7 @@ return {
 **Purpose**: Store constants, configuration tables, and reference data used across calculation and display layers.
 
 **Files**:
+
 - **constants.js**: Global constants (palace names, heavenly stems, earthly branches, color codes)
 - **palaces-name.js**: Palace names and metadata
 - **nayin.js**: Five-element nayin (納音) configurations
@@ -133,6 +144,7 @@ return {
 - **mutation.js**: Four mutations/transformations table (四化 - 祿權科忌)
 
 **Key characteristics**:
+
 - ✅ Pure data, no logic
 - ✅ No dependencies
 - ✅ Accessed via `adapter.getModule('name')` or direct import
@@ -140,13 +152,14 @@ return {
 - ✅ Used by calculation layer for lookups, by display layer via Adapter
 
 **Usage pattern**:
+
 ```javascript
 // In calculation modules (e.g., brightness.js calculation)
-const brightnessData = require('../data/brightness.js');
+const brightnessData = require("../data/brightness.js");
 const starStatus = brightnessData.getStarBrightness(starName, palaceIndex);
 
 // In display modules (via Adapter only)
-const brightnessModule = getAdapterModule('brightness');
+const brightnessModule = getAdapterModule("brightness");
 ```
 
 ---
@@ -155,16 +168,17 @@ const brightnessModule = getAdapterModule('brightness');
 
 **Principle**: Organize by **visual location and responsibility**, not functional grouping.
 
-| CSS File | Manages | Location |
-|----------|---------|----------|
-| **chart.css** | 4x4 grid, palace cells, all interior content | Inside chart area |
+| CSS File                   | Manages                                       | Location                    |
+| -------------------------- | --------------------------------------------- | --------------------------- |
+| **chart.css**              | 4x4 grid, palace cells, all interior content  | Inside chart area           |
 | **palace-interaction.css** | High-light states, connection lines, overlays | Above chart (z-index layer) |
-| **cycles.css** | Control panels below chart | Below 4x4 grid |
-| **form.css** | Form inputs and validation states | Outside chart |
-| **control.css** | Control bar (time switching, settings) | Above form |
-| **config.css** | Settings panel | Right side or overlay |
+| **cycles.css**             | Control panels below chart                    | Below 4x4 grid              |
+| **form.css**               | Form inputs and validation states             | Outside chart               |
+| **control.css**            | Control bar (time switching, settings)        | Above form                  |
+| **config.css**             | Settings panel                                | Right side or overlay       |
 
 **CSS responsibility boundaries**:
+
 - `chart.css` = 宮位樣式 + 宮位內容（星曜、屬性、大限流年）
 - `palace-interaction.css` = 互動層（高亮、連線）
 - `cycles.css` = 排盤下方的控制面板
@@ -181,11 +195,11 @@ draw(chartData)
 ├─ calculateAllAttributes() → attributesData (3 spiritual mood descriptors per palace)
 ├─ calculateMajorCycles() → lifeCycleData
 └─ createPalaceCell() for each of 12 positions
-   ├─ .ziwei-stars-container (primary + secondary stars together)
-   ├─ .ziwei-minor-stars-container (43 minor stars, mid-left)
-   ├─ .ziwei-attributes-container (3 attributes/mood descriptors, bottom-left)
-   ├─ .ziwei-palace-container (name + stem-branch, vertical)
-   └─ .ziwei-life-cycle-container (cycles, bottom)
+├─ .ziwei-stars-container (primary + secondary stars together)
+├─ .ziwei-minor-stars-container (43 minor stars, mid-left)
+├─ .ziwei-attributes-container (3 attributes/mood descriptors, bottom-left)
+├─ .ziwei-palace-container (name + stem-branch, vertical)
+└─ .ziwei-life-cycle-container (cycles, bottom)
 .ziwei-4x4-grid { grid-template-columns: repeat(4, 1fr); }
 .ziwei-cell { writing-mode: vertical-rl; position: relative; }
 .ziwei-stars-container { position: absolute; top: 4px; left: 50%; }
@@ -206,30 +220,42 @@ draw(chartData)
 - When adding/removing settings: update SETTINGS_CONFIG, handler, CSS, docs, and test persistence/redraw.
 
 **Do not:**
+
 - Add fallback logic or local calculation in config.js
 - Use toggles, radios, checkboxes, tooltips, advanced settings, loading, or disabled states in config panel
 - Duplicate constants; always use window.ziweiConstants or adapter modules
 - Leave commented-out code
 
 ## Progressive Development Strategy
- Current phase: **Phase 11: School/Config systems** - (🚧 in progress - v0.5.4)
- 
- - Phase 1-3: Form + palaces + basic information display (✅ complete)
- - Phase 4: Primary stars (✅ complete)
- - Phase 5: Secondary stars (✅ complete)
- - Phase 6: Four mutations (✅ complete)
- - Phase 7: Minor stars/雜曜 (✅ complete) - 43 stars fully implemented
- - Phase 8: 神煞 (✅ complete) - Tai Sui stars (太歲、將前、博士) fully implemented
- - Phase 9: Three-direction Four-square interaction & UI refinement (✅ complete)
- - Phase 10: Major cycles (大運) and annual cycles (流年) (✅ complete)
- - Phase 11: School/Config systems (🚧 ongoing)
-      - Phase 11a: Star status (廟旺利陷) configurations (✅ complete)
-      - Phase 11b: Different school rules (🚧 in progress)
-      - Phase 11c: Month, Day and time handling differences (⏳ not started)
- - Phase 12: Export as PNG and PDF (⏳ not started)
- - Phase 13: True Sun time & location adjustments (⏳ not started)
- - Phase 14: Star explanations & tooltips (⏳ may not be included)
- - Phase 15: Star combination explanations (⏳ may not be included)
+
+Current phase: **Phase 11: School/Config systems** - (🚧 in progress - v0.5.4)
+
+- Phase 1-3: Form + palaces + basic information display (✅ complete)
+- Phase 4: Primary stars (✅ complete)
+- Phase 5: Secondary stars (✅ complete)
+- Phase 6: Four mutations (✅ complete)
+- Phase 7: Minor stars/雜曜 (✅ complete) - 43 stars fully implemented
+- Phase 8: 神煞 (✅ complete) - Tai Sui stars (太歲、將前、博士) fully implemented
+- Phase 9: Three-direction Four-square interaction & UI refinement (✅ complete)
+- Phase 10: Major cycles (大運) and annual cycles (流年) (✅ complete)
+- Phase 11: School/Config systems (🚧 ongoing)
+  - Phase 11a: Star status (廟旺利陷) configurations (✅ complete)
+  - Phase 11b: Different school rules (🚧 in progress)
+  - Phase 11c: Month, Day and time handling differences (⏳ not started)
+- Phase 12: Export as PNG and PDF (⏳ not started)
+- Phase 12: Export as PNG and PDF (✅ planned for v0.7.0)
+- Phase 13: Social media sharing & Web Share API (✅ planned for v0.7.0)
+- Phase 14: Brand watermark on chart (✅ planned for v0.7.0)
+- Phase 15: True Sun time & location adjustments (⏳ not started)
+- Phase 16: Star explanations & tooltips (⏳ may not be included)
+- Phase 17: Star combination explanations (⏳ may not be included)
+
+**v0.7.0 Roadmap** (Share & Export System):
+
+- Phase 12a: PNG export via html2canvas (🚧 in progress)
+- Phase 12b: PDF export via jsPDF (🚧 in progress)
+- Phase 13a: Web Share API integration (🚧 in progress)
+- Phase 14a: Brand watermark display (🚧 in progress)
 
 Generate code in **focused chunks** - one calculation function + one display integration per request. Test with console.log output before moving to next phase.
 
@@ -237,3 +263,18 @@ Generate code in **focused chunks** - one calculation function + one display int
 
 **Key principle**: Keep frontend stateless (all data via API), prefer modular functions over classes, maintain data flow transparency via console logging.
 
+## Display Layer Modules (Updated for v0.7.0)
+
+**New Module: share.js** (planned)
+
+- Purpose: Handle PNG/PDF export and social media sharing
+- Location: `assets/display/js/share.js`
+- Exports: `window.ziweiShare`
+- Dependencies: html2canvas, jsPDF (external CDN)
+- Integration: Called by control.js button event handlers
+
+**Enhanced Modules:**
+
+- **control.js**: Add share button to control bar
+- **chart.js**: Add watermark to center cell
+- **config.js**: New configuration option for watermark branding

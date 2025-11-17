@@ -445,21 +445,6 @@
     display: block;
 }
 
-/* ========================================
-    6.5. Xun Kong (截空旬空) Display Control
-    ======================================== */
-
-/* Xun Kong display modes - placeholder CSS for future implementation */
-/* 'marked': Show xun kong indicators for all applicable stars */
-/* 'primaryOnly': Show xun kong indicators only for primary stars */
-/* TODO: Implement actual xun kong display elements and styling */
-[data-xunkong-mode="marked"] {
-    /* Placeholder for marked mode - implementation pending */
-}
-
-[data-xunkong-mode="primaryOnly"] {
-    /* Placeholder for primaryOnly mode - implementation pending */
-}
 
 /* ========================================
     7. Minor Stars Container (Mid-Left)
