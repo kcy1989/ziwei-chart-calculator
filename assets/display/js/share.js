@@ -180,6 +180,24 @@
 
       console.log("[" + MODULE_NAME + "] 開始捕獲命盤...");
 
+      // 預先標記原始 DOM 的 highlight 狀態（避免克隆後遺失）
+      const originalGrid = gridElement;
+      const originalCells = originalGrid.querySelectorAll(".ziwei-cell");
+      originalCells.forEach(function(cell) {
+        const isMajor = cell.classList.contains("ziwei-cell-selected");
+        const isAnnual = cell.classList.contains("ziwei-cell-highlighted");
+        
+        if (isMajor && isAnnual) {
+          cell.setAttribute("data-highlight-state", "both");
+        } else if (isMajor) {
+          cell.setAttribute("data-highlight-state", "major");
+        } else if (isAnnual) {
+          cell.setAttribute("data-highlight-state", "annual");
+        } else {
+          cell.setAttribute("data-highlight-state", "none");
+        }
+      });
+
       // 在慢速環境中確保 DOM 完全穩定
       await new Promise(function(resolve) {
         if (typeof requestAnimationFrame !== "undefined") {
@@ -460,8 +478,25 @@
     let bothCount = 0;
     
     cells.forEach(function (cell) {
-      const isMajor = cell.classList.contains("ziwei-cell-selected");
-      const isAnnual = cell.classList.contains("ziwei-cell-highlighted");
+      // 優先使用 data-highlight-state，如果沒有才檢查 classList
+      const highlightState = cell.getAttribute("data-highlight-state");
+      let isMajor = false;
+      let isAnnual = false;
+      
+      if (highlightState === "both") {
+        isMajor = true;
+        isAnnual = true;
+      } else if (highlightState === "major") {
+        isMajor = true;
+      } else if (highlightState === "annual") {
+        isAnnual = true;
+      } else if (highlightState === "none") {
+        // 明確標記為無高亮
+      } else {
+        // 降級：檢查 classList（用於舊版兼容）
+        isMajor = cell.classList.contains("ziwei-cell-selected");
+        isAnnual = cell.classList.contains("ziwei-cell-highlighted");
+      }
 
       if (isMajor && isAnnual) {
         bothCount++;
