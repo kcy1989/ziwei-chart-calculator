@@ -287,17 +287,27 @@
       box.style.display = "inline-flex";
       box.style.flexDirection = "row";
       box.style.alignItems = "center";
-      box.style.justifyContent = "flex-start";
-      box.style.height = "40px";
+      box.style.justifyContent = "center";
+      box.style.height = "44px";
       box.style.padding = "2px 2px";
       box.style.margin = "0";
       box.style.borderRadius = "4px";
-      
-      if (box.classList.contains("ziwei-with-mutation")) {
-        box.style.backgroundColor = "#fffacd";
-        box.style.height = "42px";
-        box.style.alignItems = "center";
-      }
+      box.style.marginTop = "-3px";
+      box.style.transform = "translateY(-2px)";
+    });
+
+    const starsContainers = clonedGrid.querySelectorAll(
+      ".ziwei-stars-container"
+    );
+    starsContainers.forEach(function (container) {
+      container.style.top = "0px";
+    });
+
+    const minorStarsContainers = clonedGrid.querySelectorAll(
+      ".ziwei-minor-stars-container"
+    );
+    minorStarsContainers.forEach(function (container) {
+      container.style.top = "50px";
     });
 
     const attributeContainers = clonedGrid.querySelectorAll(
@@ -477,7 +487,7 @@
     // 創建分享按鈕
     const button = document.createElement("button");
     button.className = "ziwei-share-btn";
-    button.innerHTML = "📥";
+    button.innerHTML = "📤";
     button.setAttribute("data-action", "toggle-menu");
     button.title = "分享與匯出";
 
