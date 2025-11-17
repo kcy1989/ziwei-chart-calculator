@@ -1,10 +1,11 @@
+````plaintext
 === 紫微斗數排盤工具 ===
 Contributors: kcy1989
 Tags: 紫微斗數, 命理, 排盤, 中州派, astrology
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 0.6.0
+Stable tag: 0.6.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -94,14 +95,16 @@ ziwei-cal/
 │   │   │   ├── control.css        # 控制列樣式
 │   │   │   ├── config.css         # 設定面板樣式
 │   │   │   ├── palace-interaction.css  # 宮位互動樣式（高亮、連線）
-│   │   │   └── cycles.css         # 大限/流年控制面板樣式
+│   │   │   ├── cycles.css         # 大限/流年控制面板樣式
+│   │   │   └── share.css          # 分享/匯出按鈕樣式
 │   │   └── js/
 │   │       ├── chart.js           # 命盤渲染引擎（使用 adapterOutput）
 │   │       ├── form.js            # 表單邏輯（收集輸入，不驗證）
-│   │       ├── control.js         # 控制列管理（時辰切換、設定）
+│   │       ├── control.js         # 控制列管理（時辰切換、設定、分享）
 │   │       ├── config.js          # 設定模組（選項管理）
 │   │       ├── palace-interaction.js  # 宮位互動邏輯
-│   │       └── cycles.js          # 大限/流年顯示邏輯
+│   │       ├── cycles.js          # 大限/流年顯示邏輯
+│   │       └── share.js           # 分享與匯出系統（PNG/PDF/社群分享）
 │   └── data/                      # 資料表
 │       ├── constants.js           # 全域常數（宮位名、天干、地支等）
 │       ├── palaces-name.js        # 宮位名稱
@@ -163,6 +166,26 @@ ziwei-cal/
 此功能將在階段 12 開發。
 
 == Changelog ==
+= 0.6.1 - 2025-11-18 =
+* 新增：分享與匯出系統（Phase 1 - 已完成）
+  * 🎯 PNG 匯出功能：支援高解析度截圖，正確保留命盤排版
+  * 🎯 PDF 匯出預留位置（Phase 2 開發中）
+  * 🎯 Web Share API 社群分享支援
+  * 🎯 品牌水印顯示（置於中心宮位）
+* 新增：控制列按鈕優化
+  * 時辰快速切換按鈕：← 時辰 / 時辰 →
+  * 返回按鈕：◀（正方形 40×40px，24px 圖示）
+  * 設定按鈕：⚙/✕（正方形 40×40px，24px 圖示）
+  * 分享按鈕：📥（正方形 40×40px，18px 圖示）
+* 優化：PNG 匯出顯示正確
+  * 修正垂直文字在 PNG 中的字元堆疊顯示
+  * 修正屬性標籤的自動換行（2 字符分組）
+  * 修正星曜和四化標籤的位置對齊
+  * 修正四化標籤背景完全包裹星曜和四化字符
+* 優化：控制列按鈕長度（時辰按鈕：120px → 80px）
+* 修正：移除表單頁面 DOMContentLoaded 錯誤警告
+* 修正：改進事件驅動初始化機制，使用 ziwei-chart-ready 事件
+
 = 0.6.0 - 2025-11-16 =
 * 新增：多個設定選項:截空、旬空、天傷、天使、四化、宮位名稱
 * 優化：改善設定變更響應速度
