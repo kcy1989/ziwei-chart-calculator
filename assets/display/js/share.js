@@ -315,6 +315,14 @@
       container.style.top = "2px";
     });
 
+    const minorStarsContainers = clonedGrid.querySelectorAll(
+      ".ziwei-minor-stars-container"
+    );
+    minorStarsContainers.forEach(function (container) {
+      container.style.top = "62px";
+      container.style.transform = "translateY(-2px)";
+    });
+
     const attributeContainers = clonedGrid.querySelectorAll(
       ".ziwei-attributes-container"
     );
