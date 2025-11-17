@@ -234,6 +234,9 @@
 
           hideLoadingState();
 
+          // 下載完成後關閉菜單
+          closeMenu();
+
           // 發送成功事件
           document.dispatchEvent(
             new CustomEvent("ziwei-download-completed", {
@@ -379,7 +382,7 @@
     // 調整星星亮度文字位置：升高 2px (修正 PNG 下載時文字太低的問題)
     const starBrightness = clonedGrid.querySelectorAll(".ziwei-star-brightness");
     starBrightness.forEach(function (brightness) {
-      brightness.style.marginTop = "-1px"; // 原本是 1px，現在改為 -1px (升高 2px)
+      brightness.style.marginTop = "0"; // 原本是 1px，現在改為 -1px (升高 2px)
     });
   }
 
@@ -749,10 +752,10 @@
       } else if (action === "download-png") {
         e.preventDefault();
         e.stopPropagation();
+        // 不要在這裡關閉菜單！讓 downloadAsPNG 完成後再關閉
         downloadAsPNG().catch(function (err) {
           handleError(err);
         });
-        closeMenu();
       } else if (action === "download-pdf") {
         e.preventDefault();
         e.stopPropagation();
