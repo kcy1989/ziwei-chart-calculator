@@ -319,7 +319,7 @@
       ".ziwei-minor-stars-container"
     );
     minorStarsContainers.forEach(function (container) {
-      container.style.top = "62px";
+      container.style.top = "52px";
       container.style.transform = "translateY(-2px)";
     });
 
