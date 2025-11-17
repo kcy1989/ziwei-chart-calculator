@@ -457,7 +457,7 @@
     // 創建分享按鈕
     const button = document.createElement("button");
     button.className = "ziwei-share-btn";
-    button.innerHTML = "↗";
+    button.innerHTML = "↪";
     button.setAttribute("data-action", "toggle-menu");
     button.title = "分享與匯出";
 
