@@ -29,6 +29,27 @@
     color: "#999",
     padding: 6,
   };
+  const VERTICAL_TEXT_SELECTORS = [
+    ".ziwei-palace-label",
+    ".ziwei-primary-star",
+    ".ziwei-secondary-star",
+    ".ziwei-minor-star",
+    ".ziwei-attribute",
+    ".ziwei-major-cycle-star",
+    ".ziwei-annual-cycle-star",
+  ];
+  const VERTICAL_DISPLAY_MAP = {
+    "ziwei-palace-label": "inline-flex",
+    "ziwei-primary-star": "inline-flex",
+    "ziwei-secondary-star": "inline-flex",
+    "ziwei-minor-star": "inline-flex",
+    "ziwei-major-cycle-star": "inline-flex",
+    "ziwei-annual-cycle-star": "inline-flex",
+    "ziwei-attribute": "inline-flex",
+  };
+  const WRAP_TEXT_EVERY_N_CHARS = {
+    "ziwei-attribute": 2,
+  };
 
   let browserSupport = {};
   let isMenuOpen = false;
@@ -167,24 +188,10 @@
         logging: false,
         windowWidth: gridElement.scrollWidth,
         windowHeight: gridElement.scrollHeight,
-        onclone: function(clonedDoc) {
-          // 確保複製的文檔保留所有 CSS 樣式，特別是 writing-mode
-          const clonedGrid = clonedDoc.querySelector(".ziwei-4x4-grid");
-          if (clonedGrid) {
-            // 確保所有宮位單元格保持直排
-            const cells = clonedGrid.querySelectorAll(".ziwei-cell");
-            cells.forEach(function(cell) {
-              cell.style.writingMode = "vertical-rl";
-              cell.style.textOrientation = "upright";
-            });
-            
-            // 確保中央宮位也保持直排
-            const centerCell = clonedGrid.querySelector(".ziwei-center-big");
-            if (centerCell) {
-              centerCell.style.writingMode = "vertical-rl";
-            }
-          }
-        }
+        onclone: function (clonedDoc) {
+          applyCanvasCloneFixes(clonedDoc);
+        },
+
       });
 
       console.log(
@@ -249,6 +256,125 @@
       handleError(error);
       throw error;
     }
+  }
+
+  /**
+   * 針對 html2canvas 的限制，將需要直排的元素轉換為縱向排列的字元堆疊
+   * 這樣即使 html2canvas 不支持 writing-mode，也能保持視覺上的直排效果
+   * @param {Document} clonedDoc html2canvas 的複製文檔
+   */
+  function applyCanvasCloneFixes(clonedDoc) {
+    if (!clonedDoc) {
+      return;
+    }
+
+    const clonedGrid = clonedDoc.querySelector(".ziwei-4x4-grid");
+    if (!clonedGrid) {
+      return;
+    }
+
+    VERTICAL_TEXT_SELECTORS.forEach(function (selector) {
+      const elements = clonedGrid.querySelectorAll(selector);
+      elements.forEach(function (el) {
+        convertElementToVerticalStack(el, clonedDoc);
+      });
+    });
+
+    const attributeContainers = clonedGrid.querySelectorAll(
+      ".ziwei-attributes-container"
+    );
+    attributeContainers.forEach(function (container) {
+      container.style.writingMode = "horizontal-tb";
+      container.style.textOrientation = "mixed";
+    });
+  }
+
+  /**
+   * 將元素內容轉換為逐字換行的縱向堆疊，以模擬直排文字
+   * @param {Element} element 需要處理的 DOM 元素
+   * @param {Document} doc 複製文檔，用於創建 span
+   */
+  function convertElementToVerticalStack(element, doc) {
+    if (!element || !doc) {
+      return;
+    }
+
+    if (element.dataset && element.dataset.h2cVertical === "1") {
+      return;
+    }
+
+    const rawText = (element.textContent || "").replace(/\s+/g, "");
+    if (!rawText) {
+      return;
+    }
+
+    element.innerHTML = "";
+
+    const displayMode = getVerticalDisplayMode(element);
+    element.style.display = displayMode;
+    const isFlex = displayMode.includes("flex");
+    if (isFlex) {
+      element.style.flexDirection = "column";
+      element.style.alignItems = "center";
+      element.style.justifyContent = "center";
+    } else {
+      element.style.textAlign = "center";
+    }
+    element.style.gap = "0";
+    element.style.writingMode = "horizontal-tb";
+    element.style.textOrientation = "mixed";
+    element.style.lineHeight = "1.1";
+    element.style.letterSpacing = "0";
+    element.style.whiteSpace = "normal";
+
+    rawText.split("").forEach(function (char) {
+      const span = doc.createElement("span");
+      span.textContent = char;
+      span.style.display = "block";
+      span.style.lineHeight = "1";
+      span.style.margin = "0";
+      span.style.padding = "0";
+      element.appendChild(span);
+    });
+
+    const wrapCount = WRAP_TEXT_EVERY_N_CHARS[getElementFirstClass(element)] || 0;
+    if (wrapCount > 0) {
+      const children = Array.from(element.children);
+      for (let i = wrapCount; i < children.length; i += wrapCount) {
+        const br = doc.createElement("div");
+        br.style.flexBasis = "100%";
+        br.style.height = "0";
+        br.style.margin = "2px 0";
+        element.insertBefore(br, children[i]);
+      }
+    }
+
+    if (element.dataset) {
+      element.dataset.h2cVertical = "1";
+    }
+  }
+
+  function getElementFirstClass(element) {
+    if (!element || !element.classList || element.classList.length === 0) {
+      return "";
+    }
+    return element.classList[0];
+  }
+
+  function getVerticalDisplayMode(element) {
+    if (!element || !element.classList) {
+      return "inline-flex";
+    }
+
+    for (const className in VERTICAL_DISPLAY_MAP) {
+      if (Object.prototype.hasOwnProperty.call(VERTICAL_DISPLAY_MAP, className)) {
+        if (element.classList.contains(className.replace(/^\./, ""))) {
+          return VERTICAL_DISPLAY_MAP[className];
+        }
+      }
+    }
+
+    return "inline-flex";
   }
 
   // ==================
@@ -322,7 +448,7 @@
     // 創建分享按鈕
     const button = document.createElement("button");
     button.className = "ziwei-share-btn";
-    button.innerHTML = "📤";
+    button.innerHTML = "⤴";
     button.setAttribute("data-action", "toggle-menu");
     button.title = "分享與匯出";
 
