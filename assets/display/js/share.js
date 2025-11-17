@@ -289,6 +289,15 @@
       box.style.alignItems = "center";
       box.style.justifyContent = "flex-start";
       box.style.height = "40px";
+      box.style.padding = "2px 2px";
+      box.style.margin = "0";
+      box.style.borderRadius = "4px";
+      
+      if (box.classList.contains("ziwei-with-mutation")) {
+        box.style.backgroundColor = "#fffacd";
+        box.style.height = "42px";
+        box.style.alignItems = "center";
+      }
     });
 
     const attributeContainers = clonedGrid.querySelectorAll(
@@ -468,7 +477,7 @@
     // 創建分享按鈕
     const button = document.createElement("button");
     button.className = "ziwei-share-btn";
-    button.innerHTML = "⤴";
+    button.innerHTML = "📥";
     button.setAttribute("data-action", "toggle-menu");
     button.title = "分享與匯出";
 
