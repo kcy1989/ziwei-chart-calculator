@@ -199,18 +199,48 @@
         windowWidth: gridElement.scrollWidth,
         windowHeight: gridElement.scrollHeight,
         onclone: function (clonedDoc) {
-          // 調試：檢查克隆的 DOM 是否有內聯樣式
           const clonedGrid = clonedDoc.querySelector(".ziwei-4x4-grid");
-          if (clonedGrid) {
-            const clonedCells = clonedGrid.querySelectorAll(".ziwei-cell");
-            let hasInlineStyles = 0;
-            clonedCells.forEach(function(cell) {
-              if (cell.style.background || cell.style.backgroundColor) {
-                hasInlineStyles++;
-              }
-            });
-            console.log("[" + MODULE_NAME + "] onclone: 克隆的 " + clonedCells.length + " 個宮位中，" + hasInlineStyles + " 個有內聯樣式");
+          if (!clonedGrid) {
+            console.warn("[" + MODULE_NAME + "] onclone: 找不到克隆的 grid");
+            return;
           }
+          
+          // 關鍵修復：在克隆的 DOM 上強制重新應用 highlight 樣式
+          // 不依賴克隆的內聯樣式，而是重新讀取原始 DOM 的 classList
+          const originalGrid = document.querySelector(".ziwei-4x4-grid");
+          const originalCells = originalGrid.querySelectorAll(".ziwei-cell");
+          const clonedCells = clonedGrid.querySelectorAll(".ziwei-cell");
+          
+          console.log("[" + MODULE_NAME + "] onclone: 開始在克隆 DOM 上重新應用樣式");
+          
+          // 遍歷克隆的 cells，根據原始 DOM 的 classList 應用樣式
+          for (let i = 0; i < Math.min(originalCells.length, clonedCells.length); i++) {
+            const originalCell = originalCells[i];
+            const clonedCell = clonedCells[i];
+            
+            const isMajor = originalCell.classList.contains("ziwei-cell-selected");
+            const isAnnual = originalCell.classList.contains("ziwei-cell-highlighted");
+            
+            if (isMajor && isAnnual) {
+              clonedCell.style.background = "linear-gradient(135deg, #f3e6ff 0%, #e8f4f8 100%)";
+              clonedCell.style.borderColor = "#9b59b6";
+              clonedCell.style.boxShadow = "inset 0 0 0 2px #9b59b6";
+            } else if (isMajor) {
+              clonedCell.style.background = "#f3e6ff";
+              clonedCell.style.borderColor = "#9b59b6";
+              clonedCell.style.boxShadow = "inset 0 0 0 2px #9b59b6";
+            } else if (isAnnual) {
+              clonedCell.style.background = "#e8f4f8";
+              clonedCell.style.borderColor = "#3498db";
+              clonedCell.style.boxShadow = "inset 0 0 0 1px #3498db";
+            } else {
+              clonedCell.style.background = "#fff";
+              clonedCell.style.borderColor = "#ddd";
+              clonedCell.style.boxShadow = "none";
+            }
+          }
+          
+          console.log("[" + MODULE_NAME + "] onclone: 樣式重新應用完成");
           
           applyCanvasCloneFixes(clonedDoc);
         },
