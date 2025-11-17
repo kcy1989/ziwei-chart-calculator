@@ -298,6 +298,13 @@ function ziwei_cal_enqueue_scripts(): void {
         ZIWEI_CAL_VERSION
     );
 
+    wp_enqueue_style(
+        'ziwei-cal-share',
+        ZIWEI_CAL_PLUGIN_URL . 'assets/display/css/share.css',
+        [],
+        ZIWEI_CAL_VERSION
+    );
+
     // Enqueue constants module FIRST (before all other scripts)
     wp_enqueue_script(
         'ziwei-cal-constants',
