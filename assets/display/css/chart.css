@@ -330,7 +330,7 @@
     align-items: center;
     justify-items: center;
     width: 14px;
-    height: 44px;
+    height: 40px;
     flex-shrink: 0;
     margin-left: 0px;
 }
@@ -455,7 +455,7 @@
 .ziwei-minor-stars-container {
     position: absolute;
     left: 2px;
-    top: 62px;
+    top: 50px;
     display: flex;
     flex-direction: row;
     align-items: flex-start;

@@ -288,7 +288,7 @@
       box.style.flexDirection = "row";
       box.style.alignItems = "center";
       box.style.justifyContent = "flex-start";
-      box.style.height = "32px";
+      box.style.height = "40px";
     });
 
     const attributeContainers = clonedGrid.querySelectorAll(
