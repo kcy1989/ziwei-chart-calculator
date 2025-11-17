@@ -273,6 +273,26 @@
       return;
     }
 
+    // 移除所有宮位互動的 highlight 樣式類別 (修正 PNG 下載時的顏色問題)
+    const highlightedPalaces = clonedGrid.querySelectorAll(
+      ".ziwei-palace-highlighted, .ziwei-palace-related, .ziwei-palace-selected"
+    );
+    highlightedPalaces.forEach(function (palace) {
+      palace.classList.remove(
+        "ziwei-palace-highlighted",
+        "ziwei-palace-related",
+        "ziwei-palace-selected"
+      );
+    });
+
+    // 移除連線元素 (如果存在)
+    const connectionLines = clonedGrid.querySelectorAll(".ziwei-palace-connection");
+    connectionLines.forEach(function (line) {
+      if (line.parentNode) {
+        line.parentNode.removeChild(line);
+      }
+    });
+
     VERTICAL_TEXT_SELECTORS.forEach(function (selector) {
       const elements = clonedGrid.querySelectorAll(selector);
       elements.forEach(function (el) {
