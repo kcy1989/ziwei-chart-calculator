@@ -178,30 +178,16 @@
         throw new Error("html2canvas 庫尚未加載");
       }
 
-      console.log("[" + MODULE_NAME + "] 開始捕獲命盤...");
+      console.log("[" + MODULE_NAME + "] 開始準備捕獲...");
 
-      // 預先標記原始 DOM 的 highlight 狀態（避免克隆後遺失）
-      const originalGrid = gridElement;
-      const originalCells = originalGrid.querySelectorAll(".ziwei-cell");
-      originalCells.forEach(function(cell) {
-        const isMajor = cell.classList.contains("ziwei-cell-selected");
-        const isAnnual = cell.classList.contains("ziwei-cell-highlighted");
-        
-        if (isMajor && isAnnual) {
-          cell.setAttribute("data-highlight-state", "both");
-        } else if (isMajor) {
-          cell.setAttribute("data-highlight-state", "major");
-        } else if (isAnnual) {
-          cell.setAttribute("data-highlight-state", "annual");
-        } else {
-          cell.setAttribute("data-highlight-state", "none");
-        }
-      });
-
-      // 延遲捕捉確保 DOM 完全載入和高亮應用（解決生產環境時序問題）
-      console.log("[" + MODULE_NAME + "] 等待 DOM 穩定 (500ms)...");
+      // 步驟 1: 主動應用高亮樣式到原始 DOM（確保在捕獲前完成）
+      console.log("[" + MODULE_NAME + "] 步驟 1: 應用 highlight 內聯樣式到原始 DOM");
+      await applyHighlightStylesToOriginalDOM(gridElement);
+      
+      // 步驟 2: 等待 DOM 更新（額外延遲，解決生產環境延遲）
+      console.log("[" + MODULE_NAME + "] 步驟 2: 等待 DOM 更新 (100ms)");
       await new Promise(function(resolve) {
-        setTimeout(resolve, 500);  // 可調整為 1000ms 如果生產仍慢
+        setTimeout(resolve, 100);  // 可調整為 300ms 如果生產仍慢
       });
 
       const canvas = await window.html2canvas(gridElement, {
@@ -219,8 +205,11 @@
       });
 
       console.log(
-        "[" + MODULE_NAME + "] 捕獲完成，生成 blob..."
+        "[" + MODULE_NAME + "] 捕獲完成，清理原始 DOM 樣式..."
       );
+
+      // 步驟 3: 清理原始 DOM 的內聯樣式（恢復 CSS 控制）
+      cleanupOriginalDOMStyles(gridElement);
 
       // 轉換為 blob 並下載
       canvas.toBlob(
@@ -285,6 +274,8 @@
   /**
    * 針對 html2canvas 的限制，將需要直排的元素轉換為縱向排列的字元堆疊
    * 這樣即使 html2canvas 不支持 writing-mode，也能保持視覺上的直排效果
+   * 
+   * 注意：highlight 樣式已經在原始 DOM 應用，這裡只做清理工作
    * @param {Document} clonedDoc html2canvas 的複製文檔
    */
   function applyCanvasCloneFixes(clonedDoc) {
@@ -297,8 +288,9 @@
       return;
     }
 
-    // 先套用 highlight 內聯樣式（在移除類別之前）
-    applyHighlightInlineStyles(clonedGrid);
+    // 注意：不再需要在這裡應用 highlight 樣式，因為已經在原始 DOM 應用了
+    // 保留下面這行作為雙重保險（如果需要可以註解掉）
+    // applyHighlightInlineStyles(clonedGrid);
 
     // 移除所有宮位互動的 highlight 樣式類別（避免 CSS 衝突）
     const highlightedPalaces = clonedGrid.querySelectorAll(
@@ -457,6 +449,80 @@
     if (element.dataset) {
       element.dataset.h2cVertical = "1";
     }
+  }
+
+  /**
+   * 在捕獲前應用 highlight 樣式到原始 DOM（同步版本）
+   * 這樣確保樣式在 html2canvas 克隆之前就已經存在
+   */
+  async function applyHighlightStylesToOriginalDOM(grid) {
+    return new Promise(function(resolve) {
+      if (!grid) {
+        console.warn("[" + MODULE_NAME + "] applyHighlightStylesToOriginalDOM: grid 為空");
+        resolve();
+        return;
+      }
+
+      const cells = grid.querySelectorAll(".ziwei-cell");
+      console.log("[" + MODULE_NAME + "] 應用 highlight 樣式到原始 DOM，共 " + cells.length + " 個宮位");
+      
+      let majorCount = 0;
+      let annualCount = 0;
+      let bothCount = 0;
+      
+      cells.forEach(function (cell) {
+        const isMajor = cell.classList.contains("ziwei-cell-selected");
+        const isAnnual = cell.classList.contains("ziwei-cell-highlighted");
+        
+        if (isMajor && isAnnual) {
+          // 兩者都有：紫藍漸變
+          cell.style.setProperty("background", "linear-gradient(135deg, #f3e6ff 0%, #e8f4f8 100%)", "important");
+          cell.style.setProperty("border-color", "#9b59b6", "important");
+          cell.style.boxShadow = "inset 0 0 0 2px #9b59b6";
+          bothCount++;
+        } else if (isMajor) {
+          // 只有大限：紫色
+          cell.style.setProperty("background", "#f3e6ff", "important");
+          cell.style.setProperty("border-color", "#9b59b6", "important");
+          cell.style.boxShadow = "inset 0 0 0 2px #9b59b6";
+          majorCount++;
+        } else if (isAnnual) {
+          // 只有流年：藍色
+          cell.style.setProperty("background", "#e8f4f8", "important");
+          cell.style.setProperty("border-color", "#3498db", "important");
+          cell.style.boxShadow = "inset 0 0 0 1px #3498db";
+          annualCount++;
+        } else {
+          // 無高亮：白色
+          cell.style.setProperty("background", "#fff", "important");
+          cell.style.setProperty("border-color", "#ddd", "important");
+          cell.style.boxShadow = "none";
+        }
+      });
+      
+      console.log("[" + MODULE_NAME + "] Highlight 套用完成 - 大限: " + majorCount + ", 流年: " + annualCount + ", 兩者: " + bothCount);
+      resolve();
+    });
+  }
+
+  /**
+   * 清理原始 DOM 的內聯樣式（在捕獲完成後）
+   * 恢復 CSS 控制，避免影響用戶繼續使用
+   */
+  function cleanupOriginalDOMStyles(grid) {
+    if (!grid) {
+      return;
+    }
+
+    const cells = grid.querySelectorAll(".ziwei-cell");
+    cells.forEach(function (cell) {
+      // 移除我們添加的內聯樣式，讓 CSS 重新控制
+      cell.style.removeProperty("background");
+      cell.style.removeProperty("border-color");
+      cell.style.boxShadow = "";
+    });
+    
+    console.log("[" + MODULE_NAME + "] 原始 DOM 樣式已清理");
   }
 
   function applyHighlightInlineStyles(grid) {
