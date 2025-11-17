@@ -293,11 +293,26 @@
       }
     });
 
-    // 強制重置所有宮位的背景色為白色 (解決生產環境 CSS 優先級問題)
+    // 保留大限/流年選擇的淺色背景，只重置沒有這些類別的宮位
     const allCells = clonedGrid.querySelectorAll(".ziwei-cell");
     allCells.forEach(function (cell) {
-      cell.style.setProperty("background", "#ffffff", "important");
-      cell.style.setProperty("background-color", "#ffffff", "important");
+      // 如果宮位有 .ziwei-cell-selected 或 .ziwei-cell-highlighted，保持其淺色背景
+      const isSelected = cell.classList.contains("ziwei-cell-selected");
+      const isHighlighted = cell.classList.contains("ziwei-cell-highlighted");
+      
+      if (isSelected) {
+        // 大限選中：淺紫色 #f3e6ff
+        cell.style.setProperty("background", "#f3e6ff", "important");
+        cell.style.setProperty("background-color", "#f3e6ff", "important");
+      } else if (isHighlighted) {
+        // 流年高亮：淺藍色 #e8f4f8
+        cell.style.setProperty("background", "#e8f4f8", "important");
+        cell.style.setProperty("background-color", "#e8f4f8", "important");
+      } else {
+        // 其他宮位：白色
+        cell.style.setProperty("background", "#ffffff", "important");
+        cell.style.setProperty("background-color", "#ffffff", "important");
+      }
     });
 
     VERTICAL_TEXT_SELECTORS.forEach(function (selector) {
@@ -346,7 +361,7 @@
       ".ziwei-minor-stars-container"
     );
     minorStarsContainers.forEach(function (container) {
-      container.style.top = "62px";
+      container.style.top = "58px";
       container.style.transform = "translateY(-2px)";
     });
 
@@ -362,6 +377,12 @@
       container.style.alignItems = "flex-start";
       container.style.justifyContent = "flex-start";
       container.style.gap = "0 2px";
+    });
+
+    // 調整星星亮度文字位置：升高 2px (修正 PNG 下載時文字太低的問題)
+    const starBrightness = clonedGrid.querySelectorAll(".ziwei-star-brightness");
+    starBrightness.forEach(function (brightness) {
+      brightness.style.marginTop = "-1px"; // 原本是 1px，現在改為 -1px (升高 2px)
     });
   }
 
