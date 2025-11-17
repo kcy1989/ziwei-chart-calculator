@@ -273,7 +273,10 @@
       return;
     }
 
-    // 移除所有宮位互動的 highlight 樣式類別 (修正 PNG 下載時的顏色問題)
+    // 先套用 highlight 內聯樣式（在移除類別之前）
+    applyHighlightInlineStyles(clonedGrid);
+
+    // 移除所有宮位互動的 highlight 樣式類別（避免 CSS 衝突）
     const highlightedPalaces = clonedGrid.querySelectorAll(
       ".ziwei-palace-highlighted, .ziwei-palace-related, .ziwei-palace-selected"
     );
@@ -292,9 +295,6 @@
         line.parentNode.removeChild(line);
       }
     });
-
-  // 透過逐宮位內聯樣式確保 highlight 狀態完整套用
-  applyHighlightInlineStyles(clonedGrid);
 
     VERTICAL_TEXT_SELECTORS.forEach(function (selector) {
       const elements = clonedGrid.querySelectorAll(selector);
