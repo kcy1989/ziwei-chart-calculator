@@ -455,7 +455,7 @@
 .ziwei-minor-stars-container {
     position: absolute;
     left: 2px;
-    top: 62px;
+    top: 40px;
     display: flex;
     flex-direction: row;
     align-items: flex-start;

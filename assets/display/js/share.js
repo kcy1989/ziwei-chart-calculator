@@ -280,6 +280,17 @@
       });
     });
 
+    const starMutationBoxes = clonedGrid.querySelectorAll(
+      ".ziwei-star-mutation-box"
+    );
+    starMutationBoxes.forEach(function (box) {
+      box.style.display = "inline-flex";
+      box.style.flexDirection = "row";
+      box.style.alignItems = "center";
+      box.style.justifyContent = "flex-start";
+      box.style.height = "44px";
+    });
+
     const attributeContainers = clonedGrid.querySelectorAll(
       ".ziwei-attributes-container"
     );
@@ -457,7 +468,7 @@
     // 創建分享按鈕
     const button = document.createElement("button");
     button.className = "ziwei-share-btn";
-    button.innerHTML = "↪";
+    button.innerHTML = "➜";
     button.setAttribute("data-action", "toggle-menu");
     button.title = "分享與匯出";
 
