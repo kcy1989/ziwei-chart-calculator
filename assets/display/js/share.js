@@ -206,10 +206,9 @@
           }
           
           // 關鍵修復：在克隆的 DOM 上強制重新應用 highlight 樣式
-          // 不依賴克隆的內聯樣式，而是重新讀取原始 DOM 的 classList
+          // 使用 data-branch-index 精確匹配宮位，不依賴數組順序
           const originalGrid = document.querySelector(".ziwei-4x4-grid");
           const originalCells = originalGrid.querySelectorAll(".ziwei-cell");
-          const clonedCells = clonedGrid.querySelectorAll(".ziwei-cell");
           
           console.log("[" + MODULE_NAME + "] onclone: 開始在克隆 DOM 上重新應用樣式");
           
@@ -217,10 +216,14 @@
           let annualCount = 0;
           let bothCount = 0;
           
-          // 遍歷克隆的 cells，根據原始 DOM 的 classList 應用樣式
-          for (let i = 0; i < Math.min(originalCells.length, clonedCells.length); i++) {
-            const originalCell = originalCells[i];
-            const clonedCell = clonedCells[i];
+          // 遍歷原始 cells，根據 branchIndex 找到克隆的對應 cell
+          originalCells.forEach(function(originalCell) {
+            const branchIndex = originalCell.getAttribute("data-branch-index");
+            if (!branchIndex) return;
+            
+            // 在克隆的 DOM 中找到相同 branchIndex 的 cell
+            const clonedCell = clonedGrid.querySelector('.ziwei-cell[data-branch-index="' + branchIndex + '"]');
+            if (!clonedCell) return;
             
             const isMajor = originalCell.classList.contains("ziwei-cell-selected");
             const isAnnual = originalCell.classList.contains("ziwei-cell-highlighted");
@@ -245,7 +248,7 @@
               clonedCell.style.borderColor = "#ddd";
               clonedCell.style.boxShadow = "none";
             }
-          }
+          });
           
           console.log("[" + MODULE_NAME + "] onclone: 樣式重新應用完成 - 大限: " + majorCount + ", 流年: " + annualCount + ", 兩者: " + bothCount);
           
