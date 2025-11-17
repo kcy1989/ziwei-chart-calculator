@@ -437,7 +437,7 @@
         const rightGroup = document.createElement('div');
         rightGroup.className = 'ziwei-control-group ziwei-control-group-right';
 
-        const backBtn = createButton('← 上一頁', 'ziwei-back-btn');
+        const backBtn = createButton('◀', 'ziwei-back-btn');
         leftGroup.appendChild(backBtn);
 
         const prevBtn = createButton('← 時辰', 'ziwei-control-prev-hour');
