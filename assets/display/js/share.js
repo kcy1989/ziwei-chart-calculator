@@ -199,6 +199,19 @@
         windowWidth: gridElement.scrollWidth,
         windowHeight: gridElement.scrollHeight,
         onclone: function (clonedDoc) {
+          // 調試：檢查克隆的 DOM 是否有內聯樣式
+          const clonedGrid = clonedDoc.querySelector(".ziwei-4x4-grid");
+          if (clonedGrid) {
+            const clonedCells = clonedGrid.querySelectorAll(".ziwei-cell");
+            let hasInlineStyles = 0;
+            clonedCells.forEach(function(cell) {
+              if (cell.style.background || cell.style.backgroundColor) {
+                hasInlineStyles++;
+              }
+            });
+            console.log("[" + MODULE_NAME + "] onclone: 克隆的 " + clonedCells.length + " 個宮位中，" + hasInlineStyles + " 個有內聯樣式");
+          }
+          
           applyCanvasCloneFixes(clonedDoc);
         },
 
@@ -504,6 +517,16 @@
       });
       
       console.log("[" + MODULE_NAME + "] Highlight 套用完成 - 大限: " + majorCount + ", 流年: " + annualCount + ", 兩者: " + bothCount);
+      
+      // 驗證：檢查原始 DOM 是否真的有內聯樣式
+      let verifyCount = 0;
+      cells.forEach(function(cell) {
+        if (cell.style.background || cell.style.backgroundColor) {
+          verifyCount++;
+        }
+      });
+      console.log("[" + MODULE_NAME + "] 驗證：" + cells.length + " 個宮位中，" + verifyCount + " 個確實有內聯背景樣式");
+      
       resolve();
     });
   }
