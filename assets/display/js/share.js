@@ -842,20 +842,6 @@
   });
 
   /**
-   * 等待 DOM 準備完畢後嘗試初始化
-   */
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", function () {
-      console.log("[" + MODULE_NAME + "] DOMContentLoaded 事件觸發");
-      performInitialization();
-    });
-  } else {
-    // DOM 已準備好，立即嘗試初始化
-    console.log("[" + MODULE_NAME + "] DOM 已準備");
-    performInitialization();
-  }
-
-  /**
    * 公開重新初始化函數（用於調試或手動恢復）
    */
   function reinitialize() {
