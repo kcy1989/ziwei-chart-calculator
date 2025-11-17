@@ -288,7 +288,7 @@
       box.style.flexDirection = "row";
       box.style.alignItems = "center";
       box.style.justifyContent = "flex-start";
-      box.style.height = "44px";
+      box.style.height = "32px";
     });
 
     const attributeContainers = clonedGrid.querySelectorAll(
@@ -468,7 +468,7 @@
     // 創建分享按鈕
     const button = document.createElement("button");
     button.className = "ziwei-share-btn";
-    button.innerHTML = "➜";
+    button.innerHTML = "⤴";
     button.setAttribute("data-action", "toggle-menu");
     button.title = "分享與匯出";
 
