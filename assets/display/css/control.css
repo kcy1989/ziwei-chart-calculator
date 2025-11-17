@@ -64,7 +64,7 @@
 
 .ziwei-control-prev-hour,
 .ziwei-control-next-hour {
-    min-width: 120px;
+    min-width: 80px;
 }
 
 .ziwei-back-btn {
@@ -73,7 +73,7 @@
     min-width: 40px;
     min-height: 40px;
     padding: 0;
-    font-size: 24px;
+    font-size: 18px;
     line-height: 1;
 }
 
