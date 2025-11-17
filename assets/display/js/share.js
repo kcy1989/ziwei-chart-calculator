@@ -293,6 +293,13 @@
       }
     });
 
+    // 強制重置所有宮位的背景色為白色 (解決生產環境 CSS 優先級問題)
+    const allCells = clonedGrid.querySelectorAll(".ziwei-cell");
+    allCells.forEach(function (cell) {
+      cell.style.setProperty("background", "#ffffff", "important");
+      cell.style.setProperty("background-color", "#ffffff", "important");
+    });
+
     VERTICAL_TEXT_SELECTORS.forEach(function (selector) {
       const elements = clonedGrid.querySelectorAll(selector);
       elements.forEach(function (el) {
@@ -339,7 +346,7 @@
       ".ziwei-minor-stars-container"
     );
     minorStarsContainers.forEach(function (container) {
-      container.style.top = "52px";
+      container.style.top = "62px";
       container.style.transform = "translateY(-2px)";
     });
 
