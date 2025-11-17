@@ -286,6 +286,12 @@
     attributeContainers.forEach(function (container) {
       container.style.writingMode = "horizontal-tb";
       container.style.textOrientation = "mixed";
+      container.style.display = "flex";
+      container.style.flexDirection = "row";
+      container.style.flexWrap = "wrap";
+      container.style.alignItems = "flex-start";
+      container.style.justifyContent = "flex-start";
+      container.style.gap = "0 2px";
     });
   }
 
@@ -326,6 +332,8 @@
     element.style.lineHeight = "1.1";
     element.style.letterSpacing = "0";
     element.style.whiteSpace = "normal";
+    element.style.width = "auto";
+    element.style.minWidth = "unset";
 
     rawText.split("").forEach(function (char) {
       const span = doc.createElement("span");
@@ -343,8 +351,9 @@
       for (let i = wrapCount; i < children.length; i += wrapCount) {
         const br = doc.createElement("div");
         br.style.flexBasis = "100%";
+        br.style.width = "100%";
         br.style.height = "0";
-        br.style.margin = "2px 0";
+        br.style.margin = "1px 0";
         element.insertBefore(br, children[i]);
       }
     }
@@ -448,7 +457,7 @@
     // 創建分享按鈕
     const button = document.createElement("button");
     button.className = "ziwei-share-btn";
-    button.innerHTML = "⤴";
+    button.innerHTML = "↗";
     button.setAttribute("data-action", "toggle-menu");
     button.title = "分享與匯出";
 

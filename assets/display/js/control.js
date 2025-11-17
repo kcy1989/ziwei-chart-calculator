@@ -448,7 +448,7 @@
         nextBtn.setAttribute('data-control', 'next-hour');
         centerGroup.appendChild(nextBtn);
 
-        const settingsBtn = createButton('開啟設定', 'ziwei-control-settings-btn');
+        const settingsBtn = createButton('⚙', 'ziwei-control-settings-btn');
         settingsBtn.setAttribute('data-control', 'open-settings');
         rightGroup.appendChild(settingsBtn);
 
@@ -490,14 +490,14 @@
             if (isActive) {
                 // Close settings panel
                 settingsBtn.classList.remove('active');
-                settingsBtn.textContent = '開啟設定';
+                settingsBtn.textContent = '⚙';
                 if (panel) {
                     panel.classList.remove('active');
                 }
             } else {
                 // Open settings panel
                 settingsBtn.classList.add('active');
-                settingsBtn.textContent = '關閉設定';
+                settingsBtn.textContent = '✕';
                 if (panel) {
                     panel.classList.add('active');
                 }
