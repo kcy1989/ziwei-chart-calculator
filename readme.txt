@@ -1,10 +1,11 @@
+````plaintext
 === 紫微斗數排盤工具 ===
 Contributors: kcy1989
 Tags: 紫微斗數, 命理, 排盤, 中州派, astrology
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 0.6.0
+Stable tag: 0.6.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -40,10 +41,14 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 11. 派別/流派設定系統（✅ 完成）
     * Phase 11a: 個人資料隱藏（✅ v0.5.1 完成）
     * Phase 11b: 派別選擇與規則（✅ v0.5.2+ 完成）
-12. 匯出 PNG/PDF（🚧 開發中）
-13. 星曜說明與提示（⏳ 計畫中）
-14. 星曜組合解釋（⏳ 計畫中）
-15. AI提示詞輸出
+12. 分享與匯出系統（🚧 開發中 - v0.7.0）
+    * Phase 12a: PNG 匯出（html2canvas）
+    * Phase 12b: PDF 匯出（jsPDF）
+    * Phase 12c: Web Share API 分享
+    * Phase 12d: 品牌水印顯示
+13. 星曜說明與提示（⏳ 計畫中 - v0.8.0）
+14. 星曜組合解釋（⏳ 計畫中 - v0.9.0）
+15. AI提示詞輸出（⏳ 計畫中）
 
 == Installation ==
 
@@ -90,14 +95,16 @@ ziwei-cal/
 │   │   │   ├── control.css        # 控制列樣式
 │   │   │   ├── config.css         # 設定面板樣式
 │   │   │   ├── palace-interaction.css  # 宮位互動樣式（高亮、連線）
-│   │   │   └── cycles.css         # 大限/流年控制面板樣式
+│   │   │   ├── cycles.css         # 大限/流年控制面板樣式
+│   │   │   └── share.css          # 分享/匯出按鈕樣式
 │   │   └── js/
 │   │       ├── chart.js           # 命盤渲染引擎（使用 adapterOutput）
 │   │       ├── form.js            # 表單邏輯（收集輸入，不驗證）
-│   │       ├── control.js         # 控制列管理（時辰切換、設定）
+│   │       ├── control.js         # 控制列管理（時辰切換、設定、分享）
 │   │       ├── config.js          # 設定模組（選項管理）
 │   │       ├── palace-interaction.js  # 宮位互動邏輯
-│   │       └── cycles.js          # 大限/流年顯示邏輯
+│   │       ├── cycles.js          # 大限/流年顯示邏輯
+│   │       └── share.js           # 分享與匯出系統（PNG/PDF/社群分享）
 │   └── data/                      # 資料表
 │       ├── constants.js           # 全域常數（宮位名、天干、地支等）
 │       ├── palaces-name.js        # 宮位名稱
@@ -159,6 +166,10 @@ ziwei-cal/
 此功能將在階段 12 開發。
 
 == Changelog ==
+= 0.6.1 - 2025-11-18 =
+* 新增：分享與匯出系統 - PNG 匯出
+* 變更：控制列按鈕圖形化
+
 = 0.6.0 - 2025-11-16 =
 * 新增：多個設定選項:截空、旬空、天傷、天使、四化、宮位名稱
 * 優化：改善設定變更響應速度
@@ -262,8 +273,7 @@ ziwei-cal/
 
 == Known Issues ==
 
-* 當某宮位同時包含大量主星、輔星與雜曜時，可能出現文字溢出或重疊。後續版本將考慮：
-    * 星曜縮排 / 摺疊顯示
+* 當某宮位同時包含大量主星、輔星與雜曜時，可能出現文字溢出或重疊。後續版本將考慮：星曜縮排 / 摺疊顯示
 * 廟旺利陷表找不到可靠來源，暫在網上收集，歡迎提供特定門派慣用表
 * 設定已經很完備了，暫時沒有其他想法，歡迎提出更多設定的意見
 

@@ -437,18 +437,18 @@
         const rightGroup = document.createElement('div');
         rightGroup.className = 'ziwei-control-group ziwei-control-group-right';
 
-        const backBtn = createButton('上一頁', 'ziwei-back-btn');
+        const backBtn = createButton('◀', 'ziwei-back-btn');
         leftGroup.appendChild(backBtn);
 
-        const prevBtn = createButton('上一個時辰', 'ziwei-control-prev-hour');
+        const prevBtn = createButton('← 時辰', 'ziwei-control-prev-hour');
         prevBtn.setAttribute('data-control', 'prev-hour');
         centerGroup.appendChild(prevBtn);
 
-        const nextBtn = createButton('下一個時辰', 'ziwei-control-next-hour');
+        const nextBtn = createButton('時辰 →', 'ziwei-control-next-hour');
         nextBtn.setAttribute('data-control', 'next-hour');
         centerGroup.appendChild(nextBtn);
 
-        const settingsBtn = createButton('開啟設定', 'ziwei-control-settings-btn');
+        const settingsBtn = createButton('⚙', 'ziwei-control-settings-btn');
         settingsBtn.setAttribute('data-control', 'open-settings');
         rightGroup.appendChild(settingsBtn);
 
@@ -490,14 +490,14 @@
             if (isActive) {
                 // Close settings panel
                 settingsBtn.classList.remove('active');
-                settingsBtn.textContent = '開啟設定';
+                settingsBtn.textContent = '⚙';
                 if (panel) {
                     panel.classList.remove('active');
                 }
             } else {
                 // Open settings panel
                 settingsBtn.classList.add('active');
-                settingsBtn.textContent = '關閉設定';
+                settingsBtn.textContent = '✕';
                 if (panel) {
                     panel.classList.add('active');
                 }

@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * Plugin Name: Ziwei Cal
  * Description: Ziwei Doushu Chart Calculator
- * Version: 0.6.0
+ * Version: 0.6.1
  * Author: kcy1989
  * License: GPL v2 or later
  * Text Domain: ziwei-cal
@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('ZIWEI_CAL_VERSION', '0.6.0'); // Bump version to force cache refresh
+define('ZIWEI_CAL_VERSION', '0.6.1'); // Bump version to force cache refresh
 define('ZIWEI_CAL_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('ZIWEI_CAL_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -298,6 +298,13 @@ function ziwei_cal_enqueue_scripts(): void {
         ZIWEI_CAL_VERSION
     );
 
+    wp_enqueue_style(
+        'ziwei-cal-share',
+        ZIWEI_CAL_PLUGIN_URL . 'assets/display/css/share.css',
+        [],
+        ZIWEI_CAL_VERSION
+    );
+
     // Enqueue constants module FIRST (before all other scripts)
     wp_enqueue_script(
         'ziwei-cal-constants',
@@ -521,10 +528,36 @@ function ziwei_cal_enqueue_scripts(): void {
         true
     );
 
+    // Enqueue external CDN libraries for share/export functionality (Phase 1: v0.7.0)
+    wp_enqueue_script(
+        'html2canvas',
+        'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
+        [],
+        '1.4.1',
+        true
+    );
+
+    wp_enqueue_script(
+        'jspdf',
+        'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+        [],
+        '2.5.1',
+        true
+    );
+
+    // Enqueue share.js module (depends on html2canvas and jsPDF from CDN)
+    wp_enqueue_script(
+        'ziwei-cal-share',
+        ZIWEI_CAL_PLUGIN_URL . 'assets/display/js/share.js',
+        ['html2canvas', 'jspdf'],
+        ZIWEI_CAL_VERSION,
+        true
+    );
+
     wp_enqueue_script(
         'ziwei-cal-js',
         ZIWEI_CAL_PLUGIN_URL . 'assets/calculate/common/calculator.js',
-        ['jquery', 'ziwei-cal-form', 'ziwei-cal-chart', 'ziwei-cal-palace-interaction', 'ziwei-cal-control'],
+        ['jquery', 'ziwei-cal-form', 'ziwei-cal-chart', 'ziwei-cal-palace-interaction', 'ziwei-cal-control', 'ziwei-cal-share'],
         ZIWEI_CAL_VERSION,
         true
     );
