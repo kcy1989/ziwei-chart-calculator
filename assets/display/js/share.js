@@ -213,6 +213,10 @@
           
           console.log("[" + MODULE_NAME + "] onclone: 開始在克隆 DOM 上重新應用樣式");
           
+          let majorCount = 0;
+          let annualCount = 0;
+          let bothCount = 0;
+          
           // 遍歷克隆的 cells，根據原始 DOM 的 classList 應用樣式
           for (let i = 0; i < Math.min(originalCells.length, clonedCells.length); i++) {
             const originalCell = originalCells[i];
@@ -225,14 +229,17 @@
               clonedCell.style.background = "linear-gradient(135deg, #f3e6ff 0%, #e8f4f8 100%)";
               clonedCell.style.borderColor = "#9b59b6";
               clonedCell.style.boxShadow = "inset 0 0 0 2px #9b59b6";
+              bothCount++;
             } else if (isMajor) {
               clonedCell.style.background = "#f3e6ff";
               clonedCell.style.borderColor = "#9b59b6";
               clonedCell.style.boxShadow = "inset 0 0 0 2px #9b59b6";
+              majorCount++;
             } else if (isAnnual) {
               clonedCell.style.background = "#e8f4f8";
               clonedCell.style.borderColor = "#3498db";
               clonedCell.style.boxShadow = "inset 0 0 0 1px #3498db";
+              annualCount++;
             } else {
               clonedCell.style.background = "#fff";
               clonedCell.style.borderColor = "#ddd";
@@ -240,7 +247,7 @@
             }
           }
           
-          console.log("[" + MODULE_NAME + "] onclone: 樣式重新應用完成");
+          console.log("[" + MODULE_NAME + "] onclone: 樣式重新應用完成 - 大限: " + majorCount + ", 流年: " + annualCount + ", 兩者: " + bothCount);
           
           applyCanvasCloneFixes(clonedDoc);
         },
