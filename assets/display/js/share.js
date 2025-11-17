@@ -198,15 +198,10 @@
         }
       });
 
-      // 在慢速環境中確保 DOM 完全穩定
+      // 延遲捕捉確保 DOM 完全載入和高亮應用（解決生產環境時序問題）
+      console.log("[" + MODULE_NAME + "] 等待 DOM 穩定 (500ms)...");
       await new Promise(function(resolve) {
-        if (typeof requestAnimationFrame !== "undefined") {
-          requestAnimationFrame(function() {
-            requestAnimationFrame(resolve);
-          });
-        } else {
-          setTimeout(resolve, 50);
-        }
+        setTimeout(resolve, 500);  // 可調整為 1000ms 如果生產仍慢
       });
 
       const canvas = await window.html2canvas(gridElement, {
