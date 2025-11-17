@@ -293,32 +293,8 @@
       }
     });
 
-    // 保留大限/流年選擇的淺色背景，只重置沒有這些類別的宮位
-    const allCells = clonedGrid.querySelectorAll(".ziwei-cell");
-    allCells.forEach(function (cell) {
-      const isSelected = cell.classList.contains("ziwei-cell-selected");
-      const isHighlighted = cell.classList.contains("ziwei-cell-highlighted");
-
-      if (isSelected) {
-        // 大限選中：淺紫色 + 紫色邊框/框線
-        cell.style.setProperty("background", "#f3e6ff", "important");
-        cell.style.setProperty("background-color", "#f3e6ff", "important");
-        cell.style.setProperty("border-color", "#9b59b6", "important");
-        cell.style.boxShadow = "inset 0 0 0 2px #9b59b6";
-      } else if (isHighlighted) {
-        // 流年高亮：淺藍色 + 藍色邊框/框線
-        cell.style.setProperty("background", "#e8f4f8", "important");
-        cell.style.setProperty("background-color", "#e8f4f8", "important");
-        cell.style.setProperty("border-color", "#3498db", "important");
-        cell.style.boxShadow = "inset 0 0 0 1px #3498db";
-      } else {
-        // 其他宮位：維持預設白底與灰色邊框
-        cell.style.setProperty("background", "#ffffff", "important");
-        cell.style.setProperty("background-color", "#ffffff", "important");
-        cell.style.setProperty("border-color", "#cccccc", "important");
-        cell.style.boxShadow = "none";
-      }
-    });
+    // 為複製文件注入 highlight 專用樣式，確保整張命盤一致套用
+    injectHighlightStyles(clonedDoc);
 
     VERTICAL_TEXT_SELECTORS.forEach(function (selector) {
       const elements = clonedGrid.querySelectorAll(selector);
@@ -366,7 +342,7 @@
       ".ziwei-minor-stars-container"
     );
     minorStarsContainers.forEach(function (container) {
-      container.style.top = "62px";
+      container.style.top = "54px";
       container.style.transform = "translateY(-2px)";
     });
 
@@ -457,6 +433,43 @@
     if (element.dataset) {
       element.dataset.h2cVertical = "1";
     }
+  }
+
+  function injectHighlightStyles(doc) {
+    if (!doc || !doc.head) {
+      return;
+    }
+
+    if (doc.getElementById("ziwei-share-highlight-styles")) {
+      return;
+    }
+
+    const style = doc.createElement("style");
+    style.id = "ziwei-share-highlight-styles";
+    style.textContent = `
+      .ziwei-cell {
+        background: #ffffff !important;
+        border: 1px solid #cccccc !important;
+        box-shadow: none !important;
+      }
+      .ziwei-cell.ziwei-cell-selected {
+        background: #f3e6ff !important;
+        border-color: #9b59b6 !important;
+        box-shadow: inset 0 0 0 2px #9b59b6 !important;
+      }
+      .ziwei-cell.ziwei-cell-highlighted {
+        background: #e8f4f8 !important;
+        border-color: #3498db !important;
+        box-shadow: inset 0 0 0 1px #3498db !important;
+      }
+      .ziwei-cell.ziwei-cell-selected.ziwei-cell-highlighted {
+        background: linear-gradient(135deg, #f3e6ff 0%, #e8f4f8 100%) !important;
+        border-color: #9b59b6 !important;
+        box-shadow: inset 0 0 0 2px #9b59b6 !important;
+      }
+    `;
+
+    doc.head.appendChild(style);
   }
 
   function getElementFirstClass(element) {
