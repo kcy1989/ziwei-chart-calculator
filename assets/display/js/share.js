@@ -601,6 +601,9 @@
    * 追踪初始化狀態，防止重複初始化
    */
   let initialized = false;
+  let initAttempts = 0;
+  const INIT_MAX_ATTEMPTS = 20;
+  const INIT_RETRY_DELAY_MS = 200;
 
   /**
    * 執行初始化（帶護欄）
@@ -620,10 +623,21 @@
         "[" + MODULE_NAME + "] 等待控制列和圖表元素... (controlBar: " +
         !!controlBar + ", centerCell: " + !!centerCell + ")"
       );
-      return; // 還不準備好，等待下次機會
+      if (initAttempts >= INIT_MAX_ATTEMPTS) {
+        console.warn(
+          "[" +
+            MODULE_NAME +
+            "] 初始化重試超過限制，請確認 control.js 與 chart.js 是否正常運作"
+        );
+        return;
+      }
+      initAttempts += 1;
+      setTimeout(performInitialization, INIT_RETRY_DELAY_MS);
+      return;
     }
     
     initialized = true;
+    initAttempts = 0;
     console.log("[" + MODULE_NAME + "] 所有元素準備完畢，執行初始化...");
     initializeUI();
   }
@@ -655,6 +669,7 @@
    */
   function reinitialize() {
     initialized = false;
+    initAttempts = 0;
     console.log("[" + MODULE_NAME + "] 重置初始化狀態");
     performInitialization();
   }

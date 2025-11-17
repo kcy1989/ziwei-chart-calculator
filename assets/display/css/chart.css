@@ -96,6 +96,7 @@
     box-shadow: none;
     border: 1px solid #ccc;
     margin: 0;
+    position: relative;
 }
 
 .ziwei-center-left {

@@ -15,34 +15,39 @@
    ================== */
 
 .ziwei-share-btn {
-  position: relative;
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  text-align: center;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 12px;
-  margin-right: 8px;
-  background-color: #f0f0f0;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  min-height: 44px;
-  min-width: 44px;
+  gap: 8px;
+  box-sizing: border-box;
+  background: #ecf0f1;
+  color: #34495e;
+  text-decoration: none;
   white-space: nowrap;
-  user-select: none;
+  font-family: inherit;
+  position: relative;
 }
 
 .ziwei-share-btn:hover {
-  background-color: #e8e8e8;
+  background-color: #bdc3c7;
+  color: #34495e;
+}
+
+.ziwei-share-btn:focus {
+  outline: none;
 }
 
 .ziwei-share-btn:active {
-  background-color: #ddd;
-}
-
-.ziwei-share-btn.active {
-  background-color: #d0d0d0;
+  background-color: #a9a8a8;
 }
 
 /* ==================
