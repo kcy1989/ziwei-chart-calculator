@@ -292,22 +292,20 @@
       box.style.padding = "2px 2px";
       box.style.margin = "0";
       box.style.borderRadius = "4px";
-      box.style.marginTop = "-3px";
-      box.style.transform = "translateY(-2px)";
     });
 
-    const starsContainers = clonedGrid.querySelectorAll(
-      ".ziwei-stars-container"
-    );
-    starsContainers.forEach(function (container) {
-      container.style.top = "0px";
+    const primaryStars = clonedGrid.querySelectorAll(".ziwei-primary-star");
+    primaryStars.forEach(function (star) {
+      star.style.marginTop = "-2px";
+      star.style.transform = "translateY(-2px)";
     });
 
-    const minorStarsContainers = clonedGrid.querySelectorAll(
-      ".ziwei-minor-stars-container"
+    const secondaryStars = clonedGrid.querySelectorAll(
+      ".ziwei-secondary-star"
     );
-    minorStarsContainers.forEach(function (container) {
-      container.style.top = "50px";
+    secondaryStars.forEach(function (star) {
+      star.style.marginTop = "-2px";
+      star.style.transform = "translateY(-2px)";
     });
 
     const attributeContainers = clonedGrid.querySelectorAll(
