@@ -631,8 +631,8 @@
   /**
    * 監聽自定義事件，當圖表準備完畢時觸發初始化
    */
-  window.addEventListener("ziwei-chart-drawn", function () {
-    console.log("[" + MODULE_NAME + "] 收到 ziwei-chart-drawn 事件");
+  window.addEventListener("ziwei-chart-ready", function () {
+    console.log("[" + MODULE_NAME + "] 收到 ziwei-chart-ready 事件");
     performInitialization();
   });
 

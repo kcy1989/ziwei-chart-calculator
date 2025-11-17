@@ -667,6 +667,21 @@ async function updateDisplay(chartElement, _calculationResult) {
             chartElement.style.opacity = '1';
         });
     });
+
+    // 🎨 發出事件，通知其他模塊圖表元素已插入到 DOM 中
+    // 這允許 share.js 等動態模塊在元素真正可訪問後進行初始化
+    setTimeout(() => {
+        if (window.dispatchEvent) {
+            const chartReadyEvent = new CustomEvent("ziwei-chart-ready", {
+                detail: {
+                    chartElement: chartElement,
+                    timestamp: Date.now()
+                }
+            });
+            window.dispatchEvent(chartReadyEvent);
+            console.log('[ziweiCalculator] 發出 ziwei-chart-ready 事件');
+        }
+    }, 0);
 }
 
 // ============================================================================
