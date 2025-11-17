@@ -180,6 +180,17 @@
 
       console.log("[" + MODULE_NAME + "] 開始捕獲命盤...");
 
+      // 在慢速環境中確保 DOM 完全穩定
+      await new Promise(function(resolve) {
+        if (typeof requestAnimationFrame !== "undefined") {
+          requestAnimationFrame(function() {
+            requestAnimationFrame(resolve);
+          });
+        } else {
+          setTimeout(resolve, 50);
+        }
+      });
+
       const canvas = await window.html2canvas(gridElement, {
         scale: 2,
         backgroundColor: "#ffffff",
@@ -437,15 +448,23 @@
 
   function applyHighlightInlineStyles(grid) {
     if (!grid) {
+      console.warn("[" + MODULE_NAME + "] applyHighlightInlineStyles: grid 為空");
       return;
     }
 
     const cells = grid.querySelectorAll(".ziwei-cell");
+    console.log("[" + MODULE_NAME + "] 開始套用 highlight 樣式，共 " + cells.length + " 個宮位");
+    
+    let majorCount = 0;
+    let annualCount = 0;
+    let bothCount = 0;
+    
     cells.forEach(function (cell) {
       const isMajor = cell.classList.contains("ziwei-cell-selected");
       const isAnnual = cell.classList.contains("ziwei-cell-highlighted");
 
       if (isMajor && isAnnual) {
+        bothCount++;
         cell.style.setProperty(
           "background",
           "linear-gradient(135deg, #f3e6ff 0%, #e8f4f8 100%)",
@@ -454,10 +473,12 @@
         cell.style.setProperty("border-color", "#9b59b6", "important");
         cell.style.boxShadow = "inset 0 0 0 2px #9b59b6";
       } else if (isMajor) {
+        majorCount++;
         cell.style.setProperty("background", "#f3e6ff", "important");
         cell.style.setProperty("border-color", "#9b59b6", "important");
         cell.style.boxShadow = "inset 0 0 0 2px #9b59b6";
       } else if (isAnnual) {
+        annualCount++;
         cell.style.setProperty("background", "#e8f4f8", "important");
         cell.style.setProperty("border-color", "#3498db", "important");
         cell.style.boxShadow = "inset 0 0 0 1px #3498db";
@@ -467,6 +488,8 @@
         cell.style.boxShadow = "none";
       }
     });
+    
+    console.log("[" + MODULE_NAME + "] Highlight 套用完成 - 大限: " + majorCount + ", 流年: " + annualCount + ", 兩者: " + bothCount);
   }
 
   function getElementFirstClass(element) {
