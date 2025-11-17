@@ -293,8 +293,8 @@
       }
     });
 
-    // 為複製文件注入 highlight 專用樣式，確保整張命盤一致套用
-    injectHighlightStyles(clonedDoc);
+  // 透過逐宮位內聯樣式確保 highlight 狀態完整套用
+  applyHighlightInlineStyles(clonedGrid);
 
     VERTICAL_TEXT_SELECTORS.forEach(function (selector) {
       const elements = clonedGrid.querySelectorAll(selector);
@@ -342,7 +342,7 @@
       ".ziwei-minor-stars-container"
     );
     minorStarsContainers.forEach(function (container) {
-      container.style.top = "54px";
+      container.style.setProperty("top", "54px", "important");
       container.style.transform = "translateY(-2px)";
     });
 
@@ -435,41 +435,38 @@
     }
   }
 
-  function injectHighlightStyles(doc) {
-    if (!doc || !doc.head) {
+  function applyHighlightInlineStyles(grid) {
+    if (!grid) {
       return;
     }
 
-    if (doc.getElementById("ziwei-share-highlight-styles")) {
-      return;
-    }
+    const cells = grid.querySelectorAll(".ziwei-cell");
+    cells.forEach(function (cell) {
+      const isMajor = cell.classList.contains("ziwei-cell-selected");
+      const isAnnual = cell.classList.contains("ziwei-cell-highlighted");
 
-    const style = doc.createElement("style");
-    style.id = "ziwei-share-highlight-styles";
-    style.textContent = `
-      .ziwei-cell {
-        background: #ffffff !important;
-        border: 1px solid #cccccc !important;
-        box-shadow: none !important;
+      if (isMajor && isAnnual) {
+        cell.style.setProperty(
+          "background",
+          "linear-gradient(135deg, #f3e6ff 0%, #e8f4f8 100%)",
+          "important"
+        );
+        cell.style.setProperty("border-color", "#9b59b6", "important");
+        cell.style.boxShadow = "inset 0 0 0 2px #9b59b6";
+      } else if (isMajor) {
+        cell.style.setProperty("background", "#f3e6ff", "important");
+        cell.style.setProperty("border-color", "#9b59b6", "important");
+        cell.style.boxShadow = "inset 0 0 0 2px #9b59b6";
+      } else if (isAnnual) {
+        cell.style.setProperty("background", "#e8f4f8", "important");
+        cell.style.setProperty("border-color", "#3498db", "important");
+        cell.style.boxShadow = "inset 0 0 0 1px #3498db";
+      } else {
+        cell.style.setProperty("background", "#ffffff", "important");
+        cell.style.setProperty("border-color", "#cccccc", "important");
+        cell.style.boxShadow = "none";
       }
-      .ziwei-cell.ziwei-cell-selected {
-        background: #f3e6ff !important;
-        border-color: #9b59b6 !important;
-        box-shadow: inset 0 0 0 2px #9b59b6 !important;
-      }
-      .ziwei-cell.ziwei-cell-highlighted {
-        background: #e8f4f8 !important;
-        border-color: #3498db !important;
-        box-shadow: inset 0 0 0 1px #3498db !important;
-      }
-      .ziwei-cell.ziwei-cell-selected.ziwei-cell-highlighted {
-        background: linear-gradient(135deg, #f3e6ff 0%, #e8f4f8 100%) !important;
-        border-color: #9b59b6 !important;
-        box-shadow: inset 0 0 0 2px #9b59b6 !important;
-      }
-    `;
-
-    doc.head.appendChild(style);
+    });
   }
 
   function getElementFirstClass(element) {
