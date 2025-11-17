@@ -1288,6 +1288,21 @@ function draw(context) {
         }
     });
 
+    // 🎨 發出事件，通知其他模塊圖表已繪製完成
+    // 這允許 share.js 等動態加載的模塊在圖表準備好後進行初始化
+    if (window.dispatchEvent) {
+        const chartDrawnEvent = new CustomEvent("ziwei-chart-drawn", {
+            detail: {
+                chartWrapper: chartWrapper,
+                meta: meta,
+                timestamp: Date.now(),
+                palaceCount: Object.keys(palaces).length
+            }
+        });
+        window.dispatchEvent(chartDrawnEvent);
+        console.log('[ziweiChart] 發出 ziwei-chart-drawn 事件');
+    }
+
         return chartWrapper;
 }
 

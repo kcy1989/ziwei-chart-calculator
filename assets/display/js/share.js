@@ -598,16 +598,64 @@
   // ==================
 
   /**
-   * 等待 DOM 準備完畢後初始化
+   * 追踪初始化狀態，防止重複初始化
+   */
+  let initialized = false;
+
+  /**
+   * 執行初始化（帶護欄）
+   */
+  function performInitialization() {
+    if (initialized) {
+      console.log("[" + MODULE_NAME + "] 已經初始化，跳過重複初始化");
+      return;
+    }
+    
+    // 檢查必要元素是否存在
+    const controlBar = document.querySelector(".ziwei-control-bar");
+    const centerCell = document.querySelector(".ziwei-center-big");
+    
+    if (!controlBar || !centerCell) {
+      console.log(
+        "[" + MODULE_NAME + "] 等待控制列和圖表元素... (controlBar: " +
+        !!controlBar + ", centerCell: " + !!centerCell + ")"
+      );
+      return; // 還不準備好，等待下次機會
+    }
+    
+    initialized = true;
+    console.log("[" + MODULE_NAME + "] 所有元素準備完畢，執行初始化...");
+    initializeUI();
+  }
+
+  /**
+   * 監聽自定義事件，當圖表準備完畢時觸發初始化
+   */
+  window.addEventListener("ziwei-chart-drawn", function () {
+    console.log("[" + MODULE_NAME + "] 收到 ziwei-chart-drawn 事件");
+    performInitialization();
+  });
+
+  /**
+   * 等待 DOM 準備完畢後嘗試初始化
    */
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", function () {
-      console.log("[" + MODULE_NAME + "] DOMContentLoaded 事件觸發，初始化...");
-      initializeUI();
+      console.log("[" + MODULE_NAME + "] DOMContentLoaded 事件觸發");
+      performInitialization();
     });
   } else {
-    // DOM 已準備好
-    console.log("[" + MODULE_NAME + "] DOM 已準備，直接初始化...");
-    initializeUI();
+    // DOM 已準備好，立即嘗試初始化
+    console.log("[" + MODULE_NAME + "] DOM 已準備");
+    performInitialization();
+  }
+
+  /**
+   * 公開重新初始化函數（用於調試或手動恢復）
+   */
+  function reinitialize() {
+    initialized = false;
+    console.log("[" + MODULE_NAME + "] 重置初始化狀態");
+    performInitialization();
   }
 })();
