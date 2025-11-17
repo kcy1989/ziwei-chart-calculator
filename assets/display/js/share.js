@@ -296,22 +296,27 @@
     // 保留大限/流年選擇的淺色背景，只重置沒有這些類別的宮位
     const allCells = clonedGrid.querySelectorAll(".ziwei-cell");
     allCells.forEach(function (cell) {
-      // 如果宮位有 .ziwei-cell-selected 或 .ziwei-cell-highlighted，保持其淺色背景
       const isSelected = cell.classList.contains("ziwei-cell-selected");
       const isHighlighted = cell.classList.contains("ziwei-cell-highlighted");
-      
+
       if (isSelected) {
-        // 大限選中：淺紫色 #f3e6ff
+        // 大限選中：淺紫色 + 紫色邊框/框線
         cell.style.setProperty("background", "#f3e6ff", "important");
         cell.style.setProperty("background-color", "#f3e6ff", "important");
+        cell.style.setProperty("border-color", "#9b59b6", "important");
+        cell.style.boxShadow = "inset 0 0 0 2px #9b59b6";
       } else if (isHighlighted) {
-        // 流年高亮：淺藍色 #e8f4f8
+        // 流年高亮：淺藍色 + 藍色邊框/框線
         cell.style.setProperty("background", "#e8f4f8", "important");
         cell.style.setProperty("background-color", "#e8f4f8", "important");
+        cell.style.setProperty("border-color", "#3498db", "important");
+        cell.style.boxShadow = "inset 0 0 0 1px #3498db";
       } else {
-        // 其他宮位：白色
+        // 其他宮位：維持預設白底與灰色邊框
         cell.style.setProperty("background", "#ffffff", "important");
         cell.style.setProperty("background-color", "#ffffff", "important");
+        cell.style.setProperty("border-color", "#cccccc", "important");
+        cell.style.boxShadow = "none";
       }
     });
 
@@ -361,7 +366,7 @@
       ".ziwei-minor-stars-container"
     );
     minorStarsContainers.forEach(function (container) {
-      container.style.top = "58px";
+      container.style.top = "62px";
       container.style.transform = "translateY(-2px)";
     });
 
