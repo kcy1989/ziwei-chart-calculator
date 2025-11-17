@@ -296,16 +296,23 @@
 
     const primaryStars = clonedGrid.querySelectorAll(".ziwei-primary-star");
     primaryStars.forEach(function (star) {
-      star.style.marginTop = "-2px";
-      star.style.transform = "translateY(-2px)";
+      star.style.marginTop = "-1px";
+      star.style.transform = "translateY(-1px)";
     });
 
     const secondaryStars = clonedGrid.querySelectorAll(
       ".ziwei-secondary-star"
     );
     secondaryStars.forEach(function (star) {
-      star.style.marginTop = "-2px";
-      star.style.transform = "translateY(-2px)";
+      star.style.marginTop = "-1px";
+      star.style.transform = "translateY(-1px)";
+    });
+
+    const starsContainers = clonedGrid.querySelectorAll(
+      ".ziwei-stars-container"
+    );
+    starsContainers.forEach(function (container) {
+      container.style.top = "2px";
     });
 
     const attributeContainers = clonedGrid.querySelectorAll(
