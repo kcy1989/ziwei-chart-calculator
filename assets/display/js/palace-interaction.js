@@ -63,6 +63,7 @@ function initializePalaceInteraction(grid) {
     
     let lastSelected = null;
     let lastRelated = [];
+    let lastClickSource = null; // Track whether last click was from grid or cycles module
     const clearCallbacks = [];
     let isInitialized = false;
     
@@ -248,20 +249,28 @@ function initializePalaceInteraction(grid) {
     /**
      * Highlight related palaces and draw lines (differential update)
      * Only updates cells that changed
+     * Special handling: if clicking a different palace that shares the same branch index,
+     * keep the highlight. Only clear if clicking the exact same palace twice in a row from grid.
+     * @param {number} branchIndex - The palace branch index to highlight
+     * @param {string} source - Optional source identifier ('grid', 'major-cycle', 'annual-cycle', etc.)
      */
-    function highlightRelatedPalaces(branchIndex) {
+    function highlightRelatedPalaces(branchIndex, source) {
         if (branchIndex < 0 || branchIndex > 11) {
             console.warn(`[Palace Interaction] Invalid branchIndex: ${branchIndex}`);
             return;
         }
         
         if (DEBUG) {
-            console.log(`[Palace Interaction] Highlighting branchIndex=${branchIndex}`);
+            console.log(`[Palace Interaction] Highlighting branchIndex=${branchIndex}, source=${source}`);
         }
         
-        // Check if clicking same palace (toggle off)
+        // Only toggle off if:
+        // 1. Clicking same palace twice from grid (not from cycles.js)
+        // 2. Never toggle off when switching between major/annual cycles with same branch
         const isSamePalace = (lastSelected === branchIndex);
-        if (isSamePalace) {
+        const isGridClick = (source === 'grid' || !source);
+        
+        if (isSamePalace && isGridClick && lastClickSource === 'grid') {
             clearHighlight();
             return;
         }
@@ -276,11 +285,9 @@ function initializePalaceInteraction(grid) {
         
         for (let i = 0; i < lastRelated.length; i++) {
             const idx = lastRelated[i];
-            if (idx !== branchIndex) {
-                const cell = cellsByBranchIndex[idx];
-                if (cell) {
-                    cell.classList.remove('ziwei-cell-highlighted');
-                }
+            const cell = cellsByBranchIndex[idx];
+            if (cell) {
+                cell.classList.remove('ziwei-cell-highlighted');
             }
         }
         
@@ -290,6 +297,7 @@ function initializePalaceInteraction(grid) {
         // Add new highlights
         const selectedCell = cellsByBranchIndex[branchIndex];
         if (selectedCell) {
+            selectedCell.classList.remove('ziwei-cell-highlighted');
             selectedCell.classList.add('ziwei-cell-selected');
         }
         
@@ -306,9 +314,9 @@ function initializePalaceInteraction(grid) {
         // Update state
         lastSelected = branchIndex;
         lastRelated = related;
+        lastClickSource = source;
         
         // Draw connection lines immediately (synchronous) for instant visual feedback
-        // Previously used requestAnimationFrame, but removed for immediate response
         drawConnectionLines(branchIndex, related);
     }
     
@@ -373,7 +381,7 @@ function initializePalaceInteraction(grid) {
         
         if (branchIndex !== undefined && Number(branchIndex) >= 0) {
             e.stopPropagation();
-            highlightRelatedPalaces(Number(branchIndex));
+            highlightRelatedPalaces(Number(branchIndex), 'grid');
         } else {
             // Clicked on center or invalid cell
             clearHighlight();

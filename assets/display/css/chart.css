@@ -99,6 +99,35 @@
     position: relative;
 }
 
+/* Center Cell Title */
+.ziwei-center-title {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 0;
+    margin-bottom: 6px;
+}
+
+.ziwei-center-title-line1 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #2c3e50;
+    text-align: center;
+    white-space: nowrap;
+    line-height: 1;
+}
+
+.ziwei-center-title-line2 {
+    font-size: 16px;
+    color: #7f8c8d;
+    text-align: center;
+    white-space: nowrap;
+    margin-top: 6px;
+    line-height: 1;
+}
+
 .ziwei-center-left {
     display: flex;
     flex-direction: column;
@@ -545,6 +574,36 @@
 
 .ziwei-life-stage {
     font-size: 14px;
+}
+
+.ziwei-exporting .ziwei-life-cycle-container {
+    padding-left: 4px;
+    padding-right: 4px;
+    max-width: 100%;
+}
+
+.ziwei-exporting .ziwei-major-cycle,
+.ziwei-exporting .ziwei-life-stage {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.ziwei-exporting .ziwei-4x4-grid {
+    border-color: #333333 !important;
+    background-color: #ffffff;
+}
+
+.ziwei-exporting .ziwei-4x4-grid::after {
+    content: "";
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    right: -3px;
+    bottom: -3px;
+    border: 3px solid #333333;
+    pointer-events: none;
+    box-sizing: border-box;
+    z-index: 6;
 }
 
 /* ========================================

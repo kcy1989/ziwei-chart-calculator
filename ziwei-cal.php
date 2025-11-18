@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * Plugin Name: Ziwei Cal
  * Description: Ziwei Doushu Chart Calculator
- * Version: 0.6.1.15
+ * Version: 0.6.3
  * Author: kcy1989
  * License: GPL v2 or later
  * Text Domain: ziwei-cal
@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('ZIWEI_CAL_VERSION', '0.6.1.15'); // Bump version to force cache refresh
+define('ZIWEI_CAL_VERSION', '0.6.3'); // Bump version to force cache refresh
 define('ZIWEI_CAL_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('ZIWEI_CAL_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -530,10 +530,10 @@ function ziwei_cal_enqueue_scripts(): void {
 
     // Enqueue external CDN libraries for share/export functionality (Phase 1: v0.7.0)
     wp_enqueue_script(
-        'html2canvas',
-        'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
+        'dom-to-image',
+        'https://cdn.jsdelivr.net/npm/dom-to-image@2.6.0/dist/dom-to-image.min.js',
         [],
-        '1.4.1',
+        '2.6.0',
         true
     );
 
@@ -545,11 +545,11 @@ function ziwei_cal_enqueue_scripts(): void {
         true
     );
 
-    // Enqueue share.js module (depends on html2canvas and jsPDF from CDN)
+    // Enqueue share.js module (depends on dom-to-image and jsPDF from CDN)
     wp_enqueue_script(
         'ziwei-cal-share',
         ZIWEI_CAL_PLUGIN_URL . 'assets/display/js/share.js',
-        ['html2canvas', 'jspdf'],
+        ['dom-to-image', 'jspdf'],
         ZIWEI_CAL_VERSION,
         true
     );
@@ -581,6 +581,28 @@ function ziwei_cal_enqueue_scripts(): void {
     );
 }
 add_action('wp_enqueue_scripts', 'ziwei_cal_enqueue_scripts');
+
+/**
+ * Add defer attribute to non-critical scripts for performance optimization
+ * This improves page load time by deferring script execution
+ */
+function ziwei_cal_add_defer_attribute($tag, $handle, $src) {
+    // Scripts that should be deferred (non-blocking, loaded after page renders)
+    $defer_scripts = [
+        'ziwei-cal-cycles',           // Cycle panel (loaded after chart renders)
+        'ziwei-cal-palace-interaction', // Palace interaction (loaded after chart renders)
+        'dom-to-image',               // Export library (loaded on demand)
+        'jspdf',                      // PDF library (loaded on demand)
+        'ziwei-cal-share'             // Share module (loaded on demand)
+    ];
+
+    if (in_array($handle, $defer_scripts, true)) {
+        $tag = str_replace(' src=', ' defer src=', $tag);
+    }
+
+    return $tag;
+}
+add_filter('script_loader_tag', 'ziwei_cal_add_defer_attribute', 10, 3);
 
 /**
  * Register shortcode [ziwei_cal] for the calculator form.

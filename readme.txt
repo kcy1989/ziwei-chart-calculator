@@ -5,7 +5,7 @@ Tags: 紫微斗數, 命理, 排盤, 中州派, astrology
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 0.6.1
+Stable tag: 0.6.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -166,6 +166,14 @@ ziwei-cal/
 此功能將在階段 12 開發。
 
 == Changelog ==
+= 0.6.3 - 2025-11-18 =
+* 優化：實施漸進式渲染，延遲載入非必要資源，減少排盤等待時間
+* 變更：更改品牌標題位置
+
+= 0.6.2 - 2025-11-18 =
+* 修正：下載圖片的宮位高亮顯示
+* 修正：宮位互動正確用紫色標示選中宮位
+
 = 0.6.1 - 2025-11-18 =
 * 新增：分享與匯出系統 - PNG 匯出
 * 變更：控制列按鈕圖形化

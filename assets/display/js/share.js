@@ -1,6 +1,6 @@
 /**
  * 分享與匯出系統模組
- * 功能: PNG/PDF 下載、社交分享、品牌水印
+ * 功能: PNG/PDF 下載、社交分享
  * 版本: 1.0 (Phase 1)
  * 
  * 公開 API:
@@ -20,36 +20,11 @@
   // ==================
 
   const MODULE_NAME = "ziwei-share";
-  const WATERMARK_CONFIG = {
-    enabled: true,
-    text: ["little-yin.com", "生成工具: 晉賢紫微斗數"],
-    position: "bottom-right",
-    opacity: 0.75,
-    fontSize: 13,
-    color: "#999",
-    padding: 6,
-  };
-  const VERTICAL_TEXT_SELECTORS = [
-    ".ziwei-palace-label",
-    ".ziwei-primary-star",
-    ".ziwei-secondary-star",
-    ".ziwei-minor-star",
-    ".ziwei-attribute",
-    ".ziwei-major-cycle-star",
-    ".ziwei-annual-cycle-star",
+  const CAPTURE_TARGET_SELECTORS = [
+    ".ziwei-chart-container",
+    ".ziwei-4x4-grid"
   ];
-  const VERTICAL_DISPLAY_MAP = {
-    "ziwei-palace-label": "inline-flex",
-    "ziwei-primary-star": "inline-flex",
-    "ziwei-secondary-star": "inline-flex",
-    "ziwei-minor-star": "inline-flex",
-    "ziwei-major-cycle-star": "inline-flex",
-    "ziwei-annual-cycle-star": "inline-flex",
-    "ziwei-attribute": "inline-flex",
-  };
-  const WRAP_TEXT_EVERY_N_CHARS = {
-    "ziwei-attribute": 2,
-  };
+  const EXPORT_SCALE = 2;
 
   let browserSupport = {};
   let isMenuOpen = false;
@@ -60,7 +35,7 @@
 
   /**
    * 檢測瀏覽器對各項功能的支持情況
-   * - html2canvas: PNG 導出
+   * - dom-to-image: PNG 導出
    * - jsPDF: PDF 導出
    * - Web Share API: 社交分享
    * - IE 11 判定為不支持
@@ -70,7 +45,7 @@
     const isIE11 = ua.includes("Trident") && ua.includes("11.0");
 
     browserSupport = {
-      canExportPNG: typeof window.html2canvas !== "undefined" && !isIE11,
+      canExportPNG: typeof window.domtoimage !== "undefined" && !isIE11,
       canExportPDF: typeof window.jsPDF !== "undefined" && !isIE11,
       canShare: typeof navigator.share !== "undefined",
       canShareWeb: /iPhone|iPad|Android/.test(ua),
@@ -154,8 +129,7 @@
 
   /**
    * 下載命盤為 PNG 圖片
-   * 使用 html2canvas 庫捕獲 DOM
-   * 性能目標: 1-3 秒
+   * 使用 dom-to-image 捕獲 DOM，保留當前高亮狀態
    */
   async function downloadAsPNG() {
     if (!browserSupport.canExportPNG) {
@@ -164,154 +138,66 @@
       throw err;
     }
 
+    const target = getCaptureTarget();
+    if (!target) {
+      const err = new Error("未找到可供導出的命盤元素");
+      handleError(err);
+      throw err;
+    }
+
+    if (typeof window.domtoimage === "undefined") {
+      const err = new Error("dom-to-image 庫尚未加載");
+      handleError(err);
+      throw err;
+    }
+
+    const cleanupExport = prepareForExport(target);
+    showLoadingState("正在生成 PNG...");
+
     try {
-      showLoadingState("正在生成 PNG...");
-
-      // 只捕獲 4x4 命盤，不包含大限流年面板
-      const gridElement = document.querySelector(".ziwei-4x4-grid");
-      if (!gridElement) {
-        throw new Error("命盤 4x4 網格未找到 (.ziwei-4x4-grid)");
-      }
-
-      // 使用 html2canvas 捕獲 (需要從 CDN 加載)
-      if (typeof window.html2canvas === "undefined") {
-        throw new Error("html2canvas 庫尚未加載");
-      }
-
-      console.log("[" + MODULE_NAME + "] 開始準備捕獲...");
-
-      // 步驟 1: 主動應用高亮樣式到原始 DOM（確保在捕獲前完成）
-      console.log("[" + MODULE_NAME + "] 步驟 1: 應用 highlight 內聯樣式到原始 DOM");
-      await applyHighlightStylesToOriginalDOM(gridElement);
-      
-      // 步驟 2: 等待 DOM 更新（額外延遲，解決生產環境延遲）
-      console.log("[" + MODULE_NAME + "] 步驟 2: 等待 DOM 更新 (100ms)");
-      await new Promise(function(resolve) {
-        setTimeout(resolve, 100);  // 可調整為 300ms 如果生產仍慢
-      });
-
-      const canvas = await window.html2canvas(gridElement, {
-        scale: 2,
-        backgroundColor: "#ffffff",
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        windowWidth: gridElement.scrollWidth,
-        windowHeight: gridElement.scrollHeight,
-        onclone: function (clonedDoc) {
-          const clonedGrid = clonedDoc.querySelector(".ziwei-4x4-grid");
-          if (!clonedGrid) {
-            console.warn("[" + MODULE_NAME + "] onclone: 找不到克隆的 grid");
-            return;
-          }
-          
-          // 關鍵修復：在克隆的 DOM 上強制重新應用 highlight 樣式
-          // 使用 data-branch-index 精確匹配宮位，不依賴數組順序
-          const originalGrid = document.querySelector(".ziwei-4x4-grid");
-          const originalCells = originalGrid.querySelectorAll(".ziwei-cell");
-          
-          console.log("[" + MODULE_NAME + "] onclone: 開始在克隆 DOM 上重新應用樣式");
-          
-          let majorCount = 0;
-          let annualCount = 0;
-          let bothCount = 0;
-          
-          // 遍歷原始 cells，根據 branchIndex 找到克隆的對應 cell
-          originalCells.forEach(function(originalCell) {
-            const branchIndex = originalCell.getAttribute("data-branch-index");
-            if (!branchIndex) return;
-            
-            // 在克隆的 DOM 中找到相同 branchIndex 的 cell
-            const clonedCell = clonedGrid.querySelector('.ziwei-cell[data-branch-index="' + branchIndex + '"]');
-            if (!clonedCell) return;
-            
-            const isMajor = originalCell.classList.contains("ziwei-cell-selected");
-            const isAnnual = originalCell.classList.contains("ziwei-cell-highlighted");
-            
-            if (isMajor && isAnnual) {
-              clonedCell.style.background = "linear-gradient(135deg, #f3e6ff 0%, #e8f4f8 100%)";
-              clonedCell.style.borderColor = "#9b59b6";
-              clonedCell.style.boxShadow = "inset 0 0 0 2px #9b59b6";
-              bothCount++;
-            } else if (isMajor) {
-              clonedCell.style.background = "#f3e6ff";
-              clonedCell.style.borderColor = "#9b59b6";
-              clonedCell.style.boxShadow = "inset 0 0 0 2px #9b59b6";
-              majorCount++;
-            } else if (isAnnual) {
-              clonedCell.style.background = "#e8f4f8";
-              clonedCell.style.borderColor = "#3498db";
-              clonedCell.style.boxShadow = "inset 0 0 0 1px #3498db";
-              annualCount++;
-            } else {
-              clonedCell.style.background = "#fff";
-              clonedCell.style.borderColor = "#ddd";
-              clonedCell.style.boxShadow = "none";
-            }
-          });
-          
-          console.log("[" + MODULE_NAME + "] onclone: 樣式重新應用完成 - 大限: " + majorCount + ", 流年: " + annualCount + ", 兩者: " + bothCount);
-          
-          applyCanvasCloneFixes(clonedDoc);
-        },
-
-      });
-
+      const rect = target.getBoundingClientRect();
+      const scale = EXPORT_SCALE;
+      const width = rect.width * scale;
+      const height = rect.height * scale;
       console.log(
-        "[" + MODULE_NAME + "] 捕獲完成，清理原始 DOM 樣式..."
+        "[" + MODULE_NAME + "] 開始捕獲命盤 (" + width + "x" + height + ")"
       );
 
-      // 步驟 3: 清理原始 DOM 的內聯樣式（恢復 CSS 控制）
-      cleanupOriginalDOMStyles(gridElement);
-
-      // 轉換為 blob 並下載
-      canvas.toBlob(
-        function (blob) {
-          if (!blob) {
-            throw new Error("Canvas 轉換失敗");
-          }
-
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.href = url;
-          link.download = getFileName("png", getUserName());
-
-          console.log(
-            "[" + MODULE_NAME + "] 準備下載: " + link.download
-          );
-
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-
-          hideLoadingState();
-
-          // 下載完成後關閉菜單
-          closeMenu();
-
-          // 發送成功事件
-          document.dispatchEvent(
-            new CustomEvent("ziwei-download-completed", {
-              detail: {
-                format: "png",
-                fileName: link.download,
-                timestamp: new Date().toISOString(),
-              },
-            })
-          );
-
-          console.log(
-            "[" + MODULE_NAME + "] PNG 下載完成: " + link.download
-          );
+      const dataUrl = await window.domtoimage.toPng(target, {
+        quality: 0.98,
+        bgcolor: "#ffffff",
+        allowTaint: true,
+        skipExternalLinks: true,
+        width: width,
+        height: height,
+        style: {
+          transform: "scale(" + scale + ")",
+          transformOrigin: "top left",
+          backgroundColor: "#ffffff",
         },
-        "image/png"
+        filter: function (node) {
+          return !node.classList?.contains("ziwei-share-loader");
+        },
+      });
+
+      const blob = dataURLToBlob(dataUrl);
+      const fileName = getFileName("png", getUserName());
+      downloadBlob(blob, fileName);
+
+      document.dispatchEvent(
+        new CustomEvent("ziwei-download-completed", {
+          detail: {
+            format: "png",
+            fileName: fileName,
+            timestamp: new Date().toISOString(),
+          },
+        })
       );
+
+      console.log("[" + MODULE_NAME + "] PNG 下載完成: " + fileName);
     } catch (error) {
-      hideLoadingState();
       console.error("[" + MODULE_NAME + "] PNG 下載失敗:", error);
 
-      // 發送失敗事件
       document.dispatchEvent(
         new CustomEvent("ziwei-download-failed", {
           detail: {
@@ -324,358 +210,78 @@
 
       handleError(error);
       throw error;
+    } finally {
+      hideLoadingState();
+      cleanupExport();
     }
   }
 
   /**
-   * 針對 html2canvas 的限制，將需要直排的元素轉換為縱向排列的字元堆疊
-   * 這樣即使 html2canvas 不支持 writing-mode，也能保持視覺上的直排效果
-   * 
-   * 注意：highlight 樣式已經在原始 DOM 應用，這裡只做清理工作
-   * @param {Document} clonedDoc html2canvas 的複製文檔
+   * 取得可用的命盤快照元素
    */
-  function applyCanvasCloneFixes(clonedDoc) {
-    if (!clonedDoc) {
-      return;
-    }
-
-    const clonedGrid = clonedDoc.querySelector(".ziwei-4x4-grid");
-    if (!clonedGrid) {
-      return;
-    }
-
-    // 注意：不再需要在這裡應用 highlight 樣式，因為已經在原始 DOM 應用了
-    // 保留下面這行作為雙重保險（如果需要可以註解掉）
-    // applyHighlightInlineStyles(clonedGrid);
-
-    // 移除所有宮位互動的 highlight 樣式類別（避免 CSS 衝突）
-    const highlightedPalaces = clonedGrid.querySelectorAll(
-      ".ziwei-palace-highlighted, .ziwei-palace-related, .ziwei-palace-selected"
-    );
-    highlightedPalaces.forEach(function (palace) {
-      palace.classList.remove(
-        "ziwei-palace-highlighted",
-        "ziwei-palace-related",
-        "ziwei-palace-selected"
-      );
-    });
-
-    // 移除連線元素 (如果存在)
-    const connectionLines = clonedGrid.querySelectorAll(".ziwei-palace-connection");
-    connectionLines.forEach(function (line) {
-      if (line.parentNode) {
-        line.parentNode.removeChild(line);
+  function getCaptureTarget() {
+    for (let i = 0; i < CAPTURE_TARGET_SELECTORS.length; i++) {
+      const selector = CAPTURE_TARGET_SELECTORS[i];
+      const node = document.querySelector(selector);
+      if (node) {
+        return node;
       }
+    }
+    return null;
+  }
+
+  /**
+   * dataURL 轉換為 Blob 以供下載
+   */
+  function dataURLToBlob(dataUrl) {
+    const parts = dataUrl.split(",");
+    const mimeMatch = parts[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : "image/png";
+    const binary = atob(parts[1]);
+    const len = binary.length;
+    const buffer = new Uint8Array(len);
+
+    for (let i = 0; i < len; i++) {
+      buffer[i] = binary.charCodeAt(i);
+    }
+
+    return new Blob([buffer], { type: mime });
+  }
+
+  /**
+   * 下載 Blob
+   */
+  function downloadBlob(blob, fileName) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  /**
+   * 在導出期間標記 DOM，允許 CSS 做專屬調整
+   */
+  function prepareForExport(node) {
+    const className = "ziwei-exporting";
+    const targets = [document.documentElement, document.body, node].filter(
+      Boolean
+    );
+
+    targets.forEach(function (el) {
+      el.classList.add(className);
     });
 
-    VERTICAL_TEXT_SELECTORS.forEach(function (selector) {
-      const elements = clonedGrid.querySelectorAll(selector);
-      elements.forEach(function (el) {
-        convertElementToVerticalStack(el, clonedDoc);
+    return function cleanup() {
+      targets.forEach(function (el) {
+        el.classList.remove(className);
       });
-    });
-
-    const starMutationBoxes = clonedGrid.querySelectorAll(
-      ".ziwei-star-mutation-box"
-    );
-    starMutationBoxes.forEach(function (box) {
-      box.style.display = "inline-flex";
-      box.style.flexDirection = "row";
-      box.style.alignItems = "center";
-      box.style.justifyContent = "center";
-      box.style.height = "44px";
-      box.style.padding = "2px 2px";
-      box.style.margin = "0";
-      box.style.borderRadius = "4px";
-    });
-
-    const primaryStars = clonedGrid.querySelectorAll(".ziwei-primary-star");
-    primaryStars.forEach(function (star) {
-      star.style.marginTop = "-1px";
-      star.style.transform = "translateY(-1px)";
-    });
-
-    const secondaryStars = clonedGrid.querySelectorAll(
-      ".ziwei-secondary-star"
-    );
-    secondaryStars.forEach(function (star) {
-      star.style.marginTop = "-1px";
-      star.style.transform = "translateY(-1px)";
-    });
-
-    const starsContainers = clonedGrid.querySelectorAll(
-      ".ziwei-stars-container"
-    );
-    starsContainers.forEach(function (container) {
-      container.style.top = "2px";
-    });
-
-    const minorStarsContainers = clonedGrid.querySelectorAll(
-      ".ziwei-minor-stars-container"
-    );
-    minorStarsContainers.forEach(function (container) {
-      container.style.setProperty("top", "54px", "important");
-      container.style.transform = "translateY(-2px)";
-    });
-
-    const attributeContainers = clonedGrid.querySelectorAll(
-      ".ziwei-attributes-container"
-    );
-    attributeContainers.forEach(function (container) {
-      container.style.writingMode = "horizontal-tb";
-      container.style.textOrientation = "mixed";
-      container.style.display = "flex";
-      container.style.flexDirection = "row";
-      container.style.flexWrap = "wrap";
-      container.style.alignItems = "flex-start";
-      container.style.justifyContent = "flex-start";
-      container.style.gap = "0 2px";
-    });
-
-    // 調整星星亮度文字位置：升高 2px (修正 PNG 下載時文字太低的問題)
-    const starBrightness = clonedGrid.querySelectorAll(".ziwei-star-brightness");
-    starBrightness.forEach(function (brightness) {
-      brightness.style.marginTop = "0"; // 原本是 1px，現在改為 -1px (升高 2px)
-    });
+    };
   }
 
-  /**
-   * 將元素內容轉換為逐字換行的縱向堆疊，以模擬直排文字
-   * @param {Element} element 需要處理的 DOM 元素
-   * @param {Document} doc 複製文檔，用於創建 span
-   */
-  function convertElementToVerticalStack(element, doc) {
-    if (!element || !doc) {
-      return;
-    }
-
-    if (element.dataset && element.dataset.h2cVertical === "1") {
-      return;
-    }
-
-    const rawText = (element.textContent || "").replace(/\s+/g, "");
-    if (!rawText) {
-      return;
-    }
-
-    element.innerHTML = "";
-
-    const displayMode = getVerticalDisplayMode(element);
-    element.style.display = displayMode;
-    const isFlex = displayMode.includes("flex");
-    if (isFlex) {
-      element.style.flexDirection = "column";
-      element.style.alignItems = "center";
-      element.style.justifyContent = "center";
-    } else {
-      element.style.textAlign = "center";
-    }
-    element.style.gap = "0";
-    element.style.writingMode = "horizontal-tb";
-    element.style.textOrientation = "mixed";
-    element.style.lineHeight = "1.1";
-    element.style.letterSpacing = "0";
-    element.style.whiteSpace = "normal";
-    element.style.width = "auto";
-    element.style.minWidth = "unset";
-
-    rawText.split("").forEach(function (char) {
-      const span = doc.createElement("span");
-      span.textContent = char;
-      span.style.display = "block";
-      span.style.lineHeight = "1";
-      span.style.margin = "0";
-      span.style.padding = "0";
-      element.appendChild(span);
-    });
-
-    const wrapCount = WRAP_TEXT_EVERY_N_CHARS[getElementFirstClass(element)] || 0;
-    if (wrapCount > 0) {
-      const children = Array.from(element.children);
-      for (let i = wrapCount; i < children.length; i += wrapCount) {
-        const br = doc.createElement("div");
-        br.style.flexBasis = "100%";
-        br.style.width = "100%";
-        br.style.height = "0";
-        br.style.margin = "1px 0";
-        element.insertBefore(br, children[i]);
-      }
-    }
-
-    if (element.dataset) {
-      element.dataset.h2cVertical = "1";
-    }
-  }
-
-  /**
-   * 在捕獲前應用 highlight 樣式到原始 DOM（同步版本）
-   * 這樣確保樣式在 html2canvas 克隆之前就已經存在
-   */
-  async function applyHighlightStylesToOriginalDOM(grid) {
-    return new Promise(function(resolve) {
-      if (!grid) {
-        console.warn("[" + MODULE_NAME + "] applyHighlightStylesToOriginalDOM: grid 為空");
-        resolve();
-        return;
-      }
-
-      const cells = grid.querySelectorAll(".ziwei-cell");
-      console.log("[" + MODULE_NAME + "] 應用 highlight 樣式到原始 DOM，共 " + cells.length + " 個宮位");
-      
-      let majorCount = 0;
-      let annualCount = 0;
-      let bothCount = 0;
-      
-      cells.forEach(function (cell) {
-        const isMajor = cell.classList.contains("ziwei-cell-selected");
-        const isAnnual = cell.classList.contains("ziwei-cell-highlighted");
-        
-        if (isMajor && isAnnual) {
-          // 兩者都有：紫藍漸變
-          cell.style.setProperty("background", "linear-gradient(135deg, #f3e6ff 0%, #e8f4f8 100%)", "important");
-          cell.style.setProperty("border-color", "#9b59b6", "important");
-          cell.style.boxShadow = "inset 0 0 0 2px #9b59b6";
-          bothCount++;
-        } else if (isMajor) {
-          // 只有大限：紫色
-          cell.style.setProperty("background", "#f3e6ff", "important");
-          cell.style.setProperty("border-color", "#9b59b6", "important");
-          cell.style.boxShadow = "inset 0 0 0 2px #9b59b6";
-          majorCount++;
-        } else if (isAnnual) {
-          // 只有流年：藍色
-          cell.style.setProperty("background", "#e8f4f8", "important");
-          cell.style.setProperty("border-color", "#3498db", "important");
-          cell.style.boxShadow = "inset 0 0 0 1px #3498db";
-          annualCount++;
-        } else {
-          // 無高亮：白色
-          cell.style.setProperty("background", "#fff", "important");
-          cell.style.setProperty("border-color", "#ddd", "important");
-          cell.style.boxShadow = "none";
-        }
-      });
-      
-      console.log("[" + MODULE_NAME + "] Highlight 套用完成 - 大限: " + majorCount + ", 流年: " + annualCount + ", 兩者: " + bothCount);
-      
-      // 驗證：檢查原始 DOM 是否真的有內聯樣式
-      let verifyCount = 0;
-      cells.forEach(function(cell) {
-        if (cell.style.background || cell.style.backgroundColor) {
-          verifyCount++;
-        }
-      });
-      console.log("[" + MODULE_NAME + "] 驗證：" + cells.length + " 個宮位中，" + verifyCount + " 個確實有內聯背景樣式");
-      
-      resolve();
-    });
-  }
-
-  /**
-   * 清理原始 DOM 的內聯樣式（在捕獲完成後）
-   * 恢復 CSS 控制，避免影響用戶繼續使用
-   */
-  function cleanupOriginalDOMStyles(grid) {
-    if (!grid) {
-      return;
-    }
-
-    const cells = grid.querySelectorAll(".ziwei-cell");
-    cells.forEach(function (cell) {
-      // 移除我們添加的內聯樣式，讓 CSS 重新控制
-      cell.style.removeProperty("background");
-      cell.style.removeProperty("border-color");
-      cell.style.boxShadow = "";
-    });
-    
-    console.log("[" + MODULE_NAME + "] 原始 DOM 樣式已清理");
-  }
-
-  function applyHighlightInlineStyles(grid) {
-    if (!grid) {
-      console.warn("[" + MODULE_NAME + "] applyHighlightInlineStyles: grid 為空");
-      return;
-    }
-
-    const cells = grid.querySelectorAll(".ziwei-cell");
-    console.log("[" + MODULE_NAME + "] 開始套用 highlight 樣式，共 " + cells.length + " 個宮位");
-    
-    let majorCount = 0;
-    let annualCount = 0;
-    let bothCount = 0;
-    
-    cells.forEach(function (cell) {
-      // 優先使用 data-highlight-state，如果沒有才檢查 classList
-      const highlightState = cell.getAttribute("data-highlight-state");
-      let isMajor = false;
-      let isAnnual = false;
-      
-      if (highlightState === "both") {
-        isMajor = true;
-        isAnnual = true;
-      } else if (highlightState === "major") {
-        isMajor = true;
-      } else if (highlightState === "annual") {
-        isAnnual = true;
-      } else if (highlightState === "none") {
-        // 明確標記為無高亮
-      } else {
-        // 降級：檢查 classList（用於舊版兼容）
-        isMajor = cell.classList.contains("ziwei-cell-selected");
-        isAnnual = cell.classList.contains("ziwei-cell-highlighted");
-      }
-
-      if (isMajor && isAnnual) {
-        bothCount++;
-        cell.style.setProperty(
-          "background",
-          "linear-gradient(135deg, #f3e6ff 0%, #e8f4f8 100%)",
-          "important"
-        );
-        cell.style.setProperty("border-color", "#9b59b6", "important");
-        cell.style.boxShadow = "inset 0 0 0 2px #9b59b6";
-      } else if (isMajor) {
-        majorCount++;
-        cell.style.setProperty("background", "#f3e6ff", "important");
-        cell.style.setProperty("border-color", "#9b59b6", "important");
-        cell.style.boxShadow = "inset 0 0 0 2px #9b59b6";
-      } else if (isAnnual) {
-        annualCount++;
-        cell.style.setProperty("background", "#e8f4f8", "important");
-        cell.style.setProperty("border-color", "#3498db", "important");
-        cell.style.boxShadow = "inset 0 0 0 1px #3498db";
-      } else {
-        cell.style.setProperty("background", "#ffffff", "important");
-        cell.style.setProperty("border-color", "#cccccc", "important");
-        cell.style.boxShadow = "none";
-      }
-    });
-    
-    console.log("[" + MODULE_NAME + "] Highlight 套用完成 - 大限: " + majorCount + ", 流年: " + annualCount + ", 兩者: " + bothCount);
-  }
-
-  function getElementFirstClass(element) {
-    if (!element || !element.classList || element.classList.length === 0) {
-      return "";
-    }
-    return element.classList[0];
-  }
-
-  function getVerticalDisplayMode(element) {
-    if (!element || !element.classList) {
-      return "inline-flex";
-    }
-
-    for (const className in VERTICAL_DISPLAY_MAP) {
-      if (Object.prototype.hasOwnProperty.call(VERTICAL_DISPLAY_MAP, className)) {
-        if (element.classList.contains(className.replace(/^\./, ""))) {
-          return VERTICAL_DISPLAY_MAP[className];
-        }
-      }
-    }
-
-    return "inline-flex";
-  }
 
   // ==================
   // PDF 下載 (T010 - 佔位符)
@@ -716,14 +322,13 @@
   // ==================
 
   /**
-   * 初始化 UI 層 (分享按鈕、菜單、水印等)
+   * 初始化 UI 層 (分享按鈕、菜單)
    */
   function initializeUI() {
     try {
       checkBrowserSupport();
       createShareButton();
       attachEventListeners();
-      addWatermark();
 
       console.log("[" + MODULE_NAME + "] UI 初始化完成");
     } catch (error) {
@@ -815,10 +420,10 @@
       } else if (action === "download-png") {
         e.preventDefault();
         e.stopPropagation();
-        // 不要在這裡關閉菜單！讓 downloadAsPNG 完成後再關閉
         downloadAsPNG().catch(function (err) {
           handleError(err);
         });
+        closeMenu();
       } else if (action === "download-pdf") {
         e.preventDefault();
         e.stopPropagation();
@@ -892,46 +497,6 @@
   }
 
   // ==================
-  // 水印 (T021 - 子任務)
-  // ==================
-
-  /**
-   * 添加品牌水印到命盤中央
-   * 位置: .ziwei-center-big (命盤中央大宮位)
-   */
-  function addWatermark() {
-    if (!WATERMARK_CONFIG.enabled) return;
-
-    const centerCell = document.querySelector(".ziwei-center-big");
-    if (!centerCell) {
-      console.warn(
-        "[" + MODULE_NAME + "] 未找到中央宮位 (.ziwei-center-big)"
-      );
-      return;
-    }
-
-    // 檢查水印是否已存在
-    if (centerCell.querySelector(".ziwei-watermark")) {
-      console.log("[" + MODULE_NAME + "] 水印已存在，跳過");
-      return;
-    }
-
-    const watermark = document.createElement("div");
-    watermark.className = "ziwei-watermark";
-
-    // 生成水印文本行
-    const lines = WATERMARK_CONFIG.text
-      .map(function (line) {
-        return '<div class="ziwei-watermark-line">' + line + "</div>";
-      })
-      .join("");
-
-    watermark.innerHTML = lines;
-
-    centerCell.appendChild(watermark);
-    console.log("[" + MODULE_NAME + "] 水印已添加");
-  }
-
   // ==================
   // 輔助函數 (T026, T027, T028)
   // ==================
@@ -1037,7 +602,6 @@
     _toggleMenu: toggleMenu,
     _openMenu: openMenu,
     _closeMenu: closeMenu,
-    _addWatermark: addWatermark,
   };
 
   // ==================
@@ -1086,7 +650,10 @@
     initialized = true;
     initAttempts = 0;
     console.log("[" + MODULE_NAME + "] 所有元素準備完畢，執行初始化...");
-    initializeUI();
+    
+    // Defer UI initialization by 500ms to avoid blocking chart rendering
+    // This allows the chart to fully render before share button and controls are added
+    setTimeout(initializeUI, 500);
   }
 
   /**

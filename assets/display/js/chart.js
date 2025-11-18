@@ -956,36 +956,36 @@ function draw(context) {
     const hasPalaceData = Object.keys(palaces).length > 0;
     grid.dataset.lunarYear = String(lunarYear);
 
+    // ========== PHASE 1: Quick Skeleton Render (骨架屏) ==========
+    // Render palace borders only (no content) for immediate visual feedback
+    const palaceCellsSkeleton = [];
     for (let row = 1; row <= 4; row++) {
         for (let col = 1; col <= 4; col++) {
             if ((row === 2 || row === 3) && (col === 2 || col === 3)) {
                 continue;
             }
-            grid.appendChild(createPalaceCell(
-                row,
-                col,
-                palaces,
-                primaryStars,
-                secondaryStars,
-                lifeCyclePayload,
-                mutations,
-                minorStarsBuckets,
-                attributes,
-                hasPalaceData,
-                brightness.primary || {},
-                brightness.secondary || {}
-            ));
+            const skeletonCell = document.createElement('div');
+            skeletonCell.className = 'ziwei-cell ziwei-skeleton';
+            skeletonCell.style.gridColumn = col;
+            skeletonCell.style.gridRow = row;
+            skeletonCell.style.border = '1px solid #ddd';
+            skeletonCell.style.opacity = '0.3';
+            grid.appendChild(skeletonCell);
+            palaceCellsSkeleton.push({ row, col, element: skeletonCell });
         }
     }
 
-    grid.appendChild(createCenterCell(meta, palaces, lunarYear, derived.mingPalace, nayinInfo.name));
+    // Add center cell skeleton
+    const centerCellSkeleton = document.createElement('div');
+    centerCellSkeleton.className = 'ziwei-center-big ziwei-skeleton';
+    centerCellSkeleton.style.gridColumn = '2 / span 2';
+    centerCellSkeleton.style.gridRow = '2 / span 2';
+    centerCellSkeleton.style.background = '#f6f8fb';
+    centerCellSkeleton.style.opacity = '0.3';
+    centerCellSkeleton.style.border = '1px solid #ddd';
+    grid.appendChild(centerCellSkeleton);
 
-    requestAnimationFrame(() => {
-        grid.style.transition = 'opacity 300ms ease';
-        requestAnimationFrame(() => {
-            grid.style.opacity = '1';
-        });
-    });
+    grid.style.opacity = '1';
 
     const chartWrapper = document.createElement('div');
     chartWrapper.className = 'ziwei-chart-wrapper';
@@ -1000,28 +1000,80 @@ function draw(context) {
     chartWrapper.style.marginBottom = '30px';
     chartWrapper.appendChild(grid);
 
-    try {
-        const adapter = window.ziweiAdapter;
-        if (adapter && adapter.storage && typeof adapter.storage.set === 'function') {
-            adapter.storage.set('adapterOutput', adapterOutput);
-            if (calcResult) {
-                adapter.storage.set('calcResult', calcResult);
+    // ========== PHASE 2: Render full palace cells asynchronously ==========
+    const renderPhase2 = () => {
+        // Clear skeleton cells
+        palaceCellsSkeleton.forEach(item => item.element.remove());
+        centerCellSkeleton.remove();
+
+        // Render actual palace cells
+        for (let row = 1; row <= 4; row++) {
+            for (let col = 1; col <= 4; col++) {
+                if ((row === 2 || row === 3) && (col === 2 || col === 3)) {
+                    continue;
+                }
+                grid.appendChild(createPalaceCell(
+                    row,
+                    col,
+                    palaces,
+                    primaryStars,
+                    secondaryStars,
+                    lifeCyclePayload,
+                    mutations,
+                    minorStarsBuckets,
+                    attributes,
+                    hasPalaceData,
+                    brightness.primary || {},
+                    brightness.secondary || {}
+                ));
             }
-            adapter.storage.set('meta', Object.assign({}, meta, { lunar: adapterOutput.lunar }));
-            adapter.storage.set('normalizedInput', adapterOutput.normalized || {});
         }
-    } catch (e) {}
 
-    const palaceInteraction = window.initializePalaceInteraction
-        ? window.initializePalaceInteraction(grid) || null
-        : null;
+        // Render center cell with all details
+        grid.appendChild(createCenterCell(meta, palaces, lunarYear, derived.mingPalace, nayinInfo.name));
 
-    const cyclePanel = window.ziweiCycles && typeof window.ziweiCycles.initializeCyclePanel === 'function'
-        ? window.ziweiCycles.initializeCyclePanel(lifeCyclePayload, grid, palaceInteraction)
-        : null;
-    if (cyclePanel) {
-        chartWrapper.appendChild(cyclePanel);
-    }
+        // Fade in all new content
+        requestAnimationFrame(() => {
+            grid.style.transition = 'opacity 300ms ease';
+            requestAnimationFrame(() => {
+                grid.style.opacity = '1';
+            });
+        });
+    };
+
+    // Trigger phase 2 render after a minimal delay to let browser paint skeleton
+    requestAnimationFrame(() => {
+        setTimeout(renderPhase2, 16);
+    });
+
+    // ========== PHASE 3: Initialize interactions & cycles (延遲至內容完成後) ==========
+    const initializePostRender = () => {
+        try {
+            const adapter = window.ziweiAdapter;
+            if (adapter && adapter.storage && typeof adapter.storage.set === 'function') {
+                adapter.storage.set('adapterOutput', adapterOutput);
+                if (calcResult) {
+                    adapter.storage.set('calcResult', calcResult);
+                }
+                adapter.storage.set('meta', Object.assign({}, meta, { lunar: adapterOutput.lunar }));
+                adapter.storage.set('normalizedInput', adapterOutput.normalized || {});
+            }
+        } catch (e) {}
+
+        const palaceInteraction = window.initializePalaceInteraction
+            ? window.initializePalaceInteraction(grid) || null
+            : null;
+
+        const cyclePanel = window.ziweiCycles && typeof window.ziweiCycles.initializeCyclePanel === 'function'
+            ? window.ziweiCycles.initializeCyclePanel(lifeCyclePayload, grid, palaceInteraction)
+            : null;
+        if (cyclePanel) {
+            chartWrapper.appendChild(cyclePanel);
+        }
+    };
+
+    // Schedule phase 3 after phase 2 completes (after fade-in animation ~300ms)
+    setTimeout(initializePostRender, 350);
     // Reapply personal info visibility state from sessionStorage immediately
     if (window.ziweiConfig?.reapplyPersonalInfoStateImmediately) {
         window.ziweiConfig.reapplyPersonalInfoStateImmediately(chartWrapper);
@@ -1322,8 +1374,21 @@ function createCenterCell(meta, palaceData = {}, lunarYear = 0, mingPalaceData =
     cell.style.background = '#f6f8fb';
     cell.style.display = 'flex';
     cell.style.flexDirection = 'column';
-    cell.style.justifyContent = 'center';
-    cell.style.alignItems = 'flex-start';
+    cell.style.justifyContent = 'flex-start';
+    cell.style.alignItems = 'center';
+
+    // Title at the top
+    const titleContainer = document.createElement('div');
+    titleContainer.className = 'ziwei-center-title';
+    const titleLine1 = document.createElement('div');
+    titleLine1.className = 'ziwei-center-title-line1';
+    titleLine1.textContent = '晉賢紫微斗數';
+    const titleLine2 = document.createElement('div');
+    titleLine2.className = 'ziwei-center-title-line2';
+    titleLine2.textContent = 'little-yin.com';
+    titleContainer.appendChild(titleLine1);
+    titleContainer.appendChild(titleLine2);
+    cell.appendChild(titleContainer);
 
     // left-aligned container inside center cell
     const left = document.createElement('div');
