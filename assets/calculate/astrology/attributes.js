@@ -58,7 +58,7 @@ function calculateTaiSui(yearBranchIndex) {
 
 /**
  * Calculate Jiang Qian (將前) stars positions
- * Starting palace: (yearBranchIndex * 3) % 12
+ * Starting palace: [0, 9, 6, 3] repeating based on year branch mod 4
  * Then proceeds clockwise
  * 
  * @param {number} yearBranchIndex - Year's earthly branch (0-11, 0=子)
@@ -68,7 +68,8 @@ function calculateJiangQian(yearBranchIndex) {
     const result = {};
     
     // Calculate starting palace using simplified algorithm
-    const startPalace = (yearBranchIndex * 3) % 12;
+    const jiangQianPattern = [0, 9, 6, 3];
+    const startPalace = jiangQianPattern[yearBranchIndex % 4];
     
     for (let i = 0; i < JIANG_QIAN_STARS.length; i++) {
         const starName = JIANG_QIAN_STARS[i];
@@ -101,7 +102,7 @@ function calculateBoShi(luCunPalaceIndex, isClockwise) {
             palaceIndex = (luCunPalaceIndex + i) % 12;
         } else {
             // Counter-clockwise: subtract instead of add
-            palaceIndex = (luCunPalaceIndex - i + 12 * 100) % 12;
+            palaceIndex = (luCunPalaceIndex - i + 12) % 12;
         }
         
         result[starName] = palaceIndex;

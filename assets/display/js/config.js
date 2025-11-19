@@ -190,7 +190,8 @@
             name: 'personalInfo',
             options: [
                 { value: 'show', text: '顯示 - 預設' },
-                { value: 'hide', text: '隱藏' }
+                { value: 'hideDates', text: '隱藏日期' },
+                { value: 'hide', text: '隱藏個人資料' }
             ],
             defaultValue: 'show',
             affectsChart: false,  // display-only
@@ -686,6 +687,27 @@
             if (genderEl) genderEl.textContent = '沒有';
             if (gregDateEl) gregDateEl.textContent = '西曆：用戶不顯示出生日期';
             if (lunarDateEl) lunarDateEl.textContent = '農曆：用戶不顯示出生日期';
+        } else if (infoValue === 'hideDates') {
+            const snapshot = originalPersonalInfo._snapshot || buildPersonalInfoSnapshotFromAdapter();
+            const meta = extractMetaFromSnapshot(snapshot);
+            if (!meta) {
+                console.error('[ziweiConfig] Unable to restore personal info: adapter meta missing');
+            }
+            hydrateOriginalPersonalInfoFromMeta(meta);
+
+            if (nameEl) {
+                nameEl.textContent = meta?.name || originalPersonalInfo.name || '無名氏';
+            }
+            if (genderEl) {
+                const genderText = meta?.genderClassification || meta?.gender || originalPersonalInfo.gender || '';
+                genderEl.textContent = genderText || '未知';
+            }
+            if (gregDateEl) {
+                gregDateEl.textContent = '西曆：用戶不顯示出生日期';
+            }
+            if (lunarDateEl) {
+                lunarDateEl.textContent = '農曆：用戶不顯示出生日期';
+            }
         } else if (infoValue === 'show') {
             const snapshot = originalPersonalInfo._snapshot || buildPersonalInfoSnapshotFromAdapter();
             const meta = extractMetaFromSnapshot(snapshot);
@@ -1004,8 +1026,8 @@
         // personal info is hidden we store a sanitized snapshot in adapter.storage
         // and refresh it when the base chart data changes.
         // -----------------------------
-        if (currentPersonalInfoState !== 'hide') {
-            return;  // Only update if we're in hide state
+        if (currentPersonalInfoState !== 'hide' && currentPersonalInfoState !== 'hideDates') {
+            return;  // Only update if we're in hide or hideDates state
         }
 
         const metaFromData = extractMetaFromChartData(chartData) || getAdapterStorageValue('meta') || null;
@@ -1167,6 +1189,40 @@
             }
             if (genderEl) {
                 genderEl.textContent = '沒有';
+            }
+            if (gregDateEl) {
+                gregDateEl.textContent = '西曆：用戶不顯示出生日期';
+            }
+            if (lunarDateEl) {
+                lunarDateEl.textContent = '農曆：用戶不顯示出生日期';
+            }
+        } else if (currentPersonalInfoState === 'hideDates') {
+            try {
+                const snap = buildPersonalInfoSnapshotFromAdapter();
+                if (snap) {
+                    originalPersonalInfo._snapshot = JSON.parse(JSON.stringify(snap));
+                    hydrateOriginalPersonalInfoFromMeta(extractMetaFromSnapshot(snap));
+                } else {
+                    console.error('[ziweiConfig] Unable to refresh adapter snapshot while reapplying hideDates state');
+                }
+            } catch (snapshotErr) {
+                console.error('[ziweiConfig] Failed to refresh snapshot while reapplying hideDates state', snapshotErr);
+            }
+
+            // Get personal info elements from the NEW chart
+            const nameEl = newChartElement?.querySelector('.ziwei-name');
+            const genderEl = newChartElement?.querySelector('.ziwei-gender-classification');
+            const gregDateEl = newChartElement?.querySelector('.ziwei-datetime:not(.ziwei-lunar)');
+            const lunarDateEl = newChartElement?.querySelector('.ziwei-datetime.ziwei-lunar');
+            
+            // Show name and gender, but hide dates
+            const meta = extractMetaFromSnapshot(originalPersonalInfo._snapshot || buildPersonalInfoSnapshotFromAdapter());
+            if (nameEl) {
+                nameEl.textContent = meta?.name || originalPersonalInfo.name || '無名氏';
+            }
+            if (genderEl) {
+                const genderText = meta?.genderClassification || meta?.gender || originalPersonalInfo.gender || '';
+                genderEl.textContent = genderText || '未知';
             }
             if (gregDateEl) {
                 gregDateEl.textContent = '西曆：用戶不顯示出生日期';

@@ -28,6 +28,7 @@
 
   let browserSupport = {};
   let isMenuOpen = false;
+  let eventListenersAttached = false;
 
   // ==================
   // 瀏覽器支持檢測 (T007)
@@ -341,6 +342,13 @@
    * 位置: 控制列右側，「開啟設定」按鈕左邊
    */
   function createShareButton() {
+    // 檢查是否已經存在分享按鈕
+    const existingButton = document.querySelector(".ziwei-share-btn");
+    if (existingButton) {
+      console.log("[" + MODULE_NAME + "] 分享按鈕已存在，跳過創建");
+      return;
+    }
+
     // 找到控制列
     const controlBar = document.querySelector(".ziwei-control-bar");
     if (!controlBar) {
@@ -407,54 +415,63 @@
    * - 菜單外點擊: 關閉菜單
    */
   function attachEventListeners() {
-    // 綁定菜單選項事件
-    document.addEventListener("click", function (e) {
-      const action = e.target.getAttribute("data-action");
+    // 防止重複綁定事件監聽器
+    if (eventListenersAttached) {
+      return;
+    }
+    eventListenersAttached = true;
 
-      if (!action) return;
-
-      if (action === "toggle-menu") {
-        e.preventDefault();
-        e.stopPropagation();
-        toggleMenu();
-      } else if (action === "download-png") {
-        e.preventDefault();
-        e.stopPropagation();
-        downloadAsPNG().catch(function (err) {
-          handleError(err);
-        });
-        closeMenu();
-      } else if (action === "download-pdf") {
-        e.preventDefault();
-        e.stopPropagation();
-        downloadAsPDF().catch(function (err) {
-          handleError(err);
-        });
-        closeMenu();
-      } else if (action === "share") {
-        e.preventDefault();
-        e.stopPropagation();
-        share().catch(function (err) {
-          handleError(err);
-        });
-        closeMenu();
-      }
-    });
-
-    // 點擊菜單外關閉菜單 (澄清 Q1)
-    document.addEventListener("click", function (e) {
-      const menu = document.querySelector(".ziwei-share-menu");
-      const button = document.querySelector(".ziwei-share-btn");
-
-      if (!menu || !button || !isMenuOpen) return;
-
-      // 如果點擊目標不在菜單和按鈕內
-      if (!menu.contains(e.target) && !button.contains(e.target)) {
-        closeMenu();
-      }
-    });
+    // 使用事件委派，綁定到 document 上但只處理分享相關的事件
+    document.addEventListener("click", handleShareClick);
 
     console.log("[" + MODULE_NAME + "] 事件監聽已綁定");
+  }
+
+  /**
+   * 處理分享相關的點擊事件
+   */
+  function handleShareClick(e) {
+    const action = e.target.getAttribute("data-action");
+    const isShareButton = e.target.closest(".ziwei-share-btn");
+    const isShareMenu = e.target.closest(".ziwei-share-menu");
+
+    // 如果不是分享相關的元素，忽略
+    if (!action && !isShareButton && !isShareMenu) return;
+
+    // 處理菜單外點擊關閉
+    if (!isShareButton && !isShareMenu && isMenuOpen) {
+      closeMenu();
+      return;
+    }
+
+    if (!action) return;
+
+    if (action === "toggle-menu") {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleMenu();
+    } else if (action === "download-png") {
+      e.preventDefault();
+      e.stopPropagation();
+      downloadAsPNG().catch(function (err) {
+        handleError(err);
+      });
+      closeMenu();
+    } else if (action === "download-pdf") {
+      e.preventDefault();
+      e.stopPropagation();
+      downloadAsPDF().catch(function (err) {
+        handleError(err);
+      });
+      closeMenu();
+    } else if (action === "share") {
+      e.preventDefault();
+      e.stopPropagation();
+      share().catch(function (err) {
+        handleError(err);
+      });
+      closeMenu();
+    }
   }
 
   /**
@@ -664,12 +681,28 @@
     performInitialization();
   });
 
+  window.addEventListener("ziwei-chart-drawn", function () {
+    console.log("[" + MODULE_NAME + "] 收到 ziwei-chart-drawn 事件");
+    // 圖表重新繪製時，需要重新初始化分享按鈕
+    reinitialize();
+  });
+
   /**
    * 公開重新初始化函數（用於調試或手動恢復）
    */
   function reinitialize() {
+    // 移除現有的分享按鈕和菜單
+    const existingButton = document.querySelector(".ziwei-share-btn");
+    if (existingButton) {
+      existingButton.remove();
+      console.log("[" + MODULE_NAME + "] 移除現有的分享按鈕");
+    }
+
+    // 重置狀態
     initialized = false;
     initAttempts = 0;
+    isMenuOpen = false;
+    eventListenersAttached = false;
     console.log("[" + MODULE_NAME + "] 重置初始化狀態");
     performInitialization();
   }

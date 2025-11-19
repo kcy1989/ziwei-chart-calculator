@@ -183,8 +183,8 @@ function calculateMinorStars(
 
     // 蜚廉 (Flying Swallow) - based on year branch
     // Pattern: 子至亥: 8,9,10,5,6,7,2,3,4,11,0,1
-    // Formula: groups of 3, each group starts 3 less than previous
-    minorStars['蜚廉'] = ((Math.floor(yearBranchIndex / 3) * 3 + 8) % 12 + (yearBranchIndex % 3)) % 12;
+    const feiLianPattern = [8 ,9 ,10 ,5 ,6 ,7 ,2 ,3 ,4 ,11 ,0 ,1];
+    minorStars['蜚廉'] = feiLianPattern[yearBranchIndex];
 
     // 破碎 (Shatter) - based on year branch
     // Pattern: 子至亥: 5,1,9,5,1,9,5,1,9,5,1,9 (repeats every 3)
