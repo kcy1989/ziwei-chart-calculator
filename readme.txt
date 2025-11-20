@@ -5,7 +5,7 @@ Tags: 紫微斗數, 命理, 排盤, 中州派, astrology
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 0.6.4
+Stable tag: 0.6.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -166,6 +166,11 @@ ziwei-cal/
 此功能將在階段 12 開發。
 
 == Changelog ==
+= 0.6.5 - 2025-11-21 =
+* 優化：壓縮PNG至原來1/3大小，每張命盤約100kb
+* 修正：上一頁後姓名顯示問題
+* 優化：分享鍵顯示方式，更早顯示按鈕
+
 = 0.6.4 - 2025-11-20 =
 * 新增：個人資料隱藏選項 - 新增「隱藏日期」選項
 * 修正：將星及蜚廉安星問題

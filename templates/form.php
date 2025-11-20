@@ -1,7 +1,7 @@
     <div class="ziwei-cal" data-ziwei-mode="form">
         <div class="ziwei-cal-title">
             <h1>紫微斗數排盤工具</h1>
-            <p class="ziwei-cal-version-link"><a href="https://little-yin.com/2025/11/08/calculator/" target="_blank" rel="noopener noreferrer">版本 0.6.4 • 更新於 2025-11-20</a></p>
+            <p class="ziwei-cal-version-link"><a href="https://little-yin.com/2025/11/08/calculator/" target="_blank" rel="noopener noreferrer">版本 0.6.5 • 更新於 2025-11-21</a></p>
         </div>
         <form class="ziwei-cal-form" id="ziwei-cal-form" novalidate>
         <!-- Name and Gender -->
