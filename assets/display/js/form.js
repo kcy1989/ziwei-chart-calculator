@@ -201,6 +201,46 @@ function prefillCurrentDateTime() {
 }
 
 /**
+ * Pre-fill saved form data from localStorage
+ */
+function prefillSavedData() {
+    try {
+        const savedData = localStorage.getItem('ziwei-form-data');
+        if (!savedData) return;
+        
+        const data = JSON.parse(savedData);
+        if (!data || typeof data !== 'object') return;
+        
+        // Pre-fill name
+        const nameInput = document.getElementById('ziwei-name');
+        if (nameInput && data.name) {
+            nameInput.value = data.name;
+            log(`Pre-filled name: ${data.name}`);
+        }
+        
+        // Pre-fill gender
+        if (data.gender) {
+            const genderInput = document.getElementById(`ziwei-${data.gender.toLowerCase()}`);
+            if (genderInput) {
+                genderInput.checked = true;
+                log(`Pre-filled gender: ${data.gender}`);
+            }
+        }
+        
+        // Pre-fill birthplace
+        const birthplaceInput = document.getElementById('ziwei-birthplace');
+        if (birthplaceInput && data.birthplace) {
+            birthplaceInput.value = data.birthplace;
+            log(`Pre-filled birthplace: ${data.birthplace}`);
+        }
+        
+        log('Pre-filled saved form data');
+    } catch (e) {
+        warn('Failed to prefill saved data:', e);
+    }
+}
+
+/**
  * Cleanup form event handlers
  */
 function destroyForm() {
@@ -487,7 +527,7 @@ async function handleSubmit(e) {
             toggleBusy(false);
             return;
         }
-        state.lastValues = rawPayload;
+    state.lastValues = rawPayload;
     // Call REST API
         let apiResponse = null;
         try {

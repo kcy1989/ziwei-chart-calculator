@@ -440,6 +440,18 @@
         const backBtn = createButton('◀', 'ziwei-back-btn');
         leftGroup.appendChild(backBtn);
 
+        // Add event listener for back button
+        backBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const chartElement = mountNode.querySelector('[data-ziwei-chart]');
+            if (chartElement && window.ziweiForm && typeof window.ziweiForm.restoreForm === 'function') {
+                window.ziweiForm.restoreForm(chartElement);
+            } else {
+                console.warn('[ziweiControl] Cannot restore form: chart element or ziweiForm.restoreForm not found');
+            }
+        });
+
         const prevBtn = createButton('← 時辰', 'ziwei-control-prev-hour');
         prevBtn.setAttribute('data-control', 'prev-hour');
         centerGroup.appendChild(prevBtn);
@@ -447,6 +459,53 @@
         const nextBtn = createButton('時辰 →', 'ziwei-control-next-hour');
         nextBtn.setAttribute('data-control', 'next-hour');
         centerGroup.appendChild(nextBtn);
+
+        // Create a lightweight Share button (visible immediately).
+        // The heavy share module will be loaded lazily when the user clicks it.
+        const shareBtn = createButton('📤', 'ziwei-control-share-btn');
+        shareBtn.type = 'button';
+        shareBtn.title = '分享與匯出';
+        shareBtn.classList.add('ziwei-share-btn');
+        // Make share button compatible with share.js event delegation
+        shareBtn.setAttribute('data-action', 'toggle-menu');
+
+        // Make sure the button and its container are above other elements so clicks reach it.
+        try {
+            rightGroup.style.position = rightGroup.style.position || 'relative';
+            rightGroup.style.zIndex = rightGroup.style.zIndex || '9999';
+            shareBtn.style.position = 'relative';
+            shareBtn.style.zIndex = '10000';
+            shareBtn.style.pointerEvents = 'auto';
+        } catch (e) {}
+
+        // Append the share button (no spinner or loading text)
+        rightGroup.appendChild(shareBtn);
+
+        // Add click handler to load share module and toggle menu
+        shareBtn.addEventListener('click', async function(e) {
+            // FIX: If module is already loaded, do NOTHING here.
+            // Let the event bubble up to share.js's document listener.
+            if (window.ziweiShare) {
+                return;
+            }
+
+            // If not loaded, we handle the load process.
+            // Prevent default to avoid weird browser behaviors, 
+            // and STOP propagation so we don't trigger share.js immediately if it loads super fast (race condition).
+            e.preventDefault();
+            e.stopPropagation();
+
+            try {
+                await lazyLoadShareModule();
+                // After loading, we must manually trigger the menu ONCE
+                // because we stopped propagation of the original click.
+                if (window.ziweiShare && typeof window.ziweiShare._toggleMenu === 'function') {
+                    window.ziweiShare._toggleMenu();
+                }
+            } catch (err) {
+                console.error('[ziweiControl] Failed to load share module:', err);
+            }
+        });
 
         const settingsBtn = createButton('⚙', 'ziwei-control-settings-btn');
         settingsBtn.setAttribute('data-control', 'open-settings');
@@ -503,6 +562,7 @@
                 }
             }
         });
+
         return bar;
     }
 
@@ -513,4 +573,76 @@
         // existing chart when the form is not present (chart-only view).
         updateChartDisplay
     };
+    
+    /**
+     * Lazy-load external scripts required by share module.
+     * Returns a promise that resolves when the share script is loaded.
+     */
+    function ensureScript(src, globalCheckNames) {
+        return new Promise((resolve, reject) => {
+            try {
+                // If any of the global names already exist, consider it loaded
+                if (Array.isArray(globalCheckNames)) {
+                    for (let i = 0; i < globalCheckNames.length; i++) {
+                        if (window[globalCheckNames[i]]) {
+                            resolve();
+                            return;
+                        }
+                    }
+                } else if (typeof globalCheckNames === 'string' && window[globalCheckNames]) {
+                    resolve();
+                    return;
+                }
+
+                // Avoid adding duplicate script tags
+                const existing = Array.from(document.scripts).find(s => s.src && s.src.indexOf(src) !== -1);
+                if (existing) {
+                    if (existing.hasAttribute('data-loaded')) {
+                        resolve();
+                    } else {
+                        existing.addEventListener('load', () => resolve());
+                        existing.addEventListener('error', (e) => reject(e));
+                    }
+                    return;
+                }
+
+                const s = document.createElement('script');
+                s.src = src;
+                s.async = true;
+                s.defer = true;
+                s.addEventListener('load', () => {
+                    s.setAttribute('data-loaded', '1');
+                    resolve();
+                });
+                s.addEventListener('error', (e) => reject(new Error('Failed to load ' + src)));
+                document.head.appendChild(s);
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
+
+    function lazyLoadShareModule() {
+        if (window.ziweiShare && typeof window.ziweiShare._toggleMenu === 'function') {
+            return Promise.resolve();
+        }
+        const pluginBase = (window.ziweiCalData && window.ziweiCalData.pluginUrl) ? window.ziweiCalData.pluginUrl : '';
+        const urls = {
+            pako: 'https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js',
+            domToImage: 'https://cdn.jsdelivr.net/npm/dom-to-image@2.6.0/dist/dom-to-image.min.js',
+            upng: 'https://cdn.jsdelivr.net/npm/upng-js@2.1.0/UPNG.min.js',
+            jspdf: 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+            share: pluginBase + 'assets/display/js/share.js'
+        };
+
+        // Load lightweight libs first (in sequence to ensure globals are available)
+        return ensureScript(urls.pako, ['pako'])
+            .then(() => ensureScript(urls.domToImage, ['domtoimage']))
+            .then(() => ensureScript(urls.upng, ['UPNG']))
+            .then(() => ensureScript(urls.jspdf, ['jsPDF', 'jspdf']))
+            .then(() => ensureScript(urls.share, ['ziweiShare']))
+            .catch(err => {
+                return Promise.reject(err);
+            });
+    }
 })();

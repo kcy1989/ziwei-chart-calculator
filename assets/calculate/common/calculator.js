@@ -59,13 +59,69 @@ function primeAdapterFormInput(formData) {
     }
     try {
         if (formData) {
-            storage.set('formInput', Object.assign({}, formData));
+            // Sanitize personal fields before priming adapter storage
+            const sanitized = sanitizeFormForStorage(formData);
+            storage.set('formInput', sanitized);
         }
     } catch (err) {
         if (CACHE_CONFIG.debug) {
             console.warn('[ziweiCalculator] Failed to prime adapter formInput snapshot', err);
         }
     }
+}
+
+/**
+ * Remove personal fields from a form-like object before persisting to adapter storage.
+ * This ensures we do not store PII (name, birthplace, exact birthdate/time) in persistent storage.
+ * @param {Object} formData
+ * @returns {Object} sanitized copy
+ */
+function sanitizeFormForStorage(formData) {
+    if (!formData || typeof formData !== 'object') return formData;
+    const copy = Object.assign({}, formData);
+
+    // Remove common top-level personal fields
+    delete copy.name;
+    delete copy.birthplace;
+    delete copy.gender;
+
+    // Remove normalized/solar fields if present
+    if (copy.solar && typeof copy.solar === 'object') {
+        const solarCopy = Object.assign({}, copy.solar);
+        delete solarCopy.year;
+        delete solarCopy.month;
+        delete solarCopy.day;
+        delete solarCopy.hour;
+        delete solarCopy.minute;
+        copy.solar = solarCopy;
+    }
+
+    // Remove meta personal fields
+    if (copy.meta && typeof copy.meta === 'object') {
+        const metaCopy = Object.assign({}, copy.meta);
+        delete metaCopy.name;
+        delete metaCopy.birthplace;
+        delete metaCopy.gender;
+        delete metaCopy.birthdate;
+        delete metaCopy.birthtime;
+        copy.meta = metaCopy;
+    }
+
+    // Also remove raw personal fields if present
+    if (copy.raw && typeof copy.raw === 'object') {
+        const rawCopy = Object.assign({}, copy.raw);
+        delete rawCopy.name;
+        delete rawCopy.birthplace;
+        delete rawCopy.gender;
+        delete rawCopy.year;
+        delete rawCopy.month;
+        delete rawCopy.day;
+        delete rawCopy.hour;
+        delete rawCopy.minute;
+        copy.raw = rawCopy;
+    }
+
+    return copy;
 }
 
 /**
@@ -397,27 +453,83 @@ async function computeChartWithCache(formData) {
             if (CACHE_CONFIG.debug) {
                 console.log(`[ziweiCalculator] Cache hit, returned in ${duration}ms`);
             }
-                // Persist the cached context into adapter storage so other UI flows
-                // (settings, hide/show) can rely on consistent adapter-provided fields.
+            // On cache hit, do NOT persist user's personal fields. Create a transient
+            // adapterOutput for display that includes the user's current name/birthplace
+            // but do NOT write those fields into adapter.storage. Persist sanitized
+            // copies instead (no PII).
+            try {
+                const originalAdapterOutput = cachedResult.adapterOutput || null;
+                const originalCalcResult = cachedResult.calcResult || null;
+
+                // Create display copy that includes user-provided presentation fields
+                const displayAdapterOutput = originalAdapterOutput ? Object.assign({}, originalAdapterOutput) : null;
+                if (displayAdapterOutput && displayAdapterOutput.meta && normalizedInput.meta) {
+                    if (typeof normalizedInput.meta.name === 'string') displayAdapterOutput.meta = Object.assign({}, displayAdapterOutput.meta, { name: normalizedInput.meta.name });
+                    if (typeof normalizedInput.meta.birthplace === 'string') displayAdapterOutput.meta = Object.assign({}, displayAdapterOutput.meta, { birthplace: normalizedInput.meta.birthplace });
+                    if (typeof normalizedInput.meta.gender === 'string') displayAdapterOutput.meta = Object.assign({}, displayAdapterOutput.meta, { gender: normalizedInput.meta.gender });
+                }
+
+                // Prepare sanitized versions for storage (remove PII)
+                const sanitizedAdapterOutput = originalAdapterOutput ? Object.assign({}, originalAdapterOutput) : null;
+                if (sanitizedAdapterOutput && sanitizedAdapterOutput.meta) {
+                    const metaCopy = Object.assign({}, sanitizedAdapterOutput.meta);
+                    delete metaCopy.name;
+                    delete metaCopy.birthplace;
+                    delete metaCopy.gender;
+                    sanitizedAdapterOutput.meta = metaCopy;
+                }
+
+                const sanitizedNormalized = sanitizeFormForStorage(normalizedInput);
+
+                // Persist sanitized context only
                 try {
                     if (adapter && adapter.storage && typeof adapter.storage.set === 'function') {
-                        adapter.storage.set('normalizedInput', normalizedInput);
+                        adapter.storage.set('normalizedInput', sanitizedNormalized);
+                        if (sanitizedAdapterOutput) adapter.storage.set('adapterOutput', sanitizedAdapterOutput);
+                        if (originalCalcResult) adapter.storage.set('calcResult', originalCalcResult);
+                        if (sanitizedAdapterOutput && sanitizedAdapterOutput.meta) adapter.storage.set('meta', sanitizedAdapterOutput.meta);
+                    }
+                } catch (e) {}
+
+                // Persist sanitized adapter output into adapter memory (no PII)
+                try {
+                    if (adapter && typeof adapter.setCurrentChart === 'function') {
+                        adapter.setCurrentChart(sanitizedAdapterOutput || null);
+                    }
+                } catch (e) {}
+
+                // Emit events using the displayAdapterOutput (includes user's current name)
+                try {
+                    if (displayAdapterOutput && displayAdapterOutput.errors && Object.keys(displayAdapterOutput.errors).length) {
+                        document.dispatchEvent(new CustomEvent('ziwei-chart-error', { detail: { adapterOutput: displayAdapterOutput, calcResult: originalCalcResult, errors: displayAdapterOutput.errors } }));
+                    }
+                    document.dispatchEvent(new CustomEvent('ziwei-chart-generated', { detail: { adapterOutput: displayAdapterOutput || originalAdapterOutput, calcResult: originalCalcResult } }));
+                } catch (e) {}
+
+                return {
+                    calcResult: originalCalcResult,
+                    normalizedInput: normalizedInput,
+                    adapterOutput: displayAdapterOutput || originalAdapterOutput
+                };
+            } catch (err2) {
+                // Fallback: behave as before but ensure sanitized persistence
+                try {
+                    const sanitizedNormalized = sanitizeFormForStorage(normalizedInput);
+                    if (adapter && adapter.storage && typeof adapter.storage.set === 'function') {
+                        adapter.storage.set('normalizedInput', sanitizedNormalized);
                         adapter.storage.set('adapterOutput', cachedResult.adapterOutput);
                         adapter.storage.set('calcResult', cachedResult.calcResult);
                         if (cachedResult.adapterOutput && cachedResult.adapterOutput.meta) adapter.storage.set('meta', cachedResult.adapterOutput.meta);
                     }
                 } catch (e) {}
 
-                // Persist cached context into adapter memory
                 try {
                     if (adapter && typeof adapter.setCurrentChart === 'function') {
                         adapter.setCurrentChart(cachedResult.adapterOutput || null);
                     }
                 } catch (e) {}
 
-                // Emit event to notify display modules of the chart being ready
                 try {
-                    // If adapterOutput contains errors, notify display layer for partial chart rendering
                     if (cachedResult && cachedResult.adapterOutput && cachedResult.adapterOutput.errors && Object.keys(cachedResult.adapterOutput.errors).length) {
                         document.dispatchEvent(new CustomEvent('ziwei-chart-error', { detail: { adapterOutput: cachedResult.adapterOutput, calcResult: cachedResult.calcResult, errors: cachedResult.adapterOutput.errors } }));
                     }
@@ -429,6 +541,7 @@ async function computeChartWithCache(formData) {
                     normalizedInput: normalizedInput,
                     adapterOutput: cachedResult.adapterOutput
                 };
+            }
         }
 
         if (CACHE_CONFIG.debug) {

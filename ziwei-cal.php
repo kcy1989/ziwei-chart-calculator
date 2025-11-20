@@ -528,36 +528,13 @@ function ziwei_cal_enqueue_scripts(): void {
         true
     );
 
-    // Enqueue external CDN libraries for share/export functionality (Phase 1: v0.7.0)
-    wp_enqueue_script(
-        'dom-to-image',
-        'https://cdn.jsdelivr.net/npm/dom-to-image@2.6.0/dist/dom-to-image.min.js',
-        [],
-        '2.6.0',
-        true
-    );
-
-    wp_enqueue_script(
-        'jspdf',
-        'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
-        [],
-        '2.5.1',
-        true
-    );
-
-    // Enqueue share.js module (depends on dom-to-image and jsPDF from CDN)
-    wp_enqueue_script(
-        'ziwei-cal-share',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/display/js/share.js',
-        ['dom-to-image', 'jspdf'],
-        ZIWEI_CAL_VERSION,
-        true
-    );
+    // NOTE: share-related heavy libraries are loaded lazily by the control bar
+    // when the user requests sharing/export. Do not enqueue them here.
 
     wp_enqueue_script(
         'ziwei-cal-js',
         ZIWEI_CAL_PLUGIN_URL . 'assets/calculate/common/calculator.js',
-        ['jquery', 'ziwei-cal-form', 'ziwei-cal-chart', 'ziwei-cal-palace-interaction', 'ziwei-cal-control', 'ziwei-cal-share'],
+        ['jquery', 'ziwei-cal-form', 'ziwei-cal-chart', 'ziwei-cal-palace-interaction', 'ziwei-cal-control'],
         ZIWEI_CAL_VERSION,
         true
     );
@@ -590,10 +567,7 @@ function ziwei_cal_add_defer_attribute($tag, $handle, $src) {
     // Scripts that should be deferred (non-blocking, loaded after page renders)
     $defer_scripts = [
         'ziwei-cal-cycles',           // Cycle panel (loaded after chart renders)
-        'ziwei-cal-palace-interaction', // Palace interaction (loaded after chart renders)
-        'dom-to-image',               // Export library (loaded on demand)
-        'jspdf',                      // PDF library (loaded on demand)
-        'ziwei-cal-share'             // Share module (loaded on demand)
+        'ziwei-cal-palace-interaction' // Palace interaction (loaded after chart renders)
     ];
 
     if (in_array($handle, $defer_scripts, true)) {

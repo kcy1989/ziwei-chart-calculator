@@ -1,15 +1,13 @@
 /**
  * 分享與匯出系統模組
  * 功能: PNG/PDF 下載、社交分享
- * 版本: 1.0 (Phase 1)
+ * 版本: 1.2 (Fix Integration with Control.js)
  * 
  * 公開 API:
  * - window.ziweiShare.downloadPNG()
  * - window.ziweiShare.downloadPDF()
  * - window.ziweiShare.share()
- * - window.ziweiShare.getFileName()
- * - window.ziweiShare.checkSupport()
- * - window.ziweiShare.handleError()
+ * - window.ziweiShare.init()
  */
 
 (function () {
@@ -28,19 +26,11 @@
 
   let browserSupport = {};
   let isMenuOpen = false;
-  let eventListenersAttached = false;
 
   // ==================
-  // 瀏覽器支持檢測 (T007)
+  // 瀏覽器支持檢測
   // ==================
 
-  /**
-   * 檢測瀏覽器對各項功能的支持情況
-   * - dom-to-image: PNG 導出
-   * - jsPDF: PDF 導出
-   * - Web Share API: 社交分享
-   * - IE 11 判定為不支持
-   */
   function checkBrowserSupport() {
     const ua = navigator.userAgent;
     const isIE11 = ua.includes("Trident") && ua.includes("11.0");
@@ -50,52 +40,16 @@
       canExportPDF: typeof window.jsPDF !== "undefined" && !isIE11,
       canShare: typeof navigator.share !== "undefined",
       canShareWeb: /iPhone|iPad|Android/.test(ua),
-      browserName: detectBrowser(ua),
       isUnsupported: isIE11,
     };
-
-    if (browserSupport.isUnsupported) {
-      console.warn(
-        "[" + MODULE_NAME + "] 舊版瀏覽器 (IE 11)，某些功能不可用"
-      );
-    } else {
-      console.log("[" + MODULE_NAME + "] 瀏覽器支持檢測完成", browserSupport);
-    }
-
-    // 發送事件供其他模組監聽
-    document.dispatchEvent(
-      new CustomEvent("ziwei-browser-support-checked", {
-        detail: browserSupport,
-      })
-    );
 
     return browserSupport;
   }
 
-  /**
-   * 檢測瀏覽器類型
-   */
-  function detectBrowser(ua) {
-    if (ua.includes("Chrome") && !ua.includes("Chromium")) return "Chrome";
-    if (ua.includes("Safari") && !ua.includes("Chrome")) return "Safari";
-    if (ua.includes("Firefox")) return "Firefox";
-    if (ua.includes("Edge")) return "Edge";
-    if (ua.includes("Trident")) return "IE";
-    if (ua.includes("Opera") || ua.includes("OPR")) return "Opera";
-    return "Unknown";
-  }
-
   // ==================
-  // 文件命名 (T008)
+  // 文件命名
   // ==================
 
-  /**
-   * 生成文件名稱
-   * 規則:
-   * - 有姓名: [完整姓名]_[YYYY-MM-DD].[format]
-   * - 無姓名: 無名氏_[YYYY-MM-DD].[format]
-   * - 移除禁止字符: / \ : * ? " < > |
-   */
   function getFileName(format, name, date) {
     if (typeof format !== "string") {
       throw new Error("getFileName: format 參數必須是字符串 (png|pdf)");
@@ -123,587 +77,291 @@
 
     return cleanName + "_" + dateStr + "." + format;
   }
-
   // ==================
-  // PNG 下載 (T009)
+  // 功能實現: PNG 下載
   // ==================
 
-  /**
-   * 下載命盤為 PNG 圖片
-   * 使用 dom-to-image 捕獲 DOM，保留當前高亮狀態
-   */
-  async function downloadAsPNG() {
-    if (!browserSupport.canExportPNG) {
-      const err = new Error("瀏覽器不支持 PNG 下載");
-      handleError(err);
-      throw err;
-    }
-
-    const target = getCaptureTarget();
-    if (!target) {
-      const err = new Error("未找到可供導出的命盤元素");
-      handleError(err);
-      throw err;
-    }
-
-    if (typeof window.domtoimage === "undefined") {
-      const err = new Error("dom-to-image 庫尚未加載");
-      handleError(err);
-      throw err;
-    }
-
-    const cleanupExport = prepareForExport(target);
-    showLoadingState("正在生成 PNG...");
-
-    try {
-      const rect = target.getBoundingClientRect();
-      const scale = EXPORT_SCALE;
-      const width = rect.width * scale;
-      const height = rect.height * scale;
-      console.log(
-        "[" + MODULE_NAME + "] 開始捕獲命盤 (" + width + "x" + height + ")"
-      );
-
-      const dataUrl = await window.domtoimage.toPng(target, {
-        quality: 0.98,
-        bgcolor: "#ffffff",
-        allowTaint: true,
-        skipExternalLinks: true,
-        width: width,
-        height: height,
-        style: {
-          transform: "scale(" + scale + ")",
-          transformOrigin: "top left",
-          backgroundColor: "#ffffff",
-        },
-        filter: function (node) {
-          return !node.classList?.contains("ziwei-share-loader");
-        },
-      });
-
-      const blob = dataURLToBlob(dataUrl);
-      const fileName = getFileName("png", getUserName());
-      downloadBlob(blob, fileName);
-
-      document.dispatchEvent(
-        new CustomEvent("ziwei-download-completed", {
-          detail: {
-            format: "png",
-            fileName: fileName,
-            timestamp: new Date().toISOString(),
-          },
-        })
-      );
-
-      console.log("[" + MODULE_NAME + "] PNG 下載完成: " + fileName);
-    } catch (error) {
-      console.error("[" + MODULE_NAME + "] PNG 下載失敗:", error);
-
-      document.dispatchEvent(
-        new CustomEvent("ziwei-download-failed", {
-          detail: {
-            format: "png",
-            error: error.message,
-            timestamp: new Date().toISOString(),
-          },
-        })
-      );
-
-      handleError(error);
-      throw error;
-    } finally {
-      hideLoadingState();
-      cleanupExport();
-    }
-  }
-
-  /**
-   * 取得可用的命盤快照元素
-   */
-  function getCaptureTarget() {
-    for (let i = 0; i < CAPTURE_TARGET_SELECTORS.length; i++) {
-      const selector = CAPTURE_TARGET_SELECTORS[i];
-      const node = document.querySelector(selector);
-      if (node) {
-        return node;
-      }
-    }
-    return null;
-  }
-
-  /**
-   * dataURL 轉換為 Blob 以供下載
-   */
-  function dataURLToBlob(dataUrl) {
-    const parts = dataUrl.split(",");
-    const mimeMatch = parts[0].match(/:(.*?);/);
-    const mime = mimeMatch ? mimeMatch[1] : "image/png";
-    const binary = atob(parts[1]);
-    const len = binary.length;
-    const buffer = new Uint8Array(len);
-
-    for (let i = 0; i < len; i++) {
-      buffer[i] = binary.charCodeAt(i);
-    }
-
-    return new Blob([buffer], { type: mime });
-  }
-
-  /**
-   * 下載 Blob
-   */
   function downloadBlob(blob, fileName) {
+    if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+      window.navigator.msSaveOrOpenBlob(blob, fileName);
+      return;
+    }
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
     link.download = fileName;
+    link.style.display = "none";
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 100);
   }
 
-  /**
-   * 在導出期間標記 DOM，允許 CSS 做專屬調整
-   */
-  function prepareForExport(node) {
-    const className = "ziwei-exporting";
-    const targets = [document.documentElement, document.body, node].filter(
-      Boolean
-    );
-
-    targets.forEach(function (el) {
-      el.classList.add(className);
+  function getPixelsFromBase64(base64, width, height) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, width, height);
+        resolve(imageData.data);
+      };
+      img.onerror = () => reject(new Error("圖片處理失敗"));
+      img.src = base64;
     });
-
-    return function cleanup() {
-      targets.forEach(function (el) {
-        el.classList.remove(className);
-      });
-    };
   }
 
+  async function downloadPNG() {
+    let target = null;
+    for (const selector of CAPTURE_TARGET_SELECTORS) {
+      const el = document.querySelector(selector);
+      if (el) {
+        target = el;
+        break;
+      }
+    }
 
-  // ==================
-  // PDF 下載 (T010 - 佔位符)
-  // ==================
+    if (!target) {
+      alert("找不到命盤元素，無法截圖");
+      return;
+    }
 
-  /**
-   * 下載命盤為 PDF (階段 2 實現)
-   * 暫時拋出錯誤，由 Phase 2 實現
-   */
-  async function downloadAsPDF() {
-    const err = new Error(
-      "PDF 下載功能在階段 2 (Phase 2) 實現。請稍後更新。"
-    );
-    console.warn("[" + MODULE_NAME + "]", err.message);
-    handleError(err);
-    throw err;
-  }
+    if (!window.domtoimage) {
+      alert("截圖組件 (dom-to-image) 尚未加載，請刷新頁面重試");
+      return;
+    }
 
-  // ==================
-  // 社交分享 (T011 - 佔位符)
-  // ==================
+    const loader = document.getElementById("ziwei-loading-overlay");
+    if (loader) loader.style.display = "flex";
+    target.classList.add("ziwei-exporting");
 
-  /**
-   * 分享到社交媒體 (階段 3 實現)
-   * 暫時拋出錯誤，由 Phase 3 實現
-   */
-  async function share() {
-    const err = new Error(
-      "社交分享功能在階段 3 (Phase 3) 實現。請稍後更新。"
-    );
-    console.warn("[" + MODULE_NAME + "]", err.message);
-    handleError(err);
-    throw err;
-  }
-
-  // ==================
-  // UI 互動 - 初始化
-  // ==================
-
-  /**
-   * 初始化 UI 層 (分享按鈕、菜單)
-   */
-  function initializeUI() {
     try {
-      checkBrowserSupport();
-      createShareButton();
-      attachEventListeners();
+      const rect = target.getBoundingClientRect();
+      const scale = EXPORT_SCALE;
+      const width = Math.round(rect.width * scale);
+      const height = Math.round(rect.height * scale);
 
-      console.log("[" + MODULE_NAME + "] UI 初始化完成");
-    } catch (error) {
-      console.error("[" + MODULE_NAME + "] UI 初始化失敗:", error);
+      const dataUrl = await window.domtoimage.toPng(target, {
+        bgcolor: "#ffffff",
+        width: width,
+        height: height,
+        style: {
+          transform: `scale(${scale})`,
+          transformOrigin: "top left",
+          left: "0",
+          top: "0",
+          margin: "0"
+        }
+      });
+
+      if (window.UPNG) {
+        const pixelData = await getPixelsFromBase64(dataUrl, width, height);
+        const compressed = window.UPNG.encode([pixelData.buffer], width, height, 256);
+        const blob = new Blob([compressed], { type: "image/png" });
+        downloadBlob(blob, getFileName("png"));
+      } else {
+        const link = document.createElement('a');
+        link.download = getFileName("png");
+        link.href = dataUrl;
+        link.click();
+      }
+
+    } catch (err) {
+      console.error("PNG Export Error:", err);
+      alert("圖片生成失敗: " + (err.message || "未知錯誤"));
+    } finally {
+      target.classList.remove("ziwei-exporting");
+      if (loader) loader.style.display = "none";
     }
   }
 
+  // ==================
+  // 功能實現: PDF & Share (Placeholders)
+  // ==================
+
+  async function downloadPDF() {
+    alert("PDF 下載功能將在下一版本推出");
+  }
+
+  async function shareChart() {
+    alert("社交分享功能將在下一版本推出");
+  }
+
+  // ==================
+  // UI 邏輯
+  // ==================
+
   /**
-   * 創建分享按鈕和下拉菜單 (T013 - 子任務)
-   * 位置: 控制列右側，「開啟設定」按鈕左邊
+   * 注入菜單 HTML 到現有的按鈕中
    */
-  function createShareButton() {
-    // 檢查是否已經存在分享按鈕
-    const existingButton = document.querySelector(".ziwei-share-btn");
-    if (existingButton) {
-      console.log("[" + MODULE_NAME + "] 分享按鈕已存在，跳過創建");
-      return;
-    }
+  function injectMenu(btn) {
+    if (btn.querySelector('.ziwei-share-menu')) return; // 已注入
 
-    // 找到控制列
-    const controlBar = document.querySelector(".ziwei-control-bar");
-    if (!controlBar) {
-      console.warn(
-        "[" + MODULE_NAME + "] 未找到控制列 (.ziwei-control-bar)"
-      );
-      return;
-    }
-
-    // 創建分享按鈕
-    const button = document.createElement("button");
-    button.className = "ziwei-share-btn";
-    button.innerHTML = "📤";
-    button.setAttribute("data-action", "toggle-menu");
-    button.title = "分享與匯出";
-
-    // 創建下拉菜單
-    const menu = document.createElement("div");
-    menu.className = "ziwei-share-menu";
+    const menu = document.createElement('div');
+    menu.className = 'ziwei-share-menu';
     menu.innerHTML = [
       '<button class="ziwei-share-option" data-action="download-png">📥 下載 PNG</button>',
       '<button class="ziwei-share-option" data-action="download-pdf">📄 下載 PDF</button>',
       '<button class="ziwei-share-option" data-action="share">🔗 分享</button>',
     ].join("");
-
-    button.appendChild(menu);
+    btn.appendChild(menu);
 
     // 根據瀏覽器支持禁用選項
     if (!browserSupport.canExportPNG) {
-      const pngBtn = menu.querySelector('[data-action="download-png"]');
-      if (pngBtn) {
-        pngBtn.disabled = true;
-        pngBtn.title = "您的瀏覽器不支持 PNG 下載";
-      }
-    }
-
-    if (!browserSupport.canExportPDF) {
-      const pdfBtn = menu.querySelector('[data-action="download-pdf"]');
-      if (pdfBtn) {
-        pdfBtn.disabled = true;
-        pdfBtn.title = "您的瀏覽器不支持 PDF 下載";
-      }
-    }
-
-    // 找到「開啟設定」按鈕 (class: ziwei-control-settings-btn)
-    const settingsBtn = controlBar.querySelector(
-      ".ziwei-control-settings-btn"
-    );
-    if (settingsBtn && settingsBtn.parentNode) {
-      // 插入到設定按鈕左邊
-      settingsBtn.parentNode.insertBefore(button, settingsBtn);
-      console.log("[" + MODULE_NAME + "] 分享按鈕已插入控制列");
-    } else {
-      // 降級: 直接追加到控制列末尾
-      controlBar.appendChild(button);
-      console.log("[" + MODULE_NAME + "] 分享按鈕已添加到控制列末尾");
-    }
-  }
-
-  /**
-   * 綁定事件監聽 (T014 - 子任務)
-   * - 按鈕點擊: 切換菜單
-   * - 菜單選項點擊: 執行相應動作
-   * - 菜單外點擊: 關閉菜單
-   */
-  function attachEventListeners() {
-    // 防止重複綁定事件監聽器
-    if (eventListenersAttached) {
-      return;
-    }
-    eventListenersAttached = true;
-
-    // 使用事件委派，綁定到 document 上但只處理分享相關的事件
-    document.addEventListener("click", handleShareClick);
-
-    console.log("[" + MODULE_NAME + "] 事件監聽已綁定");
-  }
-
-  /**
-   * 處理分享相關的點擊事件
-   */
-  function handleShareClick(e) {
-    const action = e.target.getAttribute("data-action");
-    const isShareButton = e.target.closest(".ziwei-share-btn");
-    const isShareMenu = e.target.closest(".ziwei-share-menu");
-
-    // 如果不是分享相關的元素，忽略
-    if (!action && !isShareButton && !isShareMenu) return;
-
-    // 處理菜單外點擊關閉
-    if (!isShareButton && !isShareMenu && isMenuOpen) {
-      closeMenu();
-      return;
-    }
-
-    if (!action) return;
-
-    if (action === "toggle-menu") {
-      e.preventDefault();
-      e.stopPropagation();
-      toggleMenu();
-    } else if (action === "download-png") {
-      e.preventDefault();
-      e.stopPropagation();
-      downloadAsPNG().catch(function (err) {
-        handleError(err);
-      });
-      closeMenu();
-    } else if (action === "download-pdf") {
-      e.preventDefault();
-      e.stopPropagation();
-      downloadAsPDF().catch(function (err) {
-        handleError(err);
-      });
-      closeMenu();
-    } else if (action === "share") {
-      e.preventDefault();
-      e.stopPropagation();
-      share().catch(function (err) {
-        handleError(err);
-      });
-      closeMenu();
-    }
-  }
-
-  /**
-   * 切換菜單狀態 (T015 - 子任務)
-   */
-  function toggleMenu() {
-    if (isMenuOpen) {
-      closeMenu();
-    } else {
-      openMenu();
-    }
-  }
-
-  /**
-   * 打開菜單
-   */
-  function openMenu() {
-    const menu = document.querySelector(".ziwei-share-menu");
-    if (menu) {
-      menu.classList.add("open");
-      isMenuOpen = true;
-
-      document.dispatchEvent(new CustomEvent("ziwei-share-menu-opened"));
-      console.log("[" + MODULE_NAME + "] 菜單已打開");
-    }
-  }
-
-  /**
-   * 關閉菜單 (澄清 Q1 - 自動關閉)
-   */
-  function closeMenu() {
-    const menu = document.querySelector(".ziwei-share-menu");
-    if (menu) {
-      menu.classList.remove("open");
-      isMenuOpen = false;
-
-      document.dispatchEvent(new CustomEvent("ziwei-share-menu-closed"));
-      console.log("[" + MODULE_NAME + "] 菜單已關閉");
-    }
-  }
-
-  // ==================
-  // ==================
-  // 輔助函數 (T026, T027, T028)
-  // ==================
-
-  /**
-   * 顯示加載狀態 (T026)
-   */
-  function showLoadingState(message) {
-    message = message || "處理中...";
-
-    let loader = document.querySelector(".ziwei-share-loader");
-    if (!loader) {
-      loader = document.createElement("div");
-      loader.className = "ziwei-share-loader";
-      document.body.appendChild(loader);
-    }
-
-    loader.textContent = message;
-    loader.style.display = "block";
-
-    console.log("[" + MODULE_NAME + "] 加載狀態: " + message);
-  }
-
-  /**
-   * 隱藏加載狀態 (T026)
-   */
-  function hideLoadingState() {
-    const loader = document.querySelector(".ziwei-share-loader");
-    if (loader) {
-      loader.style.display = "none";
-    }
-  }
-
-  /**
-   * 獲取用戶輸入的姓名 (T027)
-   */
-  function getUserName() {
-    const nameInput = document.querySelector('input[name="name"]');
-    return nameInput ? nameInput.value : "";
-  }
-
-  /**
-   * 錯誤處理 (T028)
-   * 澄清 Q3: 舊版瀏覽器顯示友好訊息
-   */
-  function handleError(error) {
-    if (!error) {
-      error = new Error("未知錯誤");
-    }
-
-    console.error("[" + MODULE_NAME + "] 錯誤:", error);
-
-    let userMessage = "發生錯誤，請稍後重試";
-
-    // 根據錯誤訊息提供友好的提示
-    if (error.message.includes("不支持")) {
-      userMessage = "您的瀏覽器不支持此功能，請升級至最新版本";
-    } else if (error.message.includes("未找到")) {
-      userMessage = "命盤元素未找到，請重新排盤";
-    } else if (error.message.includes("階段")) {
-      userMessage = "此功能即將推出，敬請期待";
-    } else if (error.message.includes("CDN")) {
-      userMessage = "載入資源失敗，請檢查網絡連接";
-    } else if (error.message.includes("跨域")) {
-      userMessage = "無法訪問某些資源，請稍後重試";
-    }
-
-    console.warn("[" + MODULE_NAME + "] 用戶提示: " + userMessage);
-
-    // 發送錯誤事件
-    document.dispatchEvent(
-      new CustomEvent("ziwei-share-error", {
-        detail: {
-          message: userMessage,
-          error: error.message,
-          timestamp: new Date().toISOString(),
-        },
-      })
-    );
-  }
-
-  // ==================
-  // 公開 API (T029)
-  // ==================
-
-  /**
-   * 暴露公開 API
-   * window.ziweiShare.downloadPNG()
-   * window.ziweiShare.downloadPDF()
-   * window.ziweiShare.share()
-   * 等等
-   */
-  window.ziweiShare = {
-    downloadPNG: downloadAsPNG,
-    downloadPDF: downloadAsPDF,
-    share: share,
-    getFileName: getFileName,
-    checkSupport: function () {
-      return browserSupport;
-    },
-    handleError: handleError,
-    // 調試用
-    _toggleMenu: toggleMenu,
-    _openMenu: openMenu,
-    _closeMenu: closeMenu,
-  };
-
-  // ==================
-  // 初始化 (T012)
-  // ==================
-
-  /**
-   * 追踪初始化狀態，防止重複初始化
-   */
-  let initialized = false;
-  let initAttempts = 0;
-  const INIT_MAX_ATTEMPTS = 20;
-  const INIT_RETRY_DELAY_MS = 200;
-
-  /**
-   * 執行初始化（帶護欄）
-   */
-  function performInitialization() {
-    if (initialized) {
-      console.log("[" + MODULE_NAME + "] 已經初始化，跳過重複初始化");
-      return;
+      const opt = menu.querySelector('[data-action="download-png"]');
+      if(opt) opt.classList.add('disabled');
     }
     
-    // 檢查必要元素是否存在
-    const controlBar = document.querySelector(".ziwei-control-bar");
-    const centerCell = document.querySelector(".ziwei-center-big");
+    console.log('[' + MODULE_NAME + '] 菜單已注入');
+  }
+
+  /**
+   * 查找或創建分享按鈕
+   */
+  function ensureShareButton() {
+    let btn = document.querySelector('.ziwei-share-btn');
     
-    if (!controlBar || !centerCell) {
-      console.log(
-        "[" + MODULE_NAME + "] 等待控制列和圖表元素... (controlBar: " +
-        !!controlBar + ", centerCell: " + !!centerCell + ")"
-      );
-      if (initAttempts >= INIT_MAX_ATTEMPTS) {
-        console.warn(
-          "[" +
-            MODULE_NAME +
-            "] 初始化重試超過限制，請確認 control.js 與 chart.js 是否正常運作"
-        );
+    // 情況 1: control.js 已經創建了按鈕
+    if (btn) {
+      injectMenu(btn);
+      return btn;
+    }
+
+    // 情況 2: control.js 還沒運行或按鈕被移除 -> 嘗試手動創建 (Fallback)
+    const controlBar = document.querySelector('.ziwei-control-bar');
+    if (!controlBar) return null; // 連控制列都沒有，放棄
+
+    btn = document.createElement('button');
+    btn.className = 'ziwei-share-btn';
+    btn.setAttribute('aria-label', '分享與下載');
+    btn.innerHTML = `<span class="icon">📤</span><span class="text">分享</span>`;
+    
+    const settingsBtn = controlBar.querySelector('.ziwei-settings-toggle');
+    if (settingsBtn) {
+      controlBar.insertBefore(btn, settingsBtn);
+    } else {
+      controlBar.appendChild(btn);
+    }
+    
+    injectMenu(btn);
+    return btn;
+  }
+
+  /**
+   * 切換菜單顯示
+   */
+function toggleMenu() {
+  const menu = document.querySelector('.ziwei-share-menu');
+  if (!menu) {
+    console.error('[ziwei-share] Menu element not found');
+    return;
+  }
+
+  isMenuOpen = !isMenuOpen;
+  
+  if (isMenuOpen) {
+    menu.classList.add('open');
+    console.log('[ziwei-share] Menu opened');
+  } else {
+    menu.classList.remove('open');
+    console.log('[ziwei-share] Menu closed');
+  }
+}
+
+  function setupEventListeners() {
+    // 使用事件委派處理點擊
+    document.addEventListener('click', function(e) {
+      const target = e.target;
+      
+      // 1. 點擊分享按鈕 -> 切換菜單
+      const shareBtn = target.closest('.ziwei-share-btn');
+      
+      if (shareBtn) {
+        // 如果點擊的是按鈕本身（不是菜單內部），則切換菜單
+        if (!target.closest('.ziwei-share-menu')) {
+          e.stopPropagation();
+          toggleMenu();
+          return;
+        }
+      }
+
+      // 2. 點擊菜單選項 -> 執行功能
+      const option = target.closest('.ziwei-share-option');
+      if (option && !option.classList.contains('disabled')) {
+        const action = option.getAttribute('data-action');
+        console.log('[' + MODULE_NAME + '] 執行動作:', action);
+        
+        if (action === 'download-png') downloadPNG();
+        else if (action === 'download-pdf') downloadPDF();
+        else if (action === 'share') shareChart();
+
+        // 關閉菜單
+        document.querySelectorAll('.ziwei-share-menu').forEach(m => m.classList.remove('open'));
+        isMenuOpen = false;
         return;
       }
-      initAttempts += 1;
-      setTimeout(performInitialization, INIT_RETRY_DELAY_MS);
-      return;
-    }
-    
-    initialized = true;
-    initAttempts = 0;
-    console.log("[" + MODULE_NAME + "] 所有元素準備完畢，執行初始化...");
-    
-    // Defer UI initialization by 500ms to avoid blocking chart rendering
-    // This allows the chart to fully render before share button and controls are added
-    setTimeout(initializeUI, 500);
+
+      // 3. 點擊頁面其他地方 -> 關閉菜單
+      if (!shareBtn && isMenuOpen) {
+        document.querySelectorAll('.ziwei-share-menu').forEach(m => m.classList.remove('open'));
+        isMenuOpen = false;
+      }
+    });
   }
 
-  /**
-   * 監聽自定義事件，當圖表準備完畢時觸發初始化
-   */
-  window.addEventListener("ziwei-chart-ready", function () {
-    console.log("[" + MODULE_NAME + "] 收到 ziwei-chart-ready 事件");
-    performInitialization();
-  });
+  // ==================
+  // 初始化
+  // ==================
 
-  window.addEventListener("ziwei-chart-drawn", function () {
-    console.log("[" + MODULE_NAME + "] 收到 ziwei-chart-drawn 事件");
-    // 圖表重新繪製時，需要重新初始化分享按鈕
-    reinitialize();
-  });
-
-  /**
-   * 公開重新初始化函數（用於調試或手動恢復）
-   */
-  function reinitialize() {
-    // 移除現有的分享按鈕和菜單
-    const existingButton = document.querySelector(".ziwei-share-btn");
-    if (existingButton) {
-      existingButton.remove();
-      console.log("[" + MODULE_NAME + "] 移除現有的分享按鈕");
+  function init() {
+    console.log('[' + MODULE_NAME + '] 初始化...');
+    checkBrowserSupport();
+    
+    // 嘗試找到現有按鈕並注入菜單
+    const btn = ensureShareButton();
+    
+    // 如果第一次沒找到，設置一個短暫的輪詢（應對 control.js 異步加載）
+    if (!btn) {
+      let attempts = 0;
+      const retryInterval = setInterval(() => {
+        attempts++;
+        if (ensureShareButton() || attempts > 10) {
+          clearInterval(retryInterval);
+        }
+      }, 500);
     }
 
-    // 重置狀態
-    initialized = false;
-    initAttempts = 0;
-    isMenuOpen = false;
-    eventListenersAttached = false;
-    console.log("[" + MODULE_NAME + "] 重置初始化狀態");
-    performInitialization();
+    // 綁定事件（只需一次）
+    if (!window.ziweiShareEventsBound) {
+      setupEventListeners();
+      window.ziweiShareEventsBound = true;
+    }
   }
+
+  // 暴露 API
+  window.ziweiShare = {
+    downloadPNG: downloadPNG,
+    downloadPDF: downloadPDF,
+    share: shareChart,
+    init: init,
+    _toggleMenu: toggleMenu // 供 control.js 調用
+  };
+
+  // 啟動
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+  // 監聽圖表重繪事件，確保按鈕和菜單存在
+  window.addEventListener('ziwei-chart-drawn', function() {
+    ensureShareButton();
+  });
+
 })();
