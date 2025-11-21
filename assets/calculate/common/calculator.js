@@ -707,94 +707,83 @@ window.showChart = async function showChart(chartData) {
 }
 
 /**
- * Update the display with new chart HTML with transition
+ * Update the display with new chart HTML instantly (No flicker)
  * @param {HTMLElement} chartElement The chart element to display
  * @returns {Promise<void>}
  */
 async function updateDisplay(chartElement, _calculationResult) {
     const form = document.getElementById('ziwei-cal-form');
+    
+    // ========================================================================
+    // 情況 1: 已經在圖表模式 -> 進行原地更新 (不閃爍)
+    // ========================================================================
     if (!form) {
-        // No form present (chart-only view or settings-triggered compute).
-        // Calculator should not assume a form exists; adapter storage is the
-        // canonical source of truth and has already been populated by the
-        // compute pipeline. Prefer letting the display layer update itself.
-        // Try control.updateChartDisplay first (display helper). If not
-        // available, emit an event so display modules can react and read from
-        // adapter.storage. Do NOT perform display formatting here.
-        try {
-            if (window.ziweiControl && typeof window.ziweiControl.updateChartDisplay === 'function') {
-                try {
-                    window.ziweiControl.updateChartDisplay(chartElement, _calculationResult);
-                    return;
-                } catch (err) {
-                    console.warn('[ziweiCalculator] ziweiControl.updateChartDisplay failed:', err);
+        const existingChart = document.querySelector('[data-ziwei-chart="1"]');
+        
+        if (existingChart && existingChart.parentNode) {
+            // 保存當前滾動位置
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+            
+            // 標記新圖表
+            chartElement.setAttribute('data-ziwei-chart', '1');
+            
+            // 🎯 關鍵修改：使用 innerHTML 替換內容，而不是替換整個節點
+            // 這樣可以避免 DOM 節點的移除和重新插入，從而消除閃爍
+            existingChart.innerHTML = chartElement.innerHTML;
+            
+            // 複製新元素的所有屬性到現有元素
+            Array.from(chartElement.attributes).forEach(attr => {
+                if (attr.name !== 'data-ziwei-chart') {
+                    existingChart.setAttribute(attr.name, attr.value);
                 }
+            });
+            
+            // 恢復滾動位置（防止頁面跳動）
+            window.scrollTo(scrollLeft, scrollTop);
+            
+            // 發送更新事件
+            try {
+                document.dispatchEvent(new CustomEvent('ziwei-chart-updated', { 
+                    detail: { chartElement: existingChart, calculationResult: _calculationResult } 
+                }));
+            } catch (e) { 
+                console.warn('Event dispatch failed:', e);
             }
-        } catch (e) {
-            // ignore
+            return;
         }
-
-        try {
-            document.dispatchEvent(new CustomEvent('ziwei-chart-ready', { detail: { chartElement, calculationResult: _calculationResult } }));
-        } catch (e) {
-            // ignore dispatch errors
-        }
-
-        // Nothing more to do in calculator when no form is present.
-        return;
     }
+
+    // ========================================================================
+    // 情況 2: 從表單切換到圖表 (第一次排盤)
+    // ========================================================================
     const container = form.closest('.ziwei-cal');
     
-    // Set chart mode BEFORE replacing the form, so CSS selectors work immediately
     if (container) {
         container.setAttribute('data-ziwei-mode', 'chart');
     }
     
-    // Fade out form
-    form.style.transition = 'opacity 200ms ease';
-    form.style.opacity = '0';
-    
-    // Wait a total of 500ms (includes fade-out) before showing the chart
-    // — keeps calculations running while providing a short display pause.
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Mark the chart element so the back button handler can find it
     chartElement.setAttribute('data-ziwei-chart', '1');
 
+    // 建立控制列
     if (window.ziweiControl && typeof window.ziweiControl.createBar === 'function') {
         window.ziweiControl.createBar({
             mountNode: form.parentNode,
             beforeNode: form
         });
-    } else {
-        console.warn('ziweiControl module not available; control bar not rendered.');
     }
     
-    // Replace the form with the chart element directly (after controls)
+    // 首次渲染可以使用 replaceWith（因為是從表單切換到圖表）
     form.replaceWith(chartElement);
-
-    // Fade-in effect for the chart element
-    requestAnimationFrame(() => {
-        chartElement.style.transition = 'opacity 200ms ease';
-        requestAnimationFrame(() => {
-            chartElement.style.opacity = '1';
-        });
-    });
-
-    // 🎨 發出事件，通知其他模塊圖表元素已插入到 DOM 中
-    // 這允許 share.js 等動態模塊在元素真正可訪問後進行初始化
-    setTimeout(() => {
-        if (window.dispatchEvent) {
-            const chartReadyEvent = new CustomEvent("ziwei-chart-ready", {
-                detail: {
-                    chartElement: chartElement,
-                    timestamp: Date.now()
-                }
-            });
-            window.dispatchEvent(chartReadyEvent);
-            console.log('[ziweiCalculator] 發出 ziwei-chart-ready 事件');
-        }
-    }, 0);
+    
+    // 發送首次渲染事件
+    try {
+        document.dispatchEvent(new CustomEvent('ziwei-chart-ready', { 
+            detail: { chartElement, calculationResult: _calculationResult } 
+        }));
+    } catch (e) {
+        console.warn('Event dispatch failed:', e);
+    }
 }
 
 // ============================================================================

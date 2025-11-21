@@ -41,6 +41,8 @@
     border: 3px solid #333;
     background: transparent;
     position: relative;
+    animation: none !important;
+    opacity: 1 !important;
 }
 
 .ziwei-cal[data-ziwei-mode="chart"] .ziwei-cell {
@@ -589,7 +591,7 @@
 }
 
 .ziwei-exporting .ziwei-4x4-grid {
-    border-color: #333333 !important;
+    outline: 3px solid #333;
     background-color: #ffffff;
 }
 
@@ -600,7 +602,8 @@
     left: -3px;
     right: -3px;
     bottom: -3px;
-    border: 3px solid #333333;
+    outline: 3px solid #333;
+    outline-offset: -3px; /* 讓 outline 往內縮，不影響佈局 */
     pointer-events: none;
     box-sizing: border-box;
     z-index: 6;

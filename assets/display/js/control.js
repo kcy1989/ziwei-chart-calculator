@@ -74,9 +74,6 @@
             newHour = 0;
             dateOffset = 1;
         }
-        // Special case: 00:00-00:55 → 02:XX (normal +2)
-        // All other cases: normal +2 hours
-
         // Handle day overflow
         if (newHour >= 24) {
             newHour -= 24;
@@ -105,9 +102,6 @@
             newHour = 23;
             dateOffset = -1;
         }
-        // Special case: 23:00-23:55 → 21:XX (normal -2)
-        // All other cases: normal -2 hours
-
         // Handle day underflow
         if (newHour < 0) {
             newHour += 24;
@@ -116,6 +110,49 @@
 
         return { hour: newHour, minute, dateOffset };
     }
+    /**
+     * Handle time change request (prev/next hour)
+     * @param {string} direction 'prev' or 'next'
+     */
+    function handleTimeChange(direction) {
+        const adapter = getAdapterInstance();
+        if (!adapter) return;
+
+        const currentInput = getAdapterStorageValue('input');
+        if (!currentInput) return;
+
+        const currentDate = new Date(currentInput.solarDate);
+        const { hour, minute, dateOffset } = direction === 'next' 
+            ? getNextHourInterval(currentDate.getHours(), currentDate.getMinutes())
+            : getPrevHourInterval(currentDate.getHours(), currentDate.getMinutes());
+
+        // Apply new time
+        currentDate.setHours(hour);
+        currentDate.setMinutes(minute);
+        if (dateOffset !== 0) {
+            currentDate.setDate(currentDate.getDate() + dateOffset);
+        }
+
+        // Update input and recalculate
+        const newInput = { ...currentInput, solarDate: currentDate.toISOString() };
+        
+        // Save new input immediately
+        if (adapter.storage && typeof adapter.storage.set === 'function') {
+            adapter.storage.set('input', newInput);
+        }
+
+        // Trigger calculation
+        if (window.ziweiCalculator && typeof window.ziweiCalculator.calculateAndRender === 'function') {
+            window.ziweiCalculator.calculateAndRender(newInput, { renderMode: 'element' })
+                .then((result) => {
+                    if (result && result.element) {
+                        updateChartDisplay(result.element, result.context);
+                    }
+                })
+                .catch(console.error);
+        }
+    }
+
 
     /**
      * Add or subtract days from a date

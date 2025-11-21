@@ -26,6 +26,7 @@
 
   let browserSupport = {};
   let isMenuOpen = false;
+  let loader;
 
   // ==================
   // 瀏覽器支持檢測
@@ -60,27 +61,48 @@
       throw new Error("getFileName: format 必須為 png 或 pdf");
     }
 
-    // 使用提供的日期或當前日期
-    date = date instanceof Date ? date : new Date();
-    const dateStr = date.toISOString().split("T")[0]; // YYYY-MM-DD
-
-    // 清理姓名 (移除禁止字符)
-    let cleanName = "無名氏";
+    // date/birth info 由 meta 傳入，格式: YYYYMMDD_HHMM
+    let cleanName = "";
     if (name && typeof name === "string") {
       name = name.trim();
-      // 移除禁止字符: / \ : * ? " < > |
       name = name.replace(/[/\\:*?"<>|]/g, "");
       if (name) {
         cleanName = name;
       }
     }
-
-    return cleanName + "_" + dateStr + "." + format;
+    let birthStr = "";
+    if (date && typeof date === "string") {
+      birthStr = date;
+    }
+    if (!cleanName && !birthStr) {
+      return "命盤." + format;
+    }
+    return cleanName + (birthStr ? "_" + birthStr : "") + "." + format;
   }
   // ==================
   // 功能實現: PNG 下載
   // ==================
 
+  /**
+   * 在導出期間標記 DOM，允許 CSS 做專屬調整
+   */
+  function prepareForExport(node) {
+    const className = "ziwei-exporting";
+    const targets = [document.documentElement, document.body, node].filter(
+      Boolean
+    );
+
+    targets.forEach(function (el) {
+      el.classList.add(className);
+    });
+
+    return function cleanup() {
+      targets.forEach(function (el) {
+        el.classList.remove(className);
+      });
+    };
+  }
+  
   function downloadBlob(blob, fileName) {
     if (window.navigator && window.navigator.msSaveOrOpenBlob) {
       window.navigator.msSaveOrOpenBlob(blob, fileName);
@@ -136,9 +158,29 @@
       return;
     }
 
-    const loader = document.getElementById("ziwei-loading-overlay");
-    if (loader) loader.style.display = "flex";
-    target.classList.add("ziwei-exporting");
+    const cleanupExport = prepareForExport(target);
+    showLoadingState("正在生成 PNG...");
+
+    // 只用 chart meta，沒資料就用預設檔名
+    let name = '';
+    let birthStr = '';
+    const chart = window.ziweiAdapter?.getCurrentChart();
+    if (chart && chart.meta) {
+      name = chart.meta.name || '';
+      let date = chart.meta.birthdate || '';
+      let time = chart.meta.birthtime || '';
+      if (date && time) {
+        const dateNum = date.replace(/[^0-9]/g, '');
+        const timeNum = time.replace(/[^0-9]/g, '');
+        if (dateNum && timeNum) {
+          birthStr = dateNum + '_' + timeNum;
+        } else if (dateNum) {
+          birthStr = dateNum;
+        }
+      } else if (date) {
+        birthStr = date.replace(/[^0-9]/g, '');
+      }
+    }
 
     try {
       const rect = target.getBoundingClientRect();
@@ -163,10 +205,10 @@
         const pixelData = await getPixelsFromBase64(dataUrl, width, height);
         const compressed = window.UPNG.encode([pixelData.buffer], width, height, 256);
         const blob = new Blob([compressed], { type: "image/png" });
-        downloadBlob(blob, getFileName("png"));
+        downloadBlob(blob, getFileName("png", name, birthStr));
       } else {
         const link = document.createElement('a');
-        link.download = getFileName("png");
+        link.download = getFileName("png", name, birthStr);
         link.href = dataUrl;
         link.click();
       }
@@ -175,7 +217,7 @@
       console.error("PNG Export Error:", err);
       alert("圖片生成失敗: " + (err.message || "未知錯誤"));
     } finally {
-      target.classList.remove("ziwei-exporting");
+      cleanupExport();
       if (loader) loader.style.display = "none";
     }
   }
@@ -312,6 +354,31 @@ function toggleMenu() {
         isMenuOpen = false;
       }
     });
+  }
+
+  // ==================
+  // 輔助函數 (T026, T027, T028)
+  // ==================
+
+  /**
+   * 顯示加載狀態 (T026)
+   */
+  function showLoadingState(message) {
+    message = message || "處理中...";
+
+    if (!loader) {
+      loader = document.querySelector(".ziwei-share-loader");
+      if (!loader) {
+        loader = document.createElement("div");
+        loader.className = "ziwei-share-loader";
+        document.body.appendChild(loader);
+      }
+    }
+
+    loader.textContent = message;
+    loader.style.display = "block";
+
+    console.log("[" + MODULE_NAME + "] 加載狀態: " + message);
   }
 
   // ==================
