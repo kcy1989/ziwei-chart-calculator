@@ -5,7 +5,7 @@ Tags: 紫微斗數, 命理, 排盤, 中州派, astrology
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 0.6.5
+Stable tag: 0.6.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -41,14 +41,14 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 11. 派別/流派設定系統（✅ 完成）
     * Phase 11a: 個人資料隱藏（✅ v0.5.1 完成）
     * Phase 11b: 派別選擇與規則（✅ v0.5.2+ 完成）
-12. 分享與匯出系統（🚧 開發中 - v0.7.0）
+12. 分享與匯出系統（🚧 開發中 - v0.6.x）
     * Phase 12a: PNG 匯出（html2canvas）
     * Phase 12b: PDF 匯出（jsPDF）
     * Phase 12c: Web Share API 分享
     * Phase 12d: 品牌水印顯示
-13. 星曜說明與提示（⏳ 計畫中 - v0.8.0）
-14. 星曜組合解釋（⏳ 計畫中 - v0.9.0）
-15. AI提示詞輸出（⏳ 計畫中）
+    * Phase 12e: AI提示詞輸出
+13. 星曜說明與提示（⏳ 計畫中 - v0.7.0）
+14. 星曜組合解釋（⏳ 計畫中 - v0.8.0）
 
 == Installation ==
 
@@ -147,7 +147,7 @@ ziwei-cal/
 
 = 支援哪些年份範圍？ =
 
-支援西曆 1900 年至 2100 年的農曆轉換。
+支援西曆 800 年至 2200 年的農曆轉換。
 
 = 資料會被儲存嗎？ =
 
@@ -166,6 +166,14 @@ ziwei-cal/
 此功能將在階段 12 開發。
 
 == Changelog ==
+= 0.6.7 - 2025-11-28 =
+* 修正：上／下一個時辰的命盤閃爍問題
+* 修正：切換宮位名稱時顯示大限和流年宮名問題
+* 新增：支援 800年 - 2200 年的農曆轉換
+
+= 0.6.6 - 2025-11-22 =
+* 修正：下載PNG的邊框問題
+
 = 0.6.5 - 2025-11-21 =
 * 優化：壓縮PNG至原來1/3大小，每張命盤約100kb
 * 修正：上一頁後姓名顯示問題

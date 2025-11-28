@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * Plugin Name: Ziwei Cal
  * Description: Ziwei Doushu Chart Calculator
- * Version: 0.6.5
+ * Version: 0.6.7
  * Author: kcy1989
  * License: GPL v2 or later
  * Text Domain: ziwei-cal
@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('ZIWEI_CAL_VERSION', '0.6.5'); // Bump version to force cache refresh
+define('ZIWEI_CAL_VERSION', '0.6.7'); // Bump version to force cache refresh
 define('ZIWEI_CAL_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('ZIWEI_CAL_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -62,7 +62,7 @@ function ziwei_cal_register_rest_routes(): void {
                 'required' => true,
                 'type' => 'integer',
                 'sanitize_callback' => 'absint',
-                'minimum' => 1900,
+                'minimum' => 1800,
                 'maximum' => 2100,
             ],
             'month' => [

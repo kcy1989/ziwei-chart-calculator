@@ -862,6 +862,188 @@ function draw(context) {
         return document.createElement('div');
     }
 
+    // In-place update mode: reuse existing grid
+    if (context.updateMode && context.targetGrid) {
+        const grid = context.targetGrid;
+        const existingWrapper = grid.closest('.ziwei-chart-wrapper') || grid.parentElement;
+        if (!grid || !existingWrapper) {
+            console.error('[ziweiChart] Invalid targetGrid for updateMode');
+            return existingWrapper || document.createElement('div');
+        }
+
+        // Clear existing content with visual feedback
+        grid.style.transition = 'none';
+        grid.style.opacity = '0.3';
+        grid.innerHTML = '';
+
+        // Reset registries for new content
+        resetCycleRegistries();
+        clearMajorCycleStars();
+        clearMajorCycleMutations();
+        clearAnnualCycleMutations();
+
+        const meta = adapterOutput.meta || {};
+        const sections = adapterOutput.sections || {};
+        const derived = adapterOutput.derived || {};
+        const palaces = sections.palaces || derived.palaces || {};
+        const primaryStars = sections.primaryStars || {};
+        const secondaryStars = sections.secondaryStars || {};
+        const minorStars = sections.minorStars || {};
+        const mutations = sections.mutations || null;
+        const attributes = sections.attributes || null;
+        const brightness = sections.brightness || {};
+        const lifeCycles = sections.lifeCycles || {};
+        const nayinInfo = derived.nayin || { loci: null, name: '' };
+        const lunarYear = adapterOutput.lunar?.lunarYear || 0;
+        const timeIndex = adapterOutput.indices?.timeIndex ?? adapterOutput.lunar?.timeIndex ?? 0;
+
+        // Validate data (same as normal mode)
+        const expectPrimary = adapterHasModule('primary');
+        const expectSecondary = adapterHasModule('secondary');
+        const expectMinor = adapterHasModule('minorStars');
+        const expectMutations = adapterHasModule('mutations');
+        const expectAttributes = adapterHasModule('attributes');
+
+        if (!palaces || Object.keys(palaces).length === 0) {
+            console.error('[ziweiChart] Palace data missing', adapterOutput.errors?.palaces);
+            failAndAbort('宮位計算失敗：無法取得任何宮位，請檢查出生資料是否完整');
+        }
+        if (expectPrimary && (!primaryStars || Object.keys(primaryStars).length === 0)) {
+            console.error('[ziweiChart] Primary stars missing', adapterOutput.errors?.primaryStars);
+            failAndAbort('主星計算失敗：無法安置主星，請檢查輸入或聯絡管理員');
+        }
+        if (expectSecondary && (!secondaryStars || Object.keys(secondaryStars).length === 0)) {
+            console.error('[ziweiChart] Secondary stars missing', adapterOutput.errors?.secondaryStars);
+            failAndAbort('輔星計算失敗：無法安置輔佐星曜');
+        }
+        if (expectMinor && (!minorStars || Object.keys(minorStars).length === 0)) {
+            console.error('[ziweiChart] Minor stars missing', adapterOutput.errors?.minorStars);
+            failAndAbort('雜曜計算失敗：無法產生雜曜資料');
+        }
+        if (expectMutations && (!mutations || Object.keys(mutations).length === 0)) {
+            console.error('[ziweiChart] Mutation data missing', adapterOutput.errors?.mutations);
+            failAndAbort('四化計算失敗：無法計算生年四化標記');
+        }
+        if (expectAttributes && (!attributes || Object.keys(attributes).length === 0)) {
+            console.error('[ziweiChart] Attribute data missing', adapterOutput.errors?.attributes);
+            failAndAbort('神煞計算失敗：無法取得神煞或太歲資料');
+        }
+
+        lastPalaceDataRef = palaces;
+
+        const minorStarsBuckets = Array.from({ length: 12 }, () => []);
+        if (minorStars && typeof minorStars === 'object') {
+            Object.entries(minorStars).forEach(([starName, placement]) => {
+                if (Array.isArray(placement)) {
+                    placement.forEach((idx) => {
+                        if (idx >= 0 && idx < 12) {
+                            minorStarsBuckets[idx].push(starName);
+                        }
+                    });
+                } else if (typeof placement === 'number' && placement >= 0 && placement < 12) {
+                    minorStarsBuckets[placement].push(starName);
+                }
+            });
+        }
+
+        const majorCycles = Array.isArray(lifeCycles.major) ? lifeCycles.major : [];
+        const twelveLongLifePositions = lifeCycles.twelve || {};
+
+        const lifeCyclePayload = {
+            majorCycles,
+            twelveLongLifePositions,
+            nayinLoci: nayinInfo.loci,
+            mingPalaceIndex: derived.mingPalace ? derived.mingPalace.index : null,
+            palaceData: palaces,
+            timeIndex
+        };
+        majorCycles.forEach((cycle) => {
+            if (cycle && Number.isInteger(cycle.palaceIndex)) {
+                lifeCyclePayload[cycle.palaceIndex] = cycle;
+            }
+        });
+
+        const hasPalaceData = Object.keys(palaces).length > 0;
+        grid.dataset.lunarYear = String(lunarYear);
+
+        // Direct render palaces (no skeleton/fade)
+        for (let row = 1; row <= 4; row++) {
+            for (let col = 1; col <= 4; col++) {
+                if ((row === 2 || row === 3) && (col === 2 || col === 3)) {
+                    continue;
+                }
+                grid.appendChild(createPalaceCell(
+                    row,
+                    col,
+                    palaces,
+                    primaryStars,
+                    secondaryStars,
+                    lifeCyclePayload,
+                    mutations,
+                    minorStarsBuckets,
+                    attributes,
+                    hasPalaceData,
+                    brightness.primary || {},
+                    brightness.secondary || {}
+                ));
+            }
+        }
+
+        // Render center cell
+        grid.appendChild(createCenterCell(meta, palaces, lunarYear, derived.mingPalace, nayinInfo.name));
+
+        // Immediate post-render init (no delay)
+        const initializePostRender = () => {
+            try {
+                const adapter = window.ziweiAdapter;
+                if (adapter && adapter.storage && typeof adapter.storage.set === 'function') {
+                    adapter.storage.set('adapterOutput', adapterOutput);
+                    if (calcResult) {
+                        adapter.storage.set('calcResult', calcResult);
+                    }
+                    adapter.storage.set('meta', Object.assign({}, meta, { lunar: adapterOutput.lunar }));
+                    adapter.storage.set('normalizedInput', adapterOutput.normalized || {});
+                }
+            } catch (e) {}
+
+            const palaceInteraction = window.initializePalaceInteraction
+                ? window.initializePalaceInteraction(grid) || null
+                : null;
+
+            const cyclePanel = window.ziweiCycles && typeof window.ziweiCycles.initializeCyclePanel === 'function'
+                ? window.ziweiCycles.initializeCyclePanel(lifeCyclePayload, grid, palaceInteraction)
+                : null;
+
+            // Remove existing cycle panels before appending new one to prevent accumulation on updates
+            existingWrapper.querySelectorAll('.ziwei-cycle-panel').forEach(panel => panel.remove());
+
+            if (cyclePanel && existingWrapper && !existingWrapper.contains(cyclePanel)) {
+                existingWrapper.appendChild(cyclePanel);
+            }
+        };
+        initializePostRender();
+
+        // Reapply personal info
+        if (window.ziweiConfig?.reapplyPersonalInfoStateImmediately) {
+            window.ziweiConfig.reapplyPersonalInfoStateImmediately(existingWrapper);
+        }
+
+        // Dispatch chart-drawn event
+        if (window.dispatchEvent) {
+            const chartDrawnEvent = new CustomEvent("ziwei-chart-drawn", {
+                detail: {
+                    chartWrapper: existingWrapper,
+                    meta: meta,
+                    timestamp: Date.now(),
+                    palaceCount: Object.keys(palaces).length
+                }
+            });
+            window.dispatchEvent(chartDrawnEvent);
+        }
+
+        return existingWrapper;
+    }
+
     const grid = document.createElement('div');
     grid.className = 'ziwei-4x4-grid';
     grid.style.opacity = '0';

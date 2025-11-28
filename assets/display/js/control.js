@@ -311,12 +311,26 @@
             }
         } catch (e) {}
 
-        const newChartElement = window.ziweiChart.draw({
-            calcResult,
-            normalizedInput: normalized,
-            adapterOutput
-        });
-    updateChartDisplay(newChartElement, { adapterOutput });
+        // In-place update
+        const existingChart = document.querySelector('[data-ziwei-chart]');
+        if (existingChart) {
+            const targetGrid = existingChart.querySelector('.ziwei-4x4-grid');
+            window.ziweiChart.draw({
+                calcResult,
+                normalizedInput: normalized,
+                adapterOutput,
+                updateMode: true,
+                targetGrid
+            });
+        }
+
+        // Reapply settings
+        const brightnessSetting = getAdapterSettingValue('starBrightness');
+        if (brightnessSetting) {
+            document.dispatchEvent(new CustomEvent('ziwei-starBrightness-changed', {
+                detail: { value: brightnessSetting }
+            }));
+        }
 
         // Optionally validate with API in background (fire and forget)
         setTimeout(() => {

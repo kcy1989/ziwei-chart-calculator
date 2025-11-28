@@ -145,7 +145,7 @@
     var DEBUG = !!(constants.DEBUG && constants.DEBUG.ADAPTER);
     var REGEX = constants.REGEX || {};
     var NUMERIC_LIMITS = Object.assign({
-        LUNAR_YEAR_MIN: 1900,
+        LUNAR_YEAR_MIN: 1800,
         LUNAR_YEAR_MAX: 2100
     }, constants.NUMERIC || {});
 

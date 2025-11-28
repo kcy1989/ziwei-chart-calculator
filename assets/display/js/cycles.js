@@ -481,6 +481,14 @@
                 return;
             }
             
+            // Always clear existing cycle labels first (defensive, prevents lingering labels)
+            if (typeof window.ziweiChartHelpers?.clearMajorCycleLabels === 'function') {
+                window.ziweiChartHelpers.clearMajorCycleLabels();
+            }
+            if (typeof window.ziweiChartHelpers?.clearAnnualCycleLabels === 'function') {
+                window.ziweiChartHelpers.clearAnnualCycleLabels();
+            }
+            
             // If there's an active major cycle button, regenerate and apply major labels
             if (activeMajorButton && typeof window.ziweiChartHelpers?.setMajorCycleLabels === 'function') {
                 const cycleIndex = parseInt(activeMajorButton.dataset.cycleIndex, 10);
@@ -529,4 +537,3 @@
         initializeCyclePanel
     };
 })();
-

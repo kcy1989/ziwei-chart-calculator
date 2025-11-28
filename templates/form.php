@@ -1,7 +1,7 @@
     <div class="ziwei-cal" data-ziwei-mode="form">
         <div class="ziwei-cal-title">
             <h1>紫微斗數排盤工具</h1>
-            <p class="ziwei-cal-version-link"><a href="https://little-yin.com/2025/11/08/calculator/" target="_blank" rel="noopener noreferrer">版本 0.6.5 • 更新於 2025-11-21</a></p>
+            <p class="ziwei-cal-version-link"><a href="https://little-yin.com/2025/11/08/calculator/" target="_blank" rel="noopener noreferrer">版本 0.6.7 • 更新於 2025-11-28</a></p>
         </div>
         <form class="ziwei-cal-form" id="ziwei-cal-form" novalidate>
         <!-- Name and Gender -->
@@ -44,7 +44,7 @@
                     <select id="ziwei-birth-year" name="year" class="ziwei-cal-year-input" required>
                         <?php 
                             $currentYear = (int)date('Y');
-                            for ($year = 1900; $year <= 2100; $year++): 
+                            for ($year = 1800; $year <= 2100; $year++): 
                                 $selected = ($year === $currentYear) ? 'selected' : '';
                         ?>
                             <option value="<?php echo $year; ?>" <?php echo $selected; ?>><?php echo $year; ?></option>

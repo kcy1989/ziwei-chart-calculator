@@ -102,7 +102,7 @@
         STEMS_COUNT: 10,                // 10 heavenly stems
         NAYIN_LOCI_MIN: 2,              // Minimum Nayin loci (water)
         NAYIN_LOCI_MAX: 6,              // Maximum Nayin loci (fire)
-        LUNAR_YEAR_MIN: 1900,           // Min supported lunar year
+        LUNAR_YEAR_MIN: 1800,           // Min supported lunar year
         LUNAR_YEAR_MAX: 2100,           // Max supported lunar year
         HOURS_IN_DAY: 24,               // 24 hours per day
         MILITARY_HOURS: 12,             // 12 military hours (時辰)
