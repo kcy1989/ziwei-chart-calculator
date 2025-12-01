@@ -168,7 +168,6 @@ function solarToLunar(year, month, day, hour, minute) {
         // Debug input values to help trace zi-hour adjustments
         try {
             if (typeof console !== 'undefined' && console.log) {
-                console.log('[lunar-converter] solarToLunar inputs:', { year: year, month: month, day: day, hour: hour, minute: minute });
             }
         } catch (dbg) {}
         // Validate year range (library supports 1900-2100)
@@ -250,7 +249,6 @@ function solarToLunar(year, month, day, hour, minute) {
             dateStr = '閏' + dateStr;
         }
 
-        console.log('Lunar conversion success:', yearStr, dateStr);
 
         // Calculate time index for Ziwei calculations
         var timeIndex = getTimeIndex(hour);

@@ -256,8 +256,8 @@ function registerAdapterModule(name, api) {
     window.__ziweiAdapterModules[name] = api;
 }
 
-// Expose public API
-registerAdapterModule('secondary', {
+// Expose public API through centralized adapter registration (assets/js/adapter-register.js)
+window.registerAdapterModule('secondary', {
     calculateAllSecondaryStars,
     getSecondaryStarsForPalace,
     calculateLeftRightAssist,
@@ -266,4 +266,4 @@ registerAdapterModule('secondary', {
     calculateCelestialStars,
     calculateWealthStars,
     calculateFireBells
-}); // T076: No global backward compat references
+});

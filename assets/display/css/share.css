@@ -1,16 +1,16 @@
 /**
- * 分享與匯出系統 CSS 樣式
- * 版本: 1.0 (Phase 1)
- * 
- * 組件:
- * - .ziwei-share-btn: 分享按鈕
- * - .ziwei-share-menu: 下拉菜單
- * - .ziwei-share-option: 菜單選項
- * - .ziwei-share-loader: 加載狀態
+ * Share and Export System CSS Styles
+ * Version: 1.0 (Phase 1)
+ *
+ * Components:
+ * - .ziwei-share-btn: Share button
+ * - .ziwei-share-menu: Dropdown menu
+ * - .ziwei-share-option: Menu options
+ * - .ziwei-share-loader: Loading state
  */
 
 /* ==================
-   分享按鈕 (T016)
+   Share Button (T016)
    ================== */
 
 .ziwei-share-btn {
@@ -51,8 +51,21 @@
   background-color: #a9a8a8;
 }
 
+.ziwei-share-btn.disabled {
+  opacity: 0.5;
+  background-color: #bdc3c7 !important;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.ziwei-share-btn.disabled:hover,
+.ziwei-share-btn.disabled:focus {
+  background-color: #bdc3c7 !important;
+  color: #34495e;
+}
+
 /* ==================
-   下拉菜單 (T017)
+   Dropdown Menu (T017)
    ================== */
 
 .ziwei-share-menu {
@@ -76,7 +89,7 @@
 }
 
 /* ==================
-   菜單選項 (T018)
+   Menu Options (T018)
    ================== */
 
 .ziwei-share-option {
@@ -118,7 +131,67 @@
 }
 
 /* ==================
-   加載狀態 (T019)
+ Social Media Options (T021)
+ ================== */
+
+.ziwei-share-option.ziwei-social-option {
+display: flex;
+align-items: center;
+gap: 8px;
+font-size: 14px;
+padding: 12px 16px;
+}
+
+.ziwei-share-option.ziwei-social-option:hover:not(:disabled) {
+background-color: #f0f0f0;
+}
+
+.ziwei-share-option.ziwei-social-option:disabled {
+opacity: 0.4;
+background-color: #f8f8f8 !important;
+}
+
+/* ==================
+ Menu Divider (T022)
+ ================== */
+
+.ziwei-share-divider {
+height: 1px;
+background-color: #e0e0e0;
+margin: 8px 12px;
+border: none;
+}
+
+/* ==================
+ Mobile-First Responsive Design (T023)
+ ================== */
+
+@media (max-width: 768px) {
+.ziwei-share-option.ziwei-social-option {
+  padding: 14px 18px;
+  font-size: 15px;
+  min-height: 48px;
+}
+
+.ziwei-share-divider {
+  margin: 10px 16px;
+}
+}
+
+@media (max-width: 480px) {
+.ziwei-share-option.ziwei-social-option {
+  padding: 12px 16px;
+  font-size: 14px;
+  min-height: 44px;
+}
+
+.ziwei-share-divider {
+  margin: 8px 14px;
+}
+}
+
+/* ==================
+   Loading State (T019)
    ================== */
 
 .ziwei-share-loader {
@@ -142,7 +215,7 @@
 }
 
 /* ==================
-   響應式設計 (T020)
+   Responsive Design (T020)
    ================== */
 
 @media (max-width: 768px) {
@@ -169,7 +242,7 @@
 }
 
 /* ==================
-   超小屏幕 (額外支持)
+   Small Screens (Extra Support)
    ================== */
 
 @media (max-width: 480px) {
@@ -190,13 +263,67 @@
 }
 
 /* ==================
-   列印模式 (額外支持)
+   Print Mode (Extra Support)
    ================== */
 
 @media print {
+  html, body {
+    height: 100vh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide all UI except chart */
   .ziwei-share-btn,
   .ziwei-share-menu,
-  .ziwei-share-loader {
+  .ziwei-share-loader,
+  .ziwei-control-bar,
+  .ziwei-settings-panel,
+  .ziwei-cycle-panel,
+  form,
+  button:not(.ziwei-chart-wrapper *),
+  input,
+  label {
     display: none !important;
+  }
+
+  /* Full-page chart */
+  .ziwei-chart-wrapper {
+    display: block !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    visibility: visible !important;
+    z-index: 1 !important;
+  }
+
+  .ziwei-chart-wrapper * {
+    visibility: visible !important;
+    position: static !important;
+  }
+
+  /* Force backgrounds/colors/images to print */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Scale grid to fill page */
+  .ziwei-4x4-grid {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+  }
+
+  /* Watermark visible */
+  .ziwei-watermark {
+    opacity: 1 !important;
+    visibility: visible !important;
+    position: fixed !important;
+    bottom: 1cm !important;
+    right: 1cm !important;
+    z-index: 100 !important;
   }
 }

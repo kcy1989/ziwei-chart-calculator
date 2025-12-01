@@ -236,11 +236,11 @@ function registerAdapterModule(name, api) {
     window.__ziweiAdapterModules[name] = api;
 }
 
-// Expose public API
-registerAdapterModule('primary', {
+// Expose public API through centralized adapter registration (assets/js/adapter-register.js)
+window.registerAdapterModule('primary', {
     calculateZiweiStarPosition,
     calculateZiweiSystemStars,
     calculateTianfuStarPosition,
     calculateTianfuSystemStars,
     placePrimaryStars
-}); // T076: No global backward compat references
+});

@@ -1,5 +1,6 @@
 'use strict';
 
+
 /**
  * Chart rendering module for Ziwei Calculator
  * 
@@ -11,6 +12,7 @@
 // Registry objects used to coordinate cycle panel interactions
 let cycleDisplayRegistry = Object.create(null);
 let starMutationRegistry = Object.create(null);
+const minorBucketsCache = new Map();
 let starElementIndex = new Map(); // Reverse index: starName -> HTMLElement[]
 let lastPalaceDataRef = {};
 let currentMajorCycleMingIndex = null;
@@ -931,19 +933,26 @@ function draw(context) {
 
         lastPalaceDataRef = palaces;
 
-        const minorStarsBuckets = Array.from({ length: 12 }, () => []);
-        if (minorStars && typeof minorStars === 'object') {
-            Object.entries(minorStars).forEach(([starName, placement]) => {
-                if (Array.isArray(placement)) {
-                    placement.forEach((idx) => {
-                        if (idx >= 0 && idx < 12) {
-                            minorStarsBuckets[idx].push(starName);
-                        }
-                    });
-                } else if (typeof placement === 'number' && placement >= 0 && placement < 12) {
-                    minorStarsBuckets[placement].push(starName);
-                }
-            });
+        const minorStarsKey = JSON.stringify(minorStars || {});
+        let minorStarsBuckets;
+        if (minorBucketsCache.has(minorStarsKey)) {
+            minorStarsBuckets = minorBucketsCache.get(minorStarsKey);
+        } else {
+            minorStarsBuckets = Array.from({ length: 12 }, () => []);
+            if (minorStars && typeof minorStars === 'object') {
+                Object.entries(minorStars).forEach(([starName, placement]) => {
+                    if (Array.isArray(placement)) {
+                        placement.forEach((idx) => {
+                            if (idx >= 0 && idx < 12) {
+                                minorStarsBuckets[idx].push(starName);
+                            }
+                        });
+                    } else if (typeof placement === 'number' && placement >= 0 && placement < 12) {
+                        minorStarsBuckets[placement].push(starName);
+                    }
+                });
+            }
+            minorBucketsCache.set(minorStarsKey, minorStarsBuckets);
         }
 
         const majorCycles = Array.isArray(lifeCycles.major) ? lifeCycles.major : [];
@@ -1062,9 +1071,6 @@ function draw(context) {
     const mutations = sections.mutations || null;
     const attributes = sections.attributes || null;
     const brightness = sections.brightness || {};
-    if (window.ziweiCalData && window.ziweiCalData.env && window.ziweiCalData.env.isDebug) {
-        console.log('[ziweiChart.draw] brightness:', brightness);
-    }
     const lifeCycles = sections.lifeCycles || {};
     const nayinInfo = derived.nayin || { loci: null, name: '' };
     const lunarYear = adapterOutput.lunar?.lunarYear || 0;
@@ -1103,19 +1109,26 @@ function draw(context) {
 
     lastPalaceDataRef = palaces;
 
-    const minorStarsBuckets = Array.from({ length: 12 }, () => []);
-    if (minorStars && typeof minorStars === 'object') {
-        Object.entries(minorStars).forEach(([starName, placement]) => {
-            if (Array.isArray(placement)) {
-                placement.forEach((idx) => {
-                    if (idx >= 0 && idx < 12) {
-                        minorStarsBuckets[idx].push(starName);
-                    }
-                });
-            } else if (typeof placement === 'number' && placement >= 0 && placement < 12) {
-                minorStarsBuckets[placement].push(starName);
-            }
-        });
+    const minorStarsKey = JSON.stringify(minorStars || {});
+    let minorStarsBuckets;
+    if (minorBucketsCache.has(minorStarsKey)) {
+        minorStarsBuckets = minorBucketsCache.get(minorStarsKey);
+    } else {
+        minorStarsBuckets = Array.from({ length: 12 }, () => []);
+        if (minorStars && typeof minorStars === 'object') {
+            Object.entries(minorStars).forEach(([starName, placement]) => {
+                if (Array.isArray(placement)) {
+                    placement.forEach((idx) => {
+                        if (idx >= 0 && idx < 12) {
+                            minorStarsBuckets[idx].push(starName);
+                        }
+                    });
+                } else if (typeof placement === 'number' && placement >= 0 && placement < 12) {
+                    minorStarsBuckets[placement].push(starName);
+                }
+            });
+        }
+        minorBucketsCache.set(minorStarsKey, minorStarsBuckets);
     }
 
     const majorCycles = Array.isArray(lifeCycles.major) ? lifeCycles.major : [];

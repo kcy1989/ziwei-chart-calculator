@@ -1,9 +1,9 @@
-    <div class="ziwei-cal" data-ziwei-mode="form">
+<div class="ziwei-cal" data-ziwei-mode="form">
         <div class="ziwei-cal-title">
             <h1>紫微斗數排盤工具</h1>
-            <p class="ziwei-cal-version-link"><a href="https://little-yin.com/2025/11/08/calculator/" target="_blank" rel="noopener noreferrer">版本 0.6.7 • 更新於 2025-11-28</a></p>
+            <p class="ziwei-cal-version-link"><a href="https://little-yin.com/2025/11/08/calculator/" target="_blank" rel="noopener noreferrer">版本 0.6.9 • 更新於 2025-12-1</a></p>
         </div>
-        <form class="ziwei-cal-form" id="ziwei-cal-form" novalidate>
+        <form class="ziwei-cal-form" id="ziwei-cal-form" method="post" action="javascript:void(0);" novalidate>
         <!-- Name and Gender -->
         <div class="ziwei-cal-row-name-gender">
             <div class="ziwei-cal-name-group">
@@ -105,7 +105,7 @@
 
         <!-- Action Buttons -->
         <div class="ziwei-cal-form-actions">
-            <button type="submit" class="ziwei-cal-btn ziwei-cal-btn-primary">
+            <button type="submit" id="ziwei-submit-btn" class="ziwei-cal-btn ziwei-cal-btn-primary">
                 開始排盤
             </button>
             <button type="button" class="ziwei-cal-btn ziwei-cal-btn-secondary" onclick="document.getElementById('ziwei-cal-form').reset();">
@@ -113,4 +113,69 @@
             </button>
         </div>
     </form>
+    <script>
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.getElementById('ziwei-cal-form');
+  if (!form) return console.error('[inline] Form not found');
+  console.log('[inline] Form found, attaching submit');
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('[inline] Submit fired - single');
+    const formData = new FormData(form);
+    const payload = Object.fromEntries(formData);
+    console.log('[inline] Payload:', payload);
+    
+    window.ziweiCalData = window.ziweiCalData || {};
+    const restUrl = window.ziweiCalData.restUrl || '/wp-json/ziwei-cal/v1/calculate';
+    const nonce = window.ziweiCalData.nonce || '';
+    console.log('[inline] Using restUrl:', restUrl, 'nonce:', !!nonce);
+    
+    try {
+      const resp = await fetch(restUrl, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-WP-Nonce': nonce},
+        body: JSON.stringify(payload)
+      });
+      const data = await resp.json();
+      console.log('[inline] API success:', data);
+      
+      // Poll for chart.draw ready
+      let pollCount = 0;
+      const pollChart = () => {
+        if (window.ziweiChart && typeof window.ziweiChart.draw === 'function') {
+          console.log('[inline] chart.draw ready, drawing');
+          try {
+            const chartWrapper = window.ziweiChart.draw(data.data);
+            console.log('[inline] Chart drawn:', !!chartWrapper);
+            const container = form.closest('.ziwei-cal');
+            if (container && chartWrapper) {
+              form.replaceWith(chartWrapper);
+              container.setAttribute('data-ziwei-mode', 'chart');
+              console.log('[inline] Chart inserted');
+            }
+          } catch (drawErr) {
+            console.error('[inline] draw error:', drawErr);
+          }
+        } else if (pollCount < 100) {
+          pollCount++;
+          console.log('[inline] Polling chart.draw attempt', pollCount);
+          setTimeout(pollChart, 50);
+        } else {
+          console.error('[inline] chart.draw timeout after 5s');
+        }
+      };
+      pollChart();
+    } catch (err) {
+      console.error('[inline] Error:', err);
+    }
+  });
+});
+</script>
+<script>
+window.ziweiCalData = window.ziweiCalData || {};
+window.ziweiCalData.restUrl = '<?php echo esc_js(rest_url("ziwei-cal/v1/calculate")); ?>';
+window.ziweiCalData.nonce = '<?php echo esc_js(wp_create_nonce("wp_rest")); ?>';
+console.log('[inline data] ziweiCalData ready:', window.ziweiCalData.restUrl);
+</script>
     </div>

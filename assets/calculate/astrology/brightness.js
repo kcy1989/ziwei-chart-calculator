@@ -147,19 +147,8 @@ function getStarBrightness(starName, branchIndex, school = 'shuoshu') {
 }
 
 /**
- * Helper to register module with adapter
+ * registerAdapterModule centralized in assets/js/adapter-register.js
  */
-function registerAdapterModule(name, api) {
-    // Try to register with window adapter
-    if (window.ziweiAdapter && typeof window.ziweiAdapter.registerModule === 'function') {
-        window.ziweiAdapter.registerModule(name, api);
-        return;
-    }
-    
-    // Store in pending queue for later registration
-    window.__ziweiAdapterModules = window.__ziweiAdapterModules || {};
-    window.__ziweiAdapterModules[name] = api;
-}
 
 // Expose public API via adapter module registration
 registerAdapterModule('brightness', {

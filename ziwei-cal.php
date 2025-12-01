@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * Plugin Name: Ziwei Cal
  * Description: Ziwei Doushu Chart Calculator
- * Version: 0.6.7
+ * Version: 0.6.9
  * Author: kcy1989
  * License: GPL v2 or later
  * Text Domain: ziwei-cal
@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('ZIWEI_CAL_VERSION', '0.6.7'); // Bump version to force cache refresh
+define('ZIWEI_CAL_VERSION', '0.6.9'); // Bump version to force cache refresh
 define('ZIWEI_CAL_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('ZIWEI_CAL_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -246,316 +246,105 @@ function should_enqueue_frontend_assets(): bool {
 }
 
 /**
- * Enqueue styles and scripts for the plugin.
- *
- * @return void
+ * Class to manage script/style enqueuing, grouped logically for maintainability.
+ * Version 0.6.8: Refactored from monolithic function.
  */
-function ziwei_cal_enqueue_scripts(): void {
-    // Only enqueue on pages with [ziwei_cal] shortcode
-    if (!should_enqueue_frontend_assets()) {
-        return;
+class Ziwei_Enqueuer {
+    public static function enqueue_all(): void {
+        self::enqueue_styles();
+        self::enqueue_data_js();
+        self::enqueue_astrology_modules();
+        self::enqueue_display_modules();
+        self::enqueue_calculator();
     }
-    
-    wp_enqueue_style(
-        'ziwei-cal-form',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/display/css/form.css',
-        [],
-        ZIWEI_CAL_VERSION
-    );
 
-    wp_enqueue_style(
-        'ziwei-cal-chart',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/display/css/chart.css',
-        [],
-        ZIWEI_CAL_VERSION
-    );
+    private static function enqueue_styles(): void {
+        $styles = [
+            'form' => 'assets/display/css/form.css',
+            'chart' => 'assets/display/css/chart.css',
+            'control' => 'assets/display/css/control.css',
+            'cycles' => 'assets/display/css/cycles.css',
+            'palace-interaction' => 'assets/display/css/palace-interaction.css',
+            'config' => 'assets/display/css/config.css',
+            'share' => 'assets/display/css/share.css',
+        ];
+        foreach ($styles as $handle => $path) {
+            wp_enqueue_style("ziwei-cal-{$handle}", ZIWEI_CAL_PLUGIN_URL . $path, [], ZIWEI_CAL_VERSION);
+        }
+    }
 
-    wp_enqueue_style(
-        'ziwei-cal-control',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/display/css/control.css',
-        [],
-        ZIWEI_CAL_VERSION
-    );
+    private static function enqueue_data_js(): void {
+        wp_enqueue_script('ziwei-cal-constants', ZIWEI_CAL_PLUGIN_URL . 'assets/data/constants.js', [], ZIWEI_CAL_VERSION, true);
+        wp_enqueue_script('ziwei-cal-register', ZIWEI_CAL_PLUGIN_URL . 'assets/js/adapter-register.js', ['ziwei-cal-constants'], ZIWEI_CAL_VERSION, true);
+        wp_enqueue_script('ziwei-cal-lunar-converter', ZIWEI_CAL_PLUGIN_URL . 'assets/calculate/common/lunar-converter.js', ['ziwei-cal-constants'], ZIWEI_CAL_VERSION, true);
+        wp_enqueue_script('ziwei-cal-palaces-name', ZIWEI_CAL_PLUGIN_URL . 'assets/data/palaces-name.js', ['ziwei-cal-constants'], ZIWEI_CAL_VERSION, true);
+        wp_enqueue_script('ziwei-cal-nayin', ZIWEI_CAL_PLUGIN_URL . 'assets/data/nayin.js', ['ziwei-cal-constants'], ZIWEI_CAL_VERSION, true);
+        wp_enqueue_script('ziwei-cal-mutation-zhongzhou', ZIWEI_CAL_PLUGIN_URL . 'assets/data/mutation.js', ['ziwei-cal-constants'], ZIWEI_CAL_VERSION, true);
+        wp_enqueue_script('ziwei-cal-brightness-zhongzhou', ZIWEI_CAL_PLUGIN_URL . 'assets/data/brightness.js', [], ZIWEI_CAL_VERSION, true);
+    }
 
-    wp_enqueue_style(
-        'ziwei-cal-cycles',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/display/css/cycles.css',
-        [],
-        ZIWEI_CAL_VERSION
-    );
+    private static function enqueue_astrology_modules(): void {
+        $modules = [
+            'basic' => ['ziwei-cal-constants'],
+            'gender-calculator' => ['ziwei-cal-constants'],
+            'palaces' => ['ziwei-cal-palaces-name', 'ziwei-cal-basic'],
+            'primary' => ['ziwei-cal-nayin'],
+            'life-cycle' => ['ziwei-cal-constants'],
+            'secondary' => ['ziwei-cal-nayin', 'ziwei-cal-constants'],
+            'mutations' => ['ziwei-cal-mutation-zhongzhou', 'ziwei-cal-basic', 'ziwei-cal-constants'],
+            'minor-stars' => ['ziwei-cal-basic', 'ziwei-cal-constants'],
+            'attributes' => ['ziwei-cal-constants'],
+            'brightness' => ['ziwei-cal-brightness-zhongzhou'],
+            'major-cycle' => ['ziwei-cal-constants'],
+        ];
+        foreach ($modules as $handle => $deps) {
+            wp_enqueue_script("ziwei-cal-{$handle}", ZIWEI_CAL_PLUGIN_URL . "assets/calculate/astrology/{$handle}.js", $deps, ZIWEI_CAL_VERSION, true);
+        }
+    }
 
-    wp_enqueue_style(
-        'ziwei-cal-palace-interaction',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/display/css/palace-interaction.css',
-        [],
-        ZIWEI_CAL_VERSION
-    );
+    private static function enqueue_display_modules(): void {
+        wp_enqueue_script('ziwei-cal-chart', ZIWEI_CAL_PLUGIN_URL . 'assets/display/js/chart.js', ['jquery'], ZIWEI_CAL_VERSION, true);
+        
+        wp_enqueue_script('ziwei-cal-data-adapter', ZIWEI_CAL_PLUGIN_URL . 'assets/js/data-adapter.js', [
+            'ziwei-cal-lunar-converter', 'ziwei-cal-basic', 'ziwei-cal-palaces-name', 'ziwei-cal-nayin',
+            'ziwei-cal-palaces', 'ziwei-cal-primary', 'ziwei-cal-secondary', 'ziwei-cal-mutations',
+            'ziwei-cal-minor-stars', 'ziwei-cal-attributes', 'ziwei-cal-brightness', 'ziwei-cal-life-cycle', 'ziwei-cal-gender-calculator'
+        ], ZIWEI_CAL_VERSION, true);
 
-    wp_enqueue_style(
-        'ziwei-cal-config',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/display/css/config.css',
-        [],
-        ZIWEI_CAL_VERSION
-    );
+        wp_enqueue_script('ziwei-cal-cycles', ZIWEI_CAL_PLUGIN_URL . 'assets/display/js/cycles.js', ['ziwei-cal-life-cycle', 'ziwei-cal-constants', 'ziwei-cal-data-adapter'], ZIWEI_CAL_VERSION, true);
+        wp_enqueue_script('ziwei-cal-form', ZIWEI_CAL_PLUGIN_URL . 'assets/display/js/form.js', ['jquery', 'ziwei-cal-lunar-converter', 'ziwei-cal-gender-calculator', 'ziwei-cal-data-adapter'], ZIWEI_CAL_VERSION, true);
+        wp_enqueue_script('ziwei-cal-palace-interaction', ZIWEI_CAL_PLUGIN_URL . 'assets/display/js/palace-interaction.js', ['ziwei-cal-chart'], ZIWEI_CAL_VERSION, true);
+        wp_enqueue_script('ziwei-cal-config', ZIWEI_CAL_PLUGIN_URL . 'assets/display/js/config.js', ['ziwei-cal-data-adapter'], ZIWEI_CAL_VERSION, true);
+        wp_enqueue_script('ziwei-cal-control', ZIWEI_CAL_PLUGIN_URL . 'assets/display/js/control.js', ['ziwei-cal-config'], ZIWEI_CAL_VERSION, true);
+    }
 
-    wp_enqueue_style(
-        'ziwei-cal-share',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/display/css/share.css',
-        [],
-        ZIWEI_CAL_VERSION
-    );
+    private static function enqueue_calculator(): void {
+        wp_enqueue_script('ziwei-cal-js', ZIWEI_CAL_PLUGIN_URL . 'assets/calculate/common/calculator.js', [
+            'jquery', 'ziwei-cal-form', 'ziwei-cal-chart', 'ziwei-cal-palace-interaction', 'ziwei-cal-control'
+        ], ZIWEI_CAL_VERSION, true);
 
-    // Enqueue constants module FIRST (before all other scripts)
-    wp_enqueue_script(
-        'ziwei-cal-constants',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/data/constants.js',
-        [],  // No dependencies
-        ZIWEI_CAL_VERSION,
-        true
-    );
-
-    // Enqueue lunar converter library (supports 1900-2100)
-    wp_enqueue_script(
-        'ziwei-cal-lunar-converter',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/calculate/common/lunar-converter.js',
-        ['ziwei-cal-constants'],
-        ZIWEI_CAL_VERSION,
-        true
-    );
-
-    // Enqueue palace names data (supports multiple schools)
-    wp_enqueue_script(
-        'ziwei-cal-palaces-name',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/data/palaces-name.js',
-        ['ziwei-cal-constants'],
-        ZIWEI_CAL_VERSION,
-        true
-    );
-
-    // Enqueue basic astrology module (date/time conversions)
-    wp_enqueue_script(
-        'ziwei-cal-basic',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/calculate/astrology/basic.js',
-        ['ziwei-cal-constants'],
-        ZIWEI_CAL_VERSION,
-        true
-    );
-
-    // Enqueue Nayin (納音) five elements loci table
-    wp_enqueue_script(
-        'ziwei-cal-nayin',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/data/nayin.js',
-        ['ziwei-cal-constants'],
-        ZIWEI_CAL_VERSION,
-        true
-    );
-
-    // Enqueue Zhongzhou School four mutations table (中州派四化表)
-    wp_enqueue_script(
-        'ziwei-cal-mutation-zhongzhou',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/data/mutation.js',
-        ['ziwei-cal-constants'],
-        ZIWEI_CAL_VERSION,
-        true
-    );
-
-    // Enqueue astrology modules
-    wp_enqueue_script(
-        'ziwei-cal-gender',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/calculate/astrology/gender-calculator.js',
-        ['ziwei-cal-constants'],
-        ZIWEI_CAL_VERSION,
-        true
-    );
-
-    // Enqueue palaces calculation module (Ziwei Doushu system logic)
-    wp_enqueue_script(
-        'ziwei-cal-palaces',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/calculate/astrology/palaces.js',
-        ['ziwei-cal-palaces-name', 'ziwei-cal-basic'],  // Depend on palaces-name data and basic module
-        ZIWEI_CAL_VERSION,
-        true
-    );
-
-    // Enqueue primary stars placement module (14 main stars)
-    wp_enqueue_script(
-        'ziwei-cal-primary',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/calculate/astrology/primary.js',
-        ['ziwei-cal-nayin'],  // Depend on nayin loci data
-        ZIWEI_CAL_VERSION,
-        true
-    );
-
-    // Enqueue life cycle module (major cycles and twelve life stages)
-    wp_enqueue_script(
-        'ziwei-cal-life-cycle',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/calculate/astrology/life-cycle.js',
-        ['ziwei-cal-constants'],
-        ZIWEI_CAL_VERSION,
-        true
-    );
-
-    // Enqueue secondary stars placement module (13 secondary stars)
-    wp_enqueue_script(
-        'ziwei-cal-secondary',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/calculate/astrology/secondary.js',
-        ['ziwei-cal-nayin', 'ziwei-cal-constants'],  // Depend on nayin loci data for five elements calculations
-        ZIWEI_CAL_VERSION,
-        true
-    );
-
-    // Enqueue four mutations calculation module (四化)
-    wp_enqueue_script(
-        'ziwei-cal-mutations',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/calculate/astrology/mutations.js',
-        ['ziwei-cal-mutation-zhongzhou', 'ziwei-cal-basic', 'ziwei-cal-constants'],  // Depend on mutation table and basic module
-        ZIWEI_CAL_VERSION,
-        true
-    );
-
-    // Enqueue minor stars calculation module (雜曜)
-    wp_enqueue_script(
-        'ziwei-cal-minor-stars',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/calculate/astrology/minor-stars.js',
-        ['ziwei-cal-basic', 'ziwei-cal-constants'],  // Depend on basic module for index calculations
-        ZIWEI_CAL_VERSION,
-        true
-    );
-
-    // Enqueue attributes calculation module (神煞 - spiritual mood descriptors)
-    wp_enqueue_script(
-        'ziwei-cal-attributes',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/calculate/astrology/attributes.js',
-        ['ziwei-cal-constants'],  // Depend on constants
-        ZIWEI_CAL_VERSION,
-        true
-    );
-
-    // Enqueue brightness database (星曜亮度表 - Zhongzhou School)
-    wp_enqueue_script(
-        'ziwei-cal-brightness-zhongzhou',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/data/brightness.js',
-        [],  // No dependencies
-        ZIWEI_CAL_VERSION,
-        true
-    );
-
-    // Enqueue brightness calculation module (星曜亮度計算)
-    wp_enqueue_script(
-        'ziwei-cal-brightness',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/calculate/astrology/brightness.js',
-        ['ziwei-cal-brightness-zhongzhou'],  // Depend on brightness database
-        ZIWEI_CAL_VERSION,
-        true
-    );
-
-    // Enqueue major cycle stars calculation module (大限文昌, 大限文曲)
-    wp_enqueue_script(
-        'ziwei-cal-major-cycle',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/calculate/astrology/major-cycle.js',
-        ['ziwei-cal-constants'],  // Depend on constants
-        ZIWEI_CAL_VERSION,
-        true
-    );
-
-    wp_enqueue_script(
-        'ziwei-cal-data-adapter',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/js/data-adapter.js',
-        [
-            'ziwei-cal-lunar-converter',
-            'ziwei-cal-basic',
-            'ziwei-cal-palaces-name',
-            'ziwei-cal-nayin',
-            'ziwei-cal-palaces',
-            'ziwei-cal-primary',
-            'ziwei-cal-secondary',
-            'ziwei-cal-mutations',
-            'ziwei-cal-minor-stars',
-            'ziwei-cal-attributes',
-            'ziwei-cal-brightness',
-            'ziwei-cal-life-cycle',
-            'ziwei-cal-gender'
-        ],
-        ZIWEI_CAL_VERSION,
-        true
-    );
-
-    wp_enqueue_script(
-        'ziwei-cal-cycles',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/display/js/cycles.js',
-        ['ziwei-cal-life-cycle', 'ziwei-cal-constants', 'ziwei-cal-data-adapter'],
-        ZIWEI_CAL_VERSION,
-        true
-    );
-
-    wp_enqueue_script(
-        'ziwei-cal-form',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/display/js/form.js',
-        ['jquery', 'ziwei-cal-lunar-converter', 'ziwei-cal-gender', 'ziwei-cal-data-adapter'],
-        ZIWEI_CAL_VERSION,
-        true
-    );
-
-    wp_enqueue_script(
-        'ziwei-cal-chart',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/display/js/chart.js',
-        ['jquery', 'ziwei-cal-form', 'ziwei-cal-palaces', 'ziwei-cal-primary', 'ziwei-cal-secondary', 'ziwei-cal-mutations', 'ziwei-cal-minor-stars', 'ziwei-cal-attributes', 'ziwei-cal-brightness', 'ziwei-cal-major-cycle', 'ziwei-cal-cycles', 'ziwei-cal-data-adapter'],
-        ZIWEI_CAL_VERSION,
-        true
-    );
-
-    wp_enqueue_script(
-        'ziwei-cal-palace-interaction',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/display/js/palace-interaction.js',
-        ['ziwei-cal-chart'],
-        ZIWEI_CAL_VERSION,
-        true
-    );
-
-    wp_enqueue_script(
-        'ziwei-cal-config',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/display/js/config.js',
-        [],
-        ZIWEI_CAL_VERSION,
-        true
-    );
-
-    wp_enqueue_script(
-        'ziwei-cal-control',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/display/js/control.js',
-        ['ziwei-cal-config'],
-        ZIWEI_CAL_VERSION,
-        true
-    );
-
-    // NOTE: share-related heavy libraries are loaded lazily by the control bar
-    // when the user requests sharing/export. Do not enqueue them here.
-
-    wp_enqueue_script(
-        'ziwei-cal-js',
-        ZIWEI_CAL_PLUGIN_URL . 'assets/calculate/common/calculator.js',
-        ['jquery', 'ziwei-cal-form', 'ziwei-cal-chart', 'ziwei-cal-palace-interaction', 'ziwei-cal-control'],
-        ZIWEI_CAL_VERSION,
-        true
-    );
-
-    wp_localize_script(
-        'ziwei-cal-js',
-        'ziweiCalData',
-        array(
+        wp_localize_script('ziwei-cal-js', 'ziweiCalData', [
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'restUrl' => esc_url_raw(rest_url('ziwei-cal/v1/calculate')),
             'nonce' => wp_create_nonce('wp_rest'),
             'isDebug' => defined('WP_DEBUG') && WP_DEBUG,
             'pluginUrl' => ZIWEI_CAL_PLUGIN_URL,
             'pluginVersion' => ZIWEI_CAL_VERSION,
-            'env' => array(
+            'env' => [
                 'isDebug' => defined('WP_DEBUG') && WP_DEBUG,
                 'wpVersion' => get_bloginfo('version'),
                 'pluginVersion' => ZIWEI_CAL_VERSION,
-            )
-        )
-    );
+            ]
+        ]);
+    }
+}
+
+// Update ziwei_cal_enqueue_scripts to use class
+function ziwei_cal_enqueue_scripts(): void {
+    if (!should_enqueue_frontend_assets()) {
+        return;
+    }
+    Ziwei_Enqueuer::enqueue_all();
 }
 add_action('wp_enqueue_scripts', 'ziwei_cal_enqueue_scripts');
 

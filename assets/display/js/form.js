@@ -1,16 +1,27 @@
-'use strict';
+
+'use strict'; 
+
+/**
+ * Global handleSubmitForm for onclick - defined before functions
+ */
+window.handleSubmitForm = function(event) {
+  console.log('[global] onclick handleSubmitForm called');
+  if (typeof handleSubmit === 'function') {
+    handleSubmit(event);
+  } else {
+    console.error('[global] handleSubmit not ready');
+  }
+};
 
 /**
  * Form Input and Validation Module
  * 
  * Corresponding CSS: assets/display/css/form.css
- */
-
-// ============================================================================
+ */// ============================================================================
 // Module State & Constants
 // ============================================================================
 
-const DEBUG_FORM = !!(window?.ziweiCalData?.env?.isDebug);
+const DEBUG_FORM = true; // Force debug for troubleshooting
 
 const state = {
     isInitialized: false,
@@ -56,17 +67,19 @@ let _domCache = {
 // ============================================================================
 
 function log(...args) {
-    if (DEBUG_FORM) console.log('[ziwei-form]', ...args);
+    console.log('[ziwei-form]', ...args);
 }
 
 function warn(...args) {
-    if (DEBUG_FORM) console.warn('[ziwei-form]', ...args);
+    console.warn('[ziwei-form]', ...args);
 }
 
 function err(...args) {
     console.error('[ziwei-form]', ...args);
 }
 
+console.log('[form.js] Script loaded');
+console.log('[form.js] ziweiCalData:', !!window.ziweiCalData);
 
 // ============================================================================
 // Initialization & Cleanup
@@ -76,6 +89,11 @@ function err(...args) {
  * Initialize form event handlers (idempotent)
  */
 function initForm() {
+    if (state.isInitialized) {
+        console.log('[form.js] initForm already done, skip');
+        return;
+    }
+    console.log('[form.js] initForm START');
     log('Initializing form...');
     
     const form = document.getElementById('ziwei-cal-form');
@@ -125,11 +143,33 @@ function initForm() {
         setTimeout(prefillCurrentDateTime, 0);
     };
     
-    form.addEventListener('submit', handleSubmit);
+    form.addEventListener('submit', (e) => {
+    console.log('[form.js] Submit event attached and fired');
+    handleSubmit(e);
+});
     form.addEventListener('input', handleInput, { passive: true });
     form.addEventListener('reset', handleReset);
     state.listeners.push(['submit', handleSubmit], ['input', handleInput], ['reset', handleReset]);
     
+    console.log('[form.js] Caching submitBtn:', !!state.submitBtn, state.submitBtn);
+if (state.submitBtn) {
+  console.log('[form.js] Direct click listener on submitBtn');
+  state.submitBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    handleSubmit(e);
+  });
+}
+
+// Global fallback for submit button
+document.addEventListener('click', (e) => {
+  if (e.target.id === 'ziwei-submit-btn') {
+    console.log('[form.js] GLOBAL submitBtn click');
+    e.preventDefault();
+    handleSubmit(e);
+  }
+}, true);
+
+
     state.isInitialized = true;
     log('Form initialized with', state.inputs.length, 'fields');
 
@@ -485,16 +525,21 @@ function toggleBusy(busy) {
  */
 async function handleSubmit(e) {
     e.preventDefault();
-    if (!state.form) return;
-    if (state.isSubmitting) {
-        warn('Form already submitting, ignoring duplicate submission');
+    if (!state.form) {
+        console.error('[form.js] No form in state');
         return;
     }
+    if (state.isSubmitting) {
+        return;
+    }
+    console.log('[form.js] Starting submit process');
     state.isSubmitting = true;
     toggleBusy(true);
     try {
         clearAllErrors();
+        console.log('[form.js] Collected rawValues');
         const rawValues = collectValues();
+        console.log('[form.js] rawPayload ready');
         
         // Frontend validation before API call
         if (!rawValues.gender) {
@@ -518,7 +563,9 @@ async function handleSubmit(e) {
             timezone: rawValues.timezone || 'UTC+8'
         };
         log('Raw form payload collected:', rawPayload);
+        log('ziweiCalData:', window.ziweiCalData);
         if (!window.ziweiCalData || !window.ziweiCalData.nonce) {
+            console.error('[form.js] Missing ziweiCalData or nonce:', window.ziweiCalData);
             err('Missing required WordPress configuration');
             if (typeof showError === 'function') {
                 showError('系統配置錯誤，請重新載入頁面');
@@ -575,21 +622,13 @@ async function handleSubmit(e) {
             cancelable: true,
             detail
         });
-        const dispatched = state.form.dispatchEvent(event);
-        log('Form submit event dispatched:', dispatched);
+        const dispatched = document.dispatchEvent(event);
+        console.log('[form.js] ziwei-form-submit dispatched on document');
         if (!dispatched) {
-            if (typeof showError === 'function') {
-                showError('表單提交被取消');
-            }
+            console.warn('[form.js] Submit event cancelled');
         }
-    // toggleBusy(false) is handled by calculator.js
     } catch (ex) {
-        err('Error in form submission:', ex);
-        if (typeof showError === 'function') {
-            showError('提交時發生錯誤，請稍後再試');
-        }
-        state.isSubmitting = false;
-        toggleBusy(false);
+        console.error('[form.js] Submit error:', ex);
     } finally {
         if (state.isSubmitting === true) {
             state.isSubmitting = false;
@@ -845,5 +884,26 @@ window.ziweiForm = {
     showError,
     handleAdapterError,
     saveState: saveFormState,
-    restoreForm
+    restoreForm,
+    handleSubmit  // Export handleSubmit for onclick
 };
+
+// Safe single init at end
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initForm);
+} else {
+  initForm();
+}
+console.log('[form.js] Single init scheduled');
+
+// Global fallback submit listener (document level)
+document.addEventListener('submit', (e) => {
+  if (e.target.id === 'ziwei-cal-form') {
+    console.log('[form.js] Global submit fallback fired');
+    handleSubmit(e);
+  }
+}, true); // capture phase
+
+// Export for onclick
+window.ziweiFormSubmit = handleSubmit;
+console.log('[form.js] Ready - ziweiFormSubmit exported');

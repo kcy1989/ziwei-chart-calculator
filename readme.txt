@@ -5,7 +5,7 @@ Tags: 紫微斗數, 命理, 排盤, 中州派, astrology
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 0.6.7
+Stable tag: 0.6.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -22,7 +22,7 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 * ✅ 傳統直排書寫命盤顯示
 * ✅ 無需登入，匿名使用
 * ✅ 不儲存用戶資料，重視隱私
-* ✅ 支援 1900-2100 年份範圍
+* ✅ 支援 800-2200 年份範圍
 
 **開發進度與功能階段**
 
@@ -40,15 +40,9 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 10. 大限流年（✅ 完成）
 11. 派別/流派設定系統（✅ 完成）
     * Phase 11a: 個人資料隱藏（✅ v0.5.1 完成）
-    * Phase 11b: 派別選擇與規則（✅ v0.5.2+ 完成）
-12. 分享與匯出系統（🚧 開發中 - v0.6.x）
-    * Phase 12a: PNG 匯出（html2canvas）
-    * Phase 12b: PDF 匯出（jsPDF）
-    * Phase 12c: Web Share API 分享
-    * Phase 12d: 品牌水印顯示
-    * Phase 12e: AI提示詞輸出
+    * Phase 11b: 派別選擇與規則（✅ v0.5.2 完成）
+12. 分享與匯出系統（✅ v0.6.9 完成）
 13. 星曜說明與提示（⏳ 計畫中 - v0.7.0）
-14. 星曜組合解釋（⏳ 計畫中 - v0.8.0）
 
 == Installation ==
 
@@ -86,8 +80,9 @@ ziwei-cal/
 │   │   └── common/
 │   │       ├── calculator.js      # 協調層：整合 Adapter 與 REST API
 │   │       └── lunar-converter.js # 農曆轉換
-│   ├── js/                        # 全域模組
-│       └── data-adapter.js        # Adapter 層：輸入/輸出轉換、模組註冊
+│   ├── js/                        # 全域模組與工具
+│   │   ├── adapter-register.js    # 中央化模組註冊系統（統一管理模組註冊）
+│   │   └── data-adapter.js        # Adapter 層：輸入/輸出轉換、模組協調
 │   ├── display/                   # 顯示層（純 UI 邏輯，依賴 Adapter）
 │   │   ├── css/
 │   │   │   ├── chart.css          # 命盤排盤樣式（4x4 網格、宮位內容）
@@ -121,7 +116,7 @@ ziwei-cal/
 | 層級 | 位置 | 職責 | 特點 |
 |------|------|------|------|
 | **計算層** | `assets/calculate/astrology/` | 純計算邏輯 | 無 window 依賴、無副作用、易於單元測試 |
-| **協調層** | `assets/calculate/common/` + `assets/js/` | Adapter 實現、數據轉換、模組協調 | 規範化輸入/輸出、錯誤處理 |
+| **協調層** | `assets/calculate/common/` + `assets/js/` | Adapter 實現、數據轉換、模組協調 | 規範化輸入/輸出、錯誤處理、中央化模組註冊 |
 | **顯示層** | `assets/display/js/` | UI 邏輯、事件處理、DOM 操作 | 只讀數據，通過 Adapter 與計算層通訊 |
 | **資料層** | `assets/data/` | 常數、表格、配置 | 中立資料，無業務邏輯 |
 
@@ -132,7 +127,7 @@ ziwei-cal/
 * REST API 架構（無資料庫存儲）
 * 前端：Vanilla JavaScript (ES6+)
 * 樣式：純 CSS (Grid + Flexbox) + Vertical Writing
-* 農曆轉換：LunarSolarConverter (1900-2100)
+* 農曆轉換：LunarSolarConverter (800-2200)
 * 無外部依賴（無 jQuery、npm 等）
 
 **安全性：**
@@ -166,6 +161,15 @@ ziwei-cal/
 此功能將在階段 12 開發。
 
 == Changelog ==
+= 0.6.9 - 2025-12-01 =
+* 新增：下載JSON功能
+* 新增：複製JSON功能
+* 新增：分享至社交媒體功能(測試版)
+
+= 0.6.8 - 2025-11-29 =
+* 新增：下載PDF功能
+* 優化：整理計算架構
+
 = 0.6.7 - 2025-11-28 =
 * 修正：上／下一個時辰的命盤閃爍問題
 * 修正：切換宮位名稱時顯示大限和流年宮名問題

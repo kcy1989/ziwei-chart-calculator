@@ -516,7 +516,9 @@
         const shareBtn = createButton('📤', 'ziwei-control-share-btn');
         shareBtn.type = 'button';
         shareBtn.title = '分享與匯出';
+        console.log('[DEBUG] control.js: Adding ziwei-share-btn class to share button');
         shareBtn.classList.add('ziwei-share-btn');
+        console.log('[DEBUG] control.js: shareBtn classes after adding ziwei-share-btn:', shareBtn.className);
         // Make share button compatible with share.js event delegation
         shareBtn.setAttribute('data-action', 'toggle-menu');
 
@@ -531,6 +533,7 @@
 
         // Append the share button (no spinner or loading text)
         rightGroup.appendChild(shareBtn);
+        console.log('[DEBUG] control.js: share button appended to DOM');
 
         // Add click handler to load share module and toggle menu
         shareBtn.addEventListener('click', async function(e) {
@@ -678,20 +681,24 @@
             return Promise.resolve();
         }
         const pluginBase = (window.ziweiCalData && window.ziweiCalData.pluginUrl) ? window.ziweiCalData.pluginUrl : '';
+        const pluginVersion = (window.ziweiCalData && window.ziweiCalData.pluginVersion) ? window.ziweiCalData.pluginVersion : Date.now();
         const urls = {
             pako: 'https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js',
             domToImage: 'https://cdn.jsdelivr.net/npm/dom-to-image@2.6.0/dist/dom-to-image.min.js',
             upng: 'https://cdn.jsdelivr.net/npm/upng-js@2.1.0/UPNG.min.js',
-            jspdf: 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
-            share: pluginBase + 'assets/display/js/share.js'
+            jspdf: 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
+            share: pluginBase + 'assets/display/js/share.js?ver=' + pluginVersion
         };
 
         // Load lightweight libs first (in sequence to ensure globals are available)
         return ensureScript(urls.pako, ['pako'])
             .then(() => ensureScript(urls.domToImage, ['domtoimage']))
             .then(() => ensureScript(urls.upng, ['UPNG']))
-            .then(() => ensureScript(urls.jspdf, ['jsPDF', 'jspdf']))
-            .then(() => ensureScript(urls.share, ['ziweiShare']))
+            .then(() => ensureScript(urls.jspdf, ['jspdf']))
+            .then(() => {
+                console.log('[LOAD DEBUG] jsPDF post-load check:', typeof window.jspdf);
+                return ensureScript(urls.share, ['ziweiShare']);
+            })
             .catch(err => {
                 return Promise.reject(err);
             });

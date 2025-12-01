@@ -349,22 +349,34 @@ function calculateMinorStars(
     return minorStars;
 }
 
-/**
- * Helper to register module with adapter
- */
-function registerAdapterModule(name, api) {
-    // Try to register with window adapter
-    if (window.ziweiAdapter && typeof window.ziweiAdapter.registerModule === 'function') {
-        window.ziweiAdapter.registerModule(name, api);
-        return;
-    }
-    
-    // Store in pending queue for later registration
-    window.__ziweiAdapterModules = window.__ziweiAdapterModules || {};
-    window.__ziweiAdapterModules[name] = api;
-}
+// Cache for memoization
+const minorStarsCache = new Map();
+minorStarsCache.clear = minorStarsCache.clear || function() { this.clear(); }; // Ensure clear method
 
-// Expose public API through adapter (T076: No global backward compat references)
-registerAdapterModule('minorStars', {
+// Memoized wrapper
+const memoizedCalculateMinorStars = (...args) => {
+    const key = args.join(',');
+    if (minorStarsCache.has(key)) {
+        return minorStarsCache.get(key);
+    }
+    const result = calculateMinorStars(...args);
+    if (minorStarsCache.size >= 100) {
+        // Simple LRU: remove oldest (first entry)
+        const firstKey = minorStarsCache.keys().next().value;
+        minorStarsCache.delete(firstKey);
+    }
+    minorStarsCache.set(key, result);
+    return result;
+};
+
+// Override original with memoized version
+window.calculateMinorStarsMemoized = memoizedCalculateMinorStars;
+
+/**
+ * registerAdapterModule centralized in assets/js/adapter-register.js
+ */
+
+// Expose public API through centralized adapter registration (assets/js/adapter-register.js)
+window.registerAdapterModule('minorStars', {
     calculateMinorStars
 });

@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Star Brightness Database (星曜亮度表) - Multiple Schools Support
+ * Star Brightness Database - Multiple Schools Support
  * 
  * Brightness Levels:
  * 廟 (Excellent) | 旺 (Strong) | 利 (Good) | 平 (Neutral) | 陷 (Fallen)
@@ -18,24 +18,24 @@
 
 (function() {
     // ============================================================================
-    // Earthly Branches Reference (地支參考)
+    // Earthly Branches Reference
     // ============================================================================
     const BRANCHES = (window.ziweiConstants && window.ziweiConstants.BRANCH_NAMES) ||
                      ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
     
     // ============================================================================
-    // Brightness Lookup Tables (亮度查表)
+    // Brightness Lookup Tables
     // Format: starName: [brightness at branch 0, brightness at branch 1, ..., brightness at branch 11]
     // Order: Follows primary.js → secondary.js calculation sequence
     // ============================================================================
     
     // ========================================================================
-    // 斗數全書 - Doushu Quanquan (Complete Scripture)
+    // Doushu Quanquan (Complete Scripture)
     // Brightness table based on methods documented in "紫微斗數全書"
     // ========================================================================
     const brightnessTableShuoshu = {
         // ========================================================================
-        // 紫微系主星
+        // Ziwei System Main Stars
         // ========================================================================
         '紫微': ['平', '廟', '廟', '旺', '陷', '旺', '廟', '廟', '旺', '平', '閒', '旺'],
         '天機': ['廟', '陷', '地', '旺', '利', '平', '廟', '陷', '地', '旺', '利', '平'],
@@ -45,7 +45,7 @@
         '廉貞': ['平', '利', '廟', '平', '利', '陷', '平', '利', '廟', '平', '利', '陷'],
         
         // ========================================================================
-        // 天府系主星
+        // Tianfu System Main Stars
         // ========================================================================
         '天府': ['廟', '廟', '廟', '地', '廟', '地', '旺', '廟', '地', '旺', '廟', '地'],
         '太陰': ['廟', '廟', '旺', '陷', '陷', '陷', '失', '失', '利', '旺', '旺', '廟'],
@@ -58,7 +58,7 @@
 
                 
         // ========================================================================
-        // 輔星
+        // Auxiliary Stars
         // ========================================================================
         '天魁': ['旺', '旺', '-', '廟', '-', '-', '廟', '-', '-', '-', '-', '旺'],
         '天鉞': ['-', '-', '旺', '-', '-', '旺', '-', '旺', '廟', '廟', '-', '-'],
@@ -149,7 +149,7 @@
     // Public API - School-specific databases
     // ============================================================================
     
-    // 斗數全書 (Doushu Quanquan - methods from Complete Scripture)
+    // Doushu Quanquan (methods from Complete Scripture)
     window.BrightnessShuoshu = createBrightnessDatabase(brightnessTableShuoshu);
     
     // ============================================================================

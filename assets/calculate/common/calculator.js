@@ -229,22 +229,15 @@ function setCachedResult(cacheKey, result) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('Calculator initializing...');
-    
-    // Initialize form handling
-    window.ziweiForm.init();
-    console.log('Form initialized');
-
-    // Get container element
+    console.log('[calculator.js] DOMContentLoaded fired');
+    // Removed redundant window.ziweiForm.init() - form.js self-inits
     const container = document.querySelector('.ziwei-cal');
     if (!container) {
-        console.error('Container not found: .ziwei-cal');
+        console.error('[calculator.js] No .ziwei-cal container');
         return;
     }
-
-    // Add form submission event listener
-    container.addEventListener('ziwei-form-submit', async (e) => {
-        console.log('Form submission event received:', e.detail);
+    console.log('[calculator.js] Container found, adding listener');
+    document.addEventListener('ziwei-form-submit', async (e) => {
         const { formData } = e.detail;
 
         // Save form state for back button
@@ -261,9 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const calculationResult = await computeChartWithCache(formData);
 
             // Update chart display
-            console.log('Drawing chart...');
             const chartHtml = await showChart(calculationResult);
-            console.log('Chart element created:', chartHtml);
             await updateDisplay(chartHtml, calculationResult);
 
         } catch (err) {
@@ -409,7 +400,7 @@ async function computeChartInternal(normalizedInput) {
  * Computation with caching support
  * Checks cache first, then performs computation if needed
  * @param {Object} formData The form data to compute
- * @returns {Promise<Object>} The chart data from API or cache
+* @returns {Promise<Object>} The chart data from API or cache
  */
 async function computeChartWithCache(formData) {
     const startTime = performance.now();
@@ -696,9 +687,17 @@ window.showChart = async function showChart(chartData) {
         // provided chartData if adapterOutput isn't present.
         if (chartData && chartData.adapterOutput) {
             if (CACHE_CONFIG.debug) console.log('[ziweiCalculator] showChart forwarding adapterOutput + calcResult wrapper to renderer');
+            console.log('[DEBUG CALC] About to call ziweiChart.draw. window.ziweiChart exists:', !!window.ziweiChart, 'draw function:', typeof (window.ziweiChart?.draw));
+            if (!window.ziweiChart || typeof window.ziweiChart.draw !== 'function') {
+                throw new Error('Chart renderer ziweiChart.draw not loaded. Verify chart.js script execution.');
+            }
             return window.ziweiChart.draw(chartData);
         }
         if (CACHE_CONFIG.debug) console.log('[ziweiCalculator] showChart forwarding provided chartData to renderer');
+        console.log('[DEBUG CALC] About to call ziweiChart.draw. window.ziweiChart exists:', !!window.ziweiChart, 'draw function:', typeof (window.ziweiChart?.draw));
+        if (!window.ziweiChart || typeof window.ziweiChart.draw !== 'function') {
+            throw new Error('Chart renderer ziweiChart.draw not loaded. Verify chart.js script execution.');
+        }
         return window.ziweiChart.draw(chartData);
     } catch (err) {
         console.error('[ziweiCalculator] showChart wrapper failed:', err);
