@@ -919,10 +919,10 @@
                 cyclePanel.parentNode.insertBefore(panelElement, cyclePanel.nextSibling);
             }
         } else {
-            // Fallback: try to find chart wrapper
-            const chartWrapper = document.querySelector('.ziwei-chart-wrapper');
-            if (chartWrapper && !panelElement.parentNode) {
-                chartWrapper.appendChild(panelElement);
+            // Fallback: try to find the main container (not chart-wrapper, to avoid scroll issues)
+            const mainContainer = document.querySelector('.ziwei-cal[data-ziwei-mode="chart"]');
+            if (mainContainer && !panelElement.parentNode) {
+                mainContainer.appendChild(panelElement);
             }
         }
 

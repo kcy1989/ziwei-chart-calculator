@@ -683,26 +683,27 @@
         margin: 2px auto;
         padding: 0;
         border-radius: 4px;
-        overflow: hidden;
+        overflow-x: auto;
+        overflow-y: visible;
         box-shadow: none;
+        -webkit-overflow-scrolling: touch;
     }
 
     .ziwei-chart-wrapper {
         min-width: auto;
-        width: 100%;
+        width: max-content;
         overflow: visible;
     }
 
     .ziwei-cal[data-ziwei-mode="chart"] .ziwei-4x4-grid {
         width: 100vw;
         height: 100vw;
-        min-width: 300px;
-        min-height: 300px;
+        min-width: 320px;
+        min-height: 320px;
         max-width: 640px;
         max-height: 640px;
         border-width: 1px;
-        border-left: none;
-        border-right: none;
+        margin: 0;
     }
 
     .ziwei-cal[data-ziwei-mode="chart"] .ziwei-cell {
@@ -803,14 +804,14 @@
 
     /* Minor stars - smaller */
     .ziwei-minor-stars-container {
-        top: 42px;
+        top: 40px;
         gap: 0;
     }
 
     .ziwei-minor-star {
-        font-size: 10px;
-        width: 11px;
-        min-width: 11px;
+        font-size: 9px;
+        width: 10px;
+        min-width: 10px;
     }
 
     /* Attributes (神煞) - smaller */
@@ -820,61 +821,62 @@
     }
 
     .ziwei-attribute {
-        font-size: 9px;
+        font-size: 8px;
     }
 
-    /* Palace labels */
+    /* Palace labels - smaller to avoid overlap with major cycle */
     .ziwei-palace-container {
         bottom: 2px;
         right: 2px;
     }
 
     .ziwei-palace-label {
-        font-size: 11px;
+        font-size: 9px;
     }
 
     /* Life cycle container - smaller */
     .ziwei-life-cycle-container {
-        margin-left: 14px;
-        margin-right: 28px;
+        margin-left: 12px;
+        margin-right: 22px;
         padding: 1px;
         gap: 0;
     }
 
     .ziwei-major-cycle {
-        font-size: 9px;
+        font-size: 8px;
     }
 
     .ziwei-life-stage {
-        font-size: 10px;
+        font-size: 9px;
     }
 
-    /* Cycle stars - MUST SHRINK */
+    /* Cycle stars - position higher to avoid overlap with minor stars */
     .ziwei-cycle-stars-wrapper {
-        bottom: 24px;
+        bottom: 22px;
         left: 1px;
     }
 
     .ziwei-major-cycle-star,
     .ziwei-annual-cycle-star {
-        font-size: 10px;
-        width: 11px;
-        min-width: 11px;
+        font-size: 9px;
+        width: 10px;
+        min-width: 10px;
     }
 }
 
 @media (max-width: 400px) {
     .ziwei-cal[data-ziwei-mode="chart"] {
         padding: 0;
-        margin: 0 auto;
+        margin: 0;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
     .ziwei-cal[data-ziwei-mode="chart"] .ziwei-4x4-grid {
         width: 100vw;
         height: 100vw;
         border-width: 1px;
-        border-left: none;
-        border-right: none;
+        margin: 0;
     }
 
     .ziwei-cal[data-ziwei-mode="chart"] .ziwei-cell {
@@ -958,48 +960,48 @@
 
     /* Minor stars */
     .ziwei-minor-stars-container {
-        top: 36px;
+        top: 34px;
     }
 
     .ziwei-minor-star {
-        font-size: 9px;
-        width: 10px;
-        min-width: 10px;
+        font-size: 8px;
+        width: 9px;
+        min-width: 9px;
     }
 
     /* Attributes */
     .ziwei-attribute {
-        font-size: 8px;
+        font-size: 7px;
     }
 
-    /* Palace labels */
+    /* Palace labels - even smaller */
     .ziwei-palace-label {
-        font-size: 10px;
+        font-size: 8px;
     }
 
     /* Life cycle */
     .ziwei-life-cycle-container {
-        margin-left: 12px;
-        margin-right: 24px;
+        margin-left: 10px;
+        margin-right: 18px;
     }
 
     .ziwei-major-cycle {
-        font-size: 8px;
+        font-size: 7px;
     }
 
     .ziwei-life-stage {
-        font-size: 9px;
+        font-size: 8px;
     }
 
-    /* Cycle stars */
+    /* Cycle stars - position higher */
     .ziwei-cycle-stars-wrapper {
-        bottom: 20px;
+        bottom: 18px;
     }
 
     .ziwei-major-cycle-star,
     .ziwei-annual-cycle-star {
-        font-size: 9px;
-        width: 10px;
-        min-width: 10px;
+        font-size: 8px;
+        width: 9px;
+        min-width: 9px;
     }
 }
