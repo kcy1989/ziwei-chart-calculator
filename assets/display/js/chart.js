@@ -1,6 +1,5 @@
 'use strict';
 
-
 /**
  * Chart rendering module for Ziwei Calculator
  * 
@@ -12,7 +11,6 @@
 // Registry objects used to coordinate cycle panel interactions
 let cycleDisplayRegistry = Object.create(null);
 let starMutationRegistry = Object.create(null);
-const minorBucketsCache = new Map();
 let starElementIndex = new Map(); // Reverse index: starName -> HTMLElement[]
 let lastPalaceDataRef = {};
 let currentMajorCycleMingIndex = null;
@@ -864,195 +862,6 @@ function draw(context) {
         return document.createElement('div');
     }
 
-    // In-place update mode: reuse existing grid
-    if (context.updateMode && context.targetGrid) {
-        const grid = context.targetGrid;
-        const existingWrapper = grid.closest('.ziwei-chart-wrapper') || grid.parentElement;
-        if (!grid || !existingWrapper) {
-            console.error('[ziweiChart] Invalid targetGrid for updateMode');
-            return existingWrapper || document.createElement('div');
-        }
-
-        // Clear existing content with visual feedback
-        grid.style.transition = 'none';
-        grid.style.opacity = '0.3';
-        grid.innerHTML = '';
-
-        // Reset registries for new content
-        resetCycleRegistries();
-        clearMajorCycleStars();
-        clearMajorCycleMutations();
-        clearAnnualCycleMutations();
-
-        const meta = adapterOutput.meta || {};
-        const sections = adapterOutput.sections || {};
-        const derived = adapterOutput.derived || {};
-        const palaces = sections.palaces || derived.palaces || {};
-        const primaryStars = sections.primaryStars || {};
-        const secondaryStars = sections.secondaryStars || {};
-        const minorStars = sections.minorStars || {};
-        const mutations = sections.mutations || null;
-        const attributes = sections.attributes || null;
-        const brightness = sections.brightness || {};
-        const lifeCycles = sections.lifeCycles || {};
-        const nayinInfo = derived.nayin || { loci: null, name: '' };
-        const lunarYear = adapterOutput.lunar?.lunarYear || 0;
-        const timeIndex = adapterOutput.indices?.timeIndex ?? adapterOutput.lunar?.timeIndex ?? 0;
-
-        // Validate data (same as normal mode)
-        const expectPrimary = adapterHasModule('primary');
-        const expectSecondary = adapterHasModule('secondary');
-        const expectMinor = adapterHasModule('minorStars');
-        const expectMutations = adapterHasModule('mutations');
-        const expectAttributes = adapterHasModule('attributes');
-
-        if (!palaces || Object.keys(palaces).length === 0) {
-            console.error('[ziweiChart] Palace data missing', adapterOutput.errors?.palaces);
-            failAndAbort('宮位計算失敗：無法取得任何宮位，請檢查出生資料是否完整');
-        }
-        if (expectPrimary && (!primaryStars || Object.keys(primaryStars).length === 0)) {
-            console.error('[ziweiChart] Primary stars missing', adapterOutput.errors?.primaryStars);
-            failAndAbort('主星計算失敗：無法安置主星，請檢查輸入或聯絡管理員');
-        }
-        if (expectSecondary && (!secondaryStars || Object.keys(secondaryStars).length === 0)) {
-            console.error('[ziweiChart] Secondary stars missing', adapterOutput.errors?.secondaryStars);
-            failAndAbort('輔星計算失敗：無法安置輔佐星曜');
-        }
-        if (expectMinor && (!minorStars || Object.keys(minorStars).length === 0)) {
-            console.error('[ziweiChart] Minor stars missing', adapterOutput.errors?.minorStars);
-            failAndAbort('雜曜計算失敗：無法產生雜曜資料');
-        }
-        if (expectMutations && (!mutations || Object.keys(mutations).length === 0)) {
-            console.error('[ziweiChart] Mutation data missing', adapterOutput.errors?.mutations);
-            failAndAbort('四化計算失敗：無法計算生年四化標記');
-        }
-        if (expectAttributes && (!attributes || Object.keys(attributes).length === 0)) {
-            console.error('[ziweiChart] Attribute data missing', adapterOutput.errors?.attributes);
-            failAndAbort('神煞計算失敗：無法取得神煞或太歲資料');
-        }
-
-        lastPalaceDataRef = palaces;
-
-        const minorStarsKey = JSON.stringify(minorStars || {});
-        let minorStarsBuckets;
-        if (minorBucketsCache.has(minorStarsKey)) {
-            minorStarsBuckets = minorBucketsCache.get(minorStarsKey);
-        } else {
-            minorStarsBuckets = Array.from({ length: 12 }, () => []);
-            if (minorStars && typeof minorStars === 'object') {
-                Object.entries(minorStars).forEach(([starName, placement]) => {
-                    if (Array.isArray(placement)) {
-                        placement.forEach((idx) => {
-                            if (idx >= 0 && idx < 12) {
-                                minorStarsBuckets[idx].push(starName);
-                            }
-                        });
-                    } else if (typeof placement === 'number' && placement >= 0 && placement < 12) {
-                        minorStarsBuckets[placement].push(starName);
-                    }
-                });
-            }
-            minorBucketsCache.set(minorStarsKey, minorStarsBuckets);
-        }
-
-        const majorCycles = Array.isArray(lifeCycles.major) ? lifeCycles.major : [];
-        const twelveLongLifePositions = lifeCycles.twelve || {};
-
-        const lifeCyclePayload = {
-            majorCycles,
-            twelveLongLifePositions,
-            nayinLoci: nayinInfo.loci,
-            mingPalaceIndex: derived.mingPalace ? derived.mingPalace.index : null,
-            palaceData: palaces,
-            timeIndex
-        };
-        majorCycles.forEach((cycle) => {
-            if (cycle && Number.isInteger(cycle.palaceIndex)) {
-                lifeCyclePayload[cycle.palaceIndex] = cycle;
-            }
-        });
-
-        const hasPalaceData = Object.keys(palaces).length > 0;
-        grid.dataset.lunarYear = String(lunarYear);
-
-        // Direct render palaces (no skeleton/fade)
-        for (let row = 1; row <= 4; row++) {
-            for (let col = 1; col <= 4; col++) {
-                if ((row === 2 || row === 3) && (col === 2 || col === 3)) {
-                    continue;
-                }
-                grid.appendChild(createPalaceCell(
-                    row,
-                    col,
-                    palaces,
-                    primaryStars,
-                    secondaryStars,
-                    lifeCyclePayload,
-                    mutations,
-                    minorStarsBuckets,
-                    attributes,
-                    hasPalaceData,
-                    brightness.primary || {},
-                    brightness.secondary || {}
-                ));
-            }
-        }
-
-        // Render center cell
-        grid.appendChild(createCenterCell(meta, palaces, lunarYear, derived.mingPalace, nayinInfo.name));
-
-        // Immediate post-render init (no delay)
-        const initializePostRender = () => {
-            try {
-                const adapter = window.ziweiAdapter;
-                if (adapter && adapter.storage && typeof adapter.storage.set === 'function') {
-                    adapter.storage.set('adapterOutput', adapterOutput);
-                    if (calcResult) {
-                        adapter.storage.set('calcResult', calcResult);
-                    }
-                    adapter.storage.set('meta', Object.assign({}, meta, { lunar: adapterOutput.lunar }));
-                    adapter.storage.set('normalizedInput', adapterOutput.normalized || {});
-                }
-            } catch (e) {}
-
-            const palaceInteraction = window.initializePalaceInteraction
-                ? window.initializePalaceInteraction(grid) || null
-                : null;
-
-            const cyclePanel = window.ziweiCycles && typeof window.ziweiCycles.initializeCyclePanel === 'function'
-                ? window.ziweiCycles.initializeCyclePanel(lifeCyclePayload, grid, palaceInteraction)
-                : null;
-
-            // Remove existing cycle panels before appending new one to prevent accumulation on updates
-            existingWrapper.querySelectorAll('.ziwei-cycle-panel').forEach(panel => panel.remove());
-
-            if (cyclePanel && existingWrapper && !existingWrapper.contains(cyclePanel)) {
-                existingWrapper.appendChild(cyclePanel);
-            }
-        };
-        initializePostRender();
-
-        // Reapply personal info
-        if (window.ziweiConfig?.reapplyPersonalInfoStateImmediately) {
-            window.ziweiConfig.reapplyPersonalInfoStateImmediately(existingWrapper);
-        }
-
-        // Dispatch chart-drawn event
-        if (window.dispatchEvent) {
-            const chartDrawnEvent = new CustomEvent("ziwei-chart-drawn", {
-                detail: {
-                    chartWrapper: existingWrapper,
-                    meta: meta,
-                    timestamp: Date.now(),
-                    palaceCount: Object.keys(palaces).length
-                }
-            });
-            window.dispatchEvent(chartDrawnEvent);
-        }
-
-        return existingWrapper;
-    }
-
     const grid = document.createElement('div');
     grid.className = 'ziwei-4x4-grid';
     grid.style.opacity = '0';
@@ -1071,6 +880,9 @@ function draw(context) {
     const mutations = sections.mutations || null;
     const attributes = sections.attributes || null;
     const brightness = sections.brightness || {};
+    if (window.ziweiCalData && window.ziweiCalData.env && window.ziweiCalData.env.isDebug) {
+        console.log('[ziweiChart.draw] brightness:', brightness);
+    }
     const lifeCycles = sections.lifeCycles || {};
     const nayinInfo = derived.nayin || { loci: null, name: '' };
     const lunarYear = adapterOutput.lunar?.lunarYear || 0;
@@ -1109,26 +921,19 @@ function draw(context) {
 
     lastPalaceDataRef = palaces;
 
-    const minorStarsKey = JSON.stringify(minorStars || {});
-    let minorStarsBuckets;
-    if (minorBucketsCache.has(minorStarsKey)) {
-        minorStarsBuckets = minorBucketsCache.get(minorStarsKey);
-    } else {
-        minorStarsBuckets = Array.from({ length: 12 }, () => []);
-        if (minorStars && typeof minorStars === 'object') {
-            Object.entries(minorStars).forEach(([starName, placement]) => {
-                if (Array.isArray(placement)) {
-                    placement.forEach((idx) => {
-                        if (idx >= 0 && idx < 12) {
-                            minorStarsBuckets[idx].push(starName);
-                        }
-                    });
-                } else if (typeof placement === 'number' && placement >= 0 && placement < 12) {
-                    minorStarsBuckets[placement].push(starName);
-                }
-            });
-        }
-        minorBucketsCache.set(minorStarsKey, minorStarsBuckets);
+    const minorStarsBuckets = Array.from({ length: 12 }, () => []);
+    if (minorStars && typeof minorStars === 'object') {
+        Object.entries(minorStars).forEach(([starName, placement]) => {
+            if (Array.isArray(placement)) {
+                placement.forEach((idx) => {
+                    if (idx >= 0 && idx < 12) {
+                        minorStarsBuckets[idx].push(starName);
+                    }
+                });
+            } else if (typeof placement === 'number' && placement >= 0 && placement < 12) {
+                minorStarsBuckets[placement].push(starName);
+            }
+        });
     }
 
     const majorCycles = Array.isArray(lifeCycles.major) ? lifeCycles.major : [];
@@ -1151,36 +956,36 @@ function draw(context) {
     const hasPalaceData = Object.keys(palaces).length > 0;
     grid.dataset.lunarYear = String(lunarYear);
 
-    // ========== PHASE 1: Quick Skeleton Render (骨架屏) ==========
-    // Render palace borders only (no content) for immediate visual feedback
-    const palaceCellsSkeleton = [];
     for (let row = 1; row <= 4; row++) {
         for (let col = 1; col <= 4; col++) {
             if ((row === 2 || row === 3) && (col === 2 || col === 3)) {
                 continue;
             }
-            const skeletonCell = document.createElement('div');
-            skeletonCell.className = 'ziwei-cell ziwei-skeleton';
-            skeletonCell.style.gridColumn = col;
-            skeletonCell.style.gridRow = row;
-            skeletonCell.style.border = '1px solid #ddd';
-            skeletonCell.style.opacity = '0.3';
-            grid.appendChild(skeletonCell);
-            palaceCellsSkeleton.push({ row, col, element: skeletonCell });
+            grid.appendChild(createPalaceCell(
+                row,
+                col,
+                palaces,
+                primaryStars,
+                secondaryStars,
+                lifeCyclePayload,
+                mutations,
+                minorStarsBuckets,
+                attributes,
+                hasPalaceData,
+                brightness.primary || {},
+                brightness.secondary || {}
+            ));
         }
     }
 
-    // Add center cell skeleton
-    const centerCellSkeleton = document.createElement('div');
-    centerCellSkeleton.className = 'ziwei-center-big ziwei-skeleton';
-    centerCellSkeleton.style.gridColumn = '2 / span 2';
-    centerCellSkeleton.style.gridRow = '2 / span 2';
-    centerCellSkeleton.style.background = '#f6f8fb';
-    centerCellSkeleton.style.opacity = '0.3';
-    centerCellSkeleton.style.border = '1px solid #ddd';
-    grid.appendChild(centerCellSkeleton);
+    grid.appendChild(createCenterCell(meta, palaces, lunarYear, derived.mingPalace, nayinInfo.name));
 
-    grid.style.opacity = '1';
+    requestAnimationFrame(() => {
+        grid.style.transition = 'opacity 300ms ease';
+        requestAnimationFrame(() => {
+            grid.style.opacity = '1';
+        });
+    });
 
     const chartWrapper = document.createElement('div');
     chartWrapper.className = 'ziwei-chart-wrapper';
@@ -1195,80 +1000,28 @@ function draw(context) {
     chartWrapper.style.marginBottom = '30px';
     chartWrapper.appendChild(grid);
 
-    // ========== PHASE 2: Render full palace cells asynchronously ==========
-    const renderPhase2 = () => {
-        // Clear skeleton cells
-        palaceCellsSkeleton.forEach(item => item.element.remove());
-        centerCellSkeleton.remove();
-
-        // Render actual palace cells
-        for (let row = 1; row <= 4; row++) {
-            for (let col = 1; col <= 4; col++) {
-                if ((row === 2 || row === 3) && (col === 2 || col === 3)) {
-                    continue;
-                }
-                grid.appendChild(createPalaceCell(
-                    row,
-                    col,
-                    palaces,
-                    primaryStars,
-                    secondaryStars,
-                    lifeCyclePayload,
-                    mutations,
-                    minorStarsBuckets,
-                    attributes,
-                    hasPalaceData,
-                    brightness.primary || {},
-                    brightness.secondary || {}
-                ));
+    try {
+        const adapter = window.ziweiAdapter;
+        if (adapter && adapter.storage && typeof adapter.storage.set === 'function') {
+            adapter.storage.set('adapterOutput', adapterOutput);
+            if (calcResult) {
+                adapter.storage.set('calcResult', calcResult);
             }
+            adapter.storage.set('meta', Object.assign({}, meta, { lunar: adapterOutput.lunar }));
+            adapter.storage.set('normalizedInput', adapterOutput.normalized || {});
         }
+    } catch (e) {}
 
-        // Render center cell with all details
-        grid.appendChild(createCenterCell(meta, palaces, lunarYear, derived.mingPalace, nayinInfo.name));
+    const palaceInteraction = window.initializePalaceInteraction
+        ? window.initializePalaceInteraction(grid) || null
+        : null;
 
-        // Fade in all new content
-        requestAnimationFrame(() => {
-            grid.style.transition = 'opacity 300ms ease';
-            requestAnimationFrame(() => {
-                grid.style.opacity = '1';
-            });
-        });
-    };
-
-    // Trigger phase 2 render after a minimal delay to let browser paint skeleton
-    requestAnimationFrame(() => {
-        setTimeout(renderPhase2, 16);
-    });
-
-    // ========== PHASE 3: Initialize interactions & cycles (延遲至內容完成後) ==========
-    const initializePostRender = () => {
-        try {
-            const adapter = window.ziweiAdapter;
-            if (adapter && adapter.storage && typeof adapter.storage.set === 'function') {
-                adapter.storage.set('adapterOutput', adapterOutput);
-                if (calcResult) {
-                    adapter.storage.set('calcResult', calcResult);
-                }
-                adapter.storage.set('meta', Object.assign({}, meta, { lunar: adapterOutput.lunar }));
-                adapter.storage.set('normalizedInput', adapterOutput.normalized || {});
-            }
-        } catch (e) {}
-
-        const palaceInteraction = window.initializePalaceInteraction
-            ? window.initializePalaceInteraction(grid) || null
-            : null;
-
-        const cyclePanel = window.ziweiCycles && typeof window.ziweiCycles.initializeCyclePanel === 'function'
-            ? window.ziweiCycles.initializeCyclePanel(lifeCyclePayload, grid, palaceInteraction)
-            : null;
-        if (cyclePanel) {
-            chartWrapper.appendChild(cyclePanel);
-        }
-    };
-
-    // Schedule phase 3 after phase 2 completes (after fade-in animation ~300ms)
-    setTimeout(initializePostRender, 350);
+    const cyclePanel = window.ziweiCycles && typeof window.ziweiCycles.initializeCyclePanel === 'function'
+        ? window.ziweiCycles.initializeCyclePanel(lifeCyclePayload, grid, palaceInteraction)
+        : null;
+    if (cyclePanel) {
+        chartWrapper.appendChild(cyclePanel);
+    }
     // Reapply personal info visibility state from sessionStorage immediately
     if (window.ziweiConfig?.reapplyPersonalInfoStateImmediately) {
         window.ziweiConfig.reapplyPersonalInfoStateImmediately(chartWrapper);
@@ -1569,21 +1322,8 @@ function createCenterCell(meta, palaceData = {}, lunarYear = 0, mingPalaceData =
     cell.style.background = '#f6f8fb';
     cell.style.display = 'flex';
     cell.style.flexDirection = 'column';
-    cell.style.justifyContent = 'flex-start';
-    cell.style.alignItems = 'center';
-
-    // Title at the top
-    const titleContainer = document.createElement('div');
-    titleContainer.className = 'ziwei-center-title';
-    const titleLine1 = document.createElement('div');
-    titleLine1.className = 'ziwei-center-title-line1';
-    titleLine1.textContent = '晉賢紫微斗數';
-    const titleLine2 = document.createElement('div');
-    titleLine2.className = 'ziwei-center-title-line2';
-    titleLine2.textContent = 'little-yin.com';
-    titleContainer.appendChild(titleLine1);
-    titleContainer.appendChild(titleLine2);
-    cell.appendChild(titleContainer);
+    cell.style.justifyContent = 'center';
+    cell.style.alignItems = 'flex-start';
 
     // left-aligned container inside center cell
     const left = document.createElement('div');
