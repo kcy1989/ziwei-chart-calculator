@@ -485,6 +485,8 @@
 .ziwei-minor-stars-container {
     position: absolute;
     left: 2px;
+    /* Nudge minor (雜曜) stars slightly upward to avoid overlap
+       with the cycle/annual stars below */
     top: 62px;
     display: flex;
     flex-direction: row;
@@ -804,7 +806,8 @@
 
     /* Minor stars - smaller */
     .ziwei-minor-stars-container {
-        top: 40px;
+        /* adjusted upward to reduce overlap with 流曜 */
+        top: 37px;
         gap: 0;
     }
 
@@ -960,7 +963,8 @@
 
     /* Minor stars */
     .ziwei-minor-stars-container {
-        top: 34px;
+        /* adjusted upward for very small screens */
+        top: 30px;
     }
 
     .ziwei-minor-star {
