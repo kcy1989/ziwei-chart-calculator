@@ -1,15 +1,25 @@
+/**
+ * Secondary Stars Placement Module
+ * 
+ * Calculates positions of 13 secondary stars:
+ * - 左輔, 右彼 (Left/Right Assistant)
+ * - 文昌, 文曲 (Literary Talent/Craft)
+ * - 地空, 地劫 (Earthly Emptiness/Robbery)
+ * - 天魁, 天鈥 (Celestial Canopy/Seal)
+ * - 祿存, 擎羊, 陀羅 (Prosperity/Positive Poison/Curved Trap)
+ * - 火星, 鈴星 (Fire/Bells)
+ * 
+ * Dependencies:
+ * - assets/js/data-adapter.js (ziweiAdapter)
+ * 
+ * Exports: registerAdapterModule('secondary', ...)
+ */
+
 'use strict';
 
-/**
- * Secondary Stars Placement Module for Ziwei Doushu
- * Calculates positions of 12 secondary stars:
- * 1. Left Assistant (左輔), Right Assist (右弼)
- * 2. Literary Talent (文昌), Literary Craft (文曲)
- * 3. Earthly Emptiness (地空), Earthly Robbery (地劫)
- * 4. Celestial Canopy (天魁), Celestial Seal (天鉞)
- * 5. Prosperity (祿存), Positive Poison (擎羊), Curved Trap (陀羅)
- * 6. Fire (火星), Bells (鈴星)
- */
+// ============================================================================
+// Adapter Helpers
+// ============================================================================
 
 /**
  * Helper to get adapter module
@@ -241,22 +251,7 @@ function getSecondaryStarsForPalace(palaceIndex, secondaryStarsMap) {
         .map(([name, index]) => name);
 }
 
-/**
- * Helper to register module with adapter
- */
-function registerAdapterModule(name, api) {
-    // Try to register with window adapter
-    if (window.ziweiAdapter && typeof window.ziweiAdapter.registerModule === 'function') {
-        window.ziweiAdapter.registerModule(name, api);
-        return;
-    }
-    
-    // Store in pending queue for later registration
-    window.__ziweiAdapterModules = window.__ziweiAdapterModules || {};
-    window.__ziweiAdapterModules[name] = api;
-}
-
-// Expose public API through centralized adapter registration (assets/js/adapter-register.js)
+// Expose public API through centralized adapter registration (assets/js/adapter-utils.js)
 window.registerAdapterModule('secondary', {
     calculateAllSecondaryStars,
     getSecondaryStarsForPalace,

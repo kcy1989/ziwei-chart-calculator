@@ -1,13 +1,30 @@
+/**
+ * Control Bar Module
+ * 
+ * Manages navigation and control buttons for the Ziwei chart view:
+ * back button, hour navigation, settings toggle, and share button.
+ * Settings UI and logic are delegated to config.js.
+ * 
+ * Dependencies:
+ * - assets/data/constants.js (ziweiConstants)
+ * - assets/js/data-adapter.js (ziweiAdapter)
+ * - assets/display/js/config.js (ziweiConfig)
+ * 
+ * Corresponding CSS:
+ * - assets/display/css/control.css
+ * - assets/display/css/config.css (for settings panel)
+ * 
+ * Exports: window.ziweiControl
+ */
+
 'use strict';
 
-/**
- * Control bar module manages navigation and settings buttons for the Ziwei chart view.
- * Settings UI and logic are delegated to config.js
- * 
- * Corresponding CSS: assets/display/css/control.css
- *                    assets/display/css/config.css (for settings panel)
- */
 (function () {
+
+    // ============================================================================
+    // Module Constants
+    // ============================================================================
+
     const CONTROL_SELECTOR = '.ziwei-control-bar';
     const SETTINGS_SELECTOR = '.ziwei-settings-panel';
 
@@ -178,14 +195,20 @@
      */
     function handleHourChange(direction) {
         const adapter = getAdapterInstance();
-        if (!adapter || !adapter.input || !adapter.output) {
+        if (!adapter || !adapter.normalizeInput) {
             console.error('[ziweiControl] Data adapter not available');
+            return;
+        }
+
+        // Get the stored form input to modify
+        const storedFormInput = getAdapterStorageValue('formInput');
+        if (!storedFormInput) {
+            console.error('[ziweiControl] No stored form input found');
             return;
         }
 
         const meta = getLatestMetaFromAdapter();
         if (!meta) {
-            console.warn('[ziweiControl] No chart data available');
             return;
         }
 
@@ -224,10 +247,18 @@
             ? adjustDate(year, month, day, dateOffset)
             : { year, month, day };
 
+        // Modify the stored form input with new time
+        const rawInput = { ...storedFormInput };
+        rawInput.year = String(newDate.year);
+        rawInput.month = String(newDate.month);
+        rawInput.day = String(newDate.day);
+        rawInput.hour = String(newHour);
+        rawInput.minute = String(newMinute);
+
         // Include ziHourHandling from adapter settings when available so normalization
         // computes lunar with the correct 子時換日 mode.
-        var ziHandling = null;
-        var leapHandling = null;
+        let ziHandling = null;
+        let leapHandling = null;
         try {
             ziHandling = getAdapterSettingValue('ziHourHandling');
         } catch (e) {
@@ -245,25 +276,29 @@
             leapHandling = 'mid';
         }
 
-        const rawInput = {
-            name: meta.name || '',
-            gender: meta.gender || '',
-            year: String(newDate.year),
-            month: String(newDate.month),
-            day: String(newDate.day),
-            hour: String(newHour),
-            minute: String(newMinute),
-            birthplace: meta.birthplace || '',
-            calendarType: meta.calendarType || 'solar',
-            leapMonth: '',
-            leapMonthHandling: leapHandling,
-            ziHourHandling: ziHandling || undefined,
-            timezone: meta.timezone || 'UTC+8'
-        };
+        rawInput.leapMonthHandling = leapHandling;
+        rawInput.ziHourHandling = ziHandling || undefined;
+
+        // Ensure no null or empty values in rawInput to prevent validation failures
+        if (rawInput.name == null || rawInput.name === '') rawInput.name = '';
+        if (rawInput.gender == null || rawInput.gender === '') rawInput.gender = 'M';
+        if (rawInput.year == null || rawInput.year === '') rawInput.year = String(new Date().getFullYear());
+        if (rawInput.month == null || rawInput.month === '') rawInput.month = '1';
+        if (rawInput.day == null || rawInput.day === '') rawInput.day = '1';
+        if (rawInput.hour == null || rawInput.hour === '') rawInput.hour = '0';
+        if (rawInput.minute == null || rawInput.minute === '') rawInput.minute = '0';
+        if (rawInput.birthplace == null || rawInput.birthplace === '') rawInput.birthplace = '';
+        if (rawInput.calendarType == null || rawInput.calendarType === '') rawInput.calendarType = 'solar';
+        if (rawInput.leapMonth == null || rawInput.leapMonth === '') rawInput.leapMonth = '';
+        if (rawInput.leapMonthHandling == null || rawInput.leapMonthHandling === '') rawInput.leapMonthHandling = 'mid';
+        if (rawInput.ziHourHandling == null || rawInput.ziHourHandling === '') rawInput.ziHourHandling = '';
+
+
+
 
         let normalized;
         try {
-            normalized = adapter.input.normalize(rawInput);
+            normalized = adapter.normalizeInput(rawInput);
         } catch (adapterError) {
             console.error('[ziweiControl] Adapter normalization failed:', adapterError);
             if (adapter.errors?.isAdapterError?.(adapterError) && window.ziweiForm?.handleAdapterError) {
@@ -271,6 +306,17 @@
             } else {
                 window.ziweiForm?.showError(adapterError.message || '資料轉換失敗，請稍後再試');
             }
+            return;
+        }
+
+        // Perform full calculation to get proper adapterOutput with sections
+        // NOTE: adapter.calculate() expects raw input data, not normalized data
+        let adapterOutput;
+        try {
+            adapterOutput = adapter.calculate(rawInput);
+        } catch (calcError) {
+            console.error('[ziweiControl] Calculation failed:', calcError);
+            window.ziweiForm?.showError(calcError.message || '計算失敗，請稍後再試');
             return;
         }
 
@@ -286,15 +332,6 @@
                 lunar: normalized.lunar
             }
         };
-
-        let adapterOutput;
-        try {
-            adapterOutput = adapter.output.process(calcResult, normalized);
-        } catch (processError) {
-            console.error('[ziweiControl] Adapter output processing failed:', processError);
-            window.ziweiForm?.showError('命盤資料處理失敗，請稍後再試');
-            return;
-        }
 
     // adapterOutput prepared and persisted to adapter.storage
 
@@ -314,14 +351,16 @@
         // In-place update
         const existingChart = document.querySelector('[data-ziwei-chart]');
         if (existingChart) {
-            const targetGrid = existingChart.querySelector('.ziwei-4x4-grid');
-            window.ziweiChart.draw({
+            const newChartElement = window.ziweiChart.draw({
                 calcResult,
                 normalizedInput: normalized,
-                adapterOutput,
-                updateMode: true,
-                targetGrid
+                adapterOutput
             });
+
+            // Replace existing chart with new one
+            if (newChartElement) {
+                updateChartDisplay(newChartElement, { adapterOutput });
+            }
         }
 
         // Reapply settings
@@ -349,7 +388,7 @@
             };
 
             window.submitToApi(payload).catch(error => {
-                console.warn('[ziweiControl] Background API validation failed (non-critical):', error);
+                // Non-critical - background validation failed silently
             });
         }, 0);
     }
@@ -453,7 +492,6 @@
         }
 
         // Fallback if config.js not loaded
-        console.warn('[ziweiControl] config.js not loaded, cannot create settings panel');
         return null;
     }
 
@@ -498,8 +536,6 @@
             const chartElement = mountNode.querySelector('[data-ziwei-chart]');
             if (chartElement && window.ziweiForm && typeof window.ziweiForm.restoreForm === 'function') {
                 window.ziweiForm.restoreForm(chartElement);
-            } else {
-                console.warn('[ziweiControl] Cannot restore form: chart element or ziweiForm.restoreForm not found');
             }
         });
 
@@ -513,12 +549,11 @@
 
         // Create a lightweight Share button (visible immediately).
         // The heavy share module will be loaded lazily when the user clicks it.
-        const shareBtn = createButton('📤', 'ziwei-control-share-btn');
+        const shareBtn = createButton('🔄', 'ziwei-control-share-btn');
         shareBtn.type = 'button';
-        shareBtn.title = '分享與匯出';
-        console.log('[DEBUG] control.js: Adding ziwei-share-btn class to share button');
+        // Use aria-label instead of title to avoid browser-native tooltip
+        shareBtn.setAttribute('aria-label', '分享與匯出');
         shareBtn.classList.add('ziwei-share-btn');
-        console.log('[DEBUG] control.js: shareBtn classes after adding ziwei-share-btn:', shareBtn.className);
         // Make share button compatible with share.js event delegation
         shareBtn.setAttribute('data-action', 'toggle-menu');
 
@@ -533,7 +568,6 @@
 
         // Append the share button (no spinner or loading text)
         rightGroup.appendChild(shareBtn);
-        console.log('[DEBUG] control.js: share button appended to DOM');
 
         // Add click handler to load share module and toggle menu
         shareBtn.addEventListener('click', async function(e) {
@@ -695,10 +729,7 @@
             .then(() => ensureScript(urls.domToImage, ['domtoimage']))
             .then(() => ensureScript(urls.upng, ['UPNG']))
             .then(() => ensureScript(urls.jspdf, ['jspdf']))
-            .then(() => {
-                console.log('[LOAD DEBUG] jsPDF post-load check:', typeof window.jspdf);
-                return ensureScript(urls.share, ['ziweiShare']);
-            })
+            .then(() => ensureScript(urls.share, ['ziweiShare']))
             .catch(err => {
                 return Promise.reject(err);
             });

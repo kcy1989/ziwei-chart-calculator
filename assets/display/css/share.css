@@ -82,6 +82,7 @@
   display: none;
   flex-direction: column;
   z-index: 100;
+  overflow: visible; /* Allow tooltips to extend beyond menu boundaries */
 }
 
 .ziwei-share-menu.open {
@@ -106,6 +107,7 @@
   align-items: center;
   overflow: hidden;
   text-overflow: ellipsis;
+  position: relative; /* allow tooltip to position relative to each item */
 }
 
 .ziwei-share-option:first-child {
@@ -131,64 +133,37 @@
 }
 
 /* ==================
- Social Media Options (T021)
- ================== */
+   Tooltips (T024)
+   ================== */
 
-.ziwei-share-option.ziwei-social-option {
-display: flex;
-align-items: center;
-gap: 8px;
-font-size: 14px;
-padding: 12px 16px;
+.ziwei-share-option[data-title]::after {
+  content: attr(data-title);
+  position: fixed;
+  top: var(--tooltip-top, -100px);
+  left: var(--tooltip-left, -100px);
+  transform: translateY(-50%);
+  background-color: rgba(0, 0, 0, 0.75); /* slightly transparent black background */
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  white-space: nowrap; /* force single line */
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  z-index: 10000;
+  max-width: 220px; /* cap width, show ellipsis if longer */
+  box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+  line-height: 1.4;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  transition-delay: 0.5s;
 }
 
-.ziwei-share-option.ziwei-social-option:hover:not(:disabled) {
-background-color: #f0f0f0;
+.ziwei-share-option[data-title]:hover::after {
+  opacity: 1;
 }
 
-.ziwei-share-option.ziwei-social-option:disabled {
-opacity: 0.4;
-background-color: #f8f8f8 !important;
-}
-
-/* ==================
- Menu Divider (T022)
- ================== */
-
-.ziwei-share-divider {
-height: 1px;
-background-color: #e0e0e0;
-margin: 8px 12px;
-border: none;
-}
-
-/* ==================
- Mobile-First Responsive Design (T023)
- ================== */
-
-@media (max-width: 768px) {
-.ziwei-share-option.ziwei-social-option {
-  padding: 14px 18px;
-  font-size: 15px;
-  min-height: 48px;
-}
-
-.ziwei-share-divider {
-  margin: 10px 16px;
-}
-}
-
-@media (max-width: 480px) {
-.ziwei-share-option.ziwei-social-option {
-  padding: 12px 16px;
-  font-size: 14px;
-  min-height: 44px;
-}
-
-.ziwei-share-divider {
-  margin: 8px 14px;
-}
-}
 
 /* ==================
    Loading State (T019)
@@ -265,6 +240,51 @@ border: none;
 /* ==================
    Print Mode (Extra Support)
    ================== */
+
+/* ==================
+   Toast Notification (T025)
+   ================== */
+
+.ziwei-share-toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #4CAF50;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 10000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  animation: ziwei-toast-fadeInUp 0.3s ease;
+}
+
+.ziwei-share-toast.fade-out {
+  animation: ziwei-toast-fadeOutDown 0.3s ease forwards;
+}
+
+@keyframes ziwei-toast-fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes ziwei-toast-fadeOutDown {
+  from {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+}
 
 @media print {
   html, body {

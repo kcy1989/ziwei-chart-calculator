@@ -1,17 +1,26 @@
-'use strict';
-
 /**
  * Star Brightness Calculator (星曜亮度計算)
  * 
- * Calculates and retrieves brightness (廟旺利陷) for primary and secondary stars
+ * Calculates and retrieves brightness (廃旺利陷) for primary and secondary stars
  * based on star name and palace information (heavenly stem + earthly branch).
+ * 
+ * Brightness Levels:
+ * - 廃 (Excellent) | 旺 (Strong) | 利 (Good) | 平 (Neutral) | 陷 (Fallen)
  * 
  * Supports brightness schools:
  * - 'shuoshu' (斗數全書) - Default, primary reference
  * 
  * Dependencies:
- * - assets/data/brightness.js: Brightness database (window.BrightnessDatabase)
+ * - assets/data/brightness.js (BrightnessDatabase)
+ * 
+ * Exports: registerAdapterModule('brightness', ...)
  */
+
+'use strict';
+
+// ============================================================================
+// Primary Stars Brightness
+// ============================================================================
 
 /**
  * Calculate brightness for primary stars
@@ -26,7 +35,6 @@
 function calculatePrimaryBrightness(primaryStars, palaceMapping, school = 'shuoshu') {
     
     if (!primaryStars || typeof primaryStars !== 'object') {
-        console.warn('[Brightness] Invalid primaryStars data');
         return {};
     }
 
@@ -77,7 +85,6 @@ function calculatePrimaryBrightness(primaryStars, palaceMapping, school = 'shuos
 function calculateSecondaryBrightness(secondaryStars, palaceMapping, school = 'shuoshu') {
     
     if (!secondaryStars || typeof secondaryStars !== 'object') {
-        console.warn('[Brightness] Invalid secondaryStars data');
         return {};
     }
 
@@ -116,9 +123,32 @@ function calculateSecondaryBrightness(secondaryStars, palaceMapping, school = 's
 }
 
 /**
+ * Calculate brightness for all stars (primary and secondary combined)
+ *
+ * @param {Object} primaryStars - Primary stars map from placePrimaryStars()
+ *                                Format: { '紫微': 0, '天機': 1, ... }
+ * @param {Object} secondaryStars - Secondary stars map from calculateAllSecondaryStars()
+ *                                Format: { '左輔': 0, '右弼': 1, ... }
+ * @param {Object} palaceMapping - Palace information with stem and branch
+ *                                 Format: { 0: { stem, stemIndex, branchZhi, branchIndex, ... }, ... }
+ * @param {string} school - Brightness school name (default: 'shuoshu')
+ * @returns {Object} Brightness data structured as { primary: { starName: brightness }, secondary: { starName: brightness } }
+ */
+function calculateAllBrightness(primaryStars, secondaryStars, palaceMapping, school = 'shuoshu') {
+    const primaryBrightness = calculatePrimaryBrightness(primaryStars, palaceMapping, school);
+    const secondaryBrightness = calculateSecondaryBrightness(secondaryStars, palaceMapping, school);
+
+    // Return structured data as expected by chart.js
+    return {
+        primary: primaryBrightness,
+        secondary: secondaryBrightness
+    };
+}
+
+/**
  * Get brightness database for a specific school
  * Uses the main BrightnessDatabase interface from data/brightness.js
- * 
+ *
  * @param {string} school - School name (default: 'shuoshu')
  * @returns {Object|null} Brightness database interface or null
  */
@@ -128,7 +158,7 @@ function getBrightnessDatabase(school = 'shuoshu') {
     if (database && typeof database.getDatabase === 'function') {
         return database.getDatabase(school);
     }
-    
+
     // Fallback to direct window reference if main interface not available
     return window.BrightnessShuoshu || null;
 }
@@ -152,6 +182,7 @@ function getStarBrightness(starName, branchIndex, school = 'shuoshu') {
 
 // Expose public API via adapter module registration
 registerAdapterModule('brightness', {
+    calculateAllBrightness,
     calculatePrimaryBrightness,
     calculateSecondaryBrightness,
     getStarBrightness,

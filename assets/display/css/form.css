@@ -267,11 +267,35 @@ body {
     white-space: nowrap;
 }
 
-/* Year input field */
+/* Year input field - now text input */
 .ziwei-cal-year-input {
     width: 90px;
-    min-width: 80px;
+    min-width: 90px;
+    max-width: 90px;
     flex-shrink: 0;
+    padding: 8px 12px;
+    font-size: 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    font-family: inherit;
+    background: white;
+    text-align: center;
+}
+
+/* Override general input width for year input */
+.ziwei-cal-form-group input[type="text"].ziwei-cal-year-input,
+.ziwei-cal-date-section .ziwei-cal-year-input {
+    width: 90px;
+    min-width: 90px;
+    max-width: 90px;
+}
+
+/* Focus state for year input */
+.ziwei-cal-year-input:focus {
+    outline: none;
+    border-color: #5dade2;
+    box-shadow: 0 0 0 3px rgba(93, 173, 226, 0.1);
 }
 
 /* Month and day input fields */

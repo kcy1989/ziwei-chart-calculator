@@ -1,7 +1,21 @@
 /**
- * Palaces calculation module for Ziwei Doushu
- * Determines the position of Ming Palace (命宮), Shen Palace (身宮), and assigns all 12 palace names
+ * Palaces Calculation Module
+ * 
+ * Determines the position of Ming Palace (命宮), Shen Palace (身宮),
+ * and assigns all 12 palace names based on birth data.
+ * 
+ * Dependencies:
+ * - assets/js/data-adapter.js (ziweiAdapter)
+ * - assets/calculate/astrology/basic.js (basic module)
+ * 
+ * Exports: registerAdapterModule('palaces', ...)
  */
+
+'use strict';
+
+// ============================================================================
+// Adapter Helpers
+// ============================================================================
 
 /**
  * Helper to get adapter module
@@ -21,7 +35,6 @@ function getAdapterModule(name) {
  */
 function calculatePalacePositions(meta) {
     if (!meta || !meta.lunar) {
-        console.warn('Invalid metadata for palace calculation:', meta);
         return {};
     }
 
@@ -34,7 +47,6 @@ function calculatePalacePositions(meta) {
     const year = lunar.lunarYear || lunar.year;
     
     if (!month || !day || hour === undefined) {
-        console.warn('Invalid lunar date for palace calculation. Data:', { month, day, hour, year }, 'Full lunar:', lunar);
         return {};
     }
 
@@ -124,12 +136,8 @@ function createPalaceMapping(mingPalacePosition, shenPalacePosition, school = 's
             try {
                 stemInfo = basicModule.getPalaceStemByIndex(palaceIndex, lunarYear);
             } catch (err) {
-                console.error('Error calculating stem for palace:', err);
+                // Silently fail - stem calculation not critical
             }
-        } else if (!basicModule) {
-            console.warn('Basic module not available for stem calculation');
-        } else if (typeof basicModule.getPalaceStemByIndex !== 'function') {
-            console.warn('getPalaceStemByIndex is not a function in basic module');
         }
         
     // Get earthly branch character (地支) from constants

@@ -1,9 +1,21 @@
 /**
- * Primary Stars Placement Module for Ziwei Doushu
+ * Primary Stars Placement Module
+ * 
  * Handles placement of 14 primary stars including:
- * - Ziwei Star System (紫微星系)
- * - Tianfu Star System (天府星系)
+ * - Ziwei Star System (紫微星系): 紫微, 天機, 太陽, 武曲, 天同, 廉貞
+ * - Tianfu Star System (天府星系): 天府, 太陰, 貪狼, 巨門, 天相, 天梁, 七殺, 破軍
+ * 
+ * Dependencies:
+ * - assets/js/data-adapter.js (ziweiAdapter)
+ * 
+ * Exports: registerAdapterModule('primary', ...)
  */
+
+'use strict';
+
+// ============================================================================
+// Adapter Helpers
+// ============================================================================
 
 /**
  * Helper to get adapter module
@@ -221,22 +233,7 @@ function placePrimaryStars(chartData) {
     return primaryStars;
 }
 
-/**
- * Helper to register module with adapter
- */
-function registerAdapterModule(name, api) {
-    // Try to register with window adapter
-    if (window.ziweiAdapter && typeof window.ziweiAdapter.registerModule === 'function') {
-        window.ziweiAdapter.registerModule(name, api);
-        return;
-    }
-    
-    // Store in pending queue for later registration
-    window.__ziweiAdapterModules = window.__ziweiAdapterModules || {};
-    window.__ziweiAdapterModules[name] = api;
-}
-
-// Expose public API through centralized adapter registration (assets/js/adapter-register.js)
+// Expose public API through centralized adapter registration (assets/js/adapter-utils.js)
 window.registerAdapterModule('primary', {
     calculateZiweiStarPosition,
     calculateZiweiSystemStars,

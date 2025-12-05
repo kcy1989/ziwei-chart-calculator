@@ -1,8 +1,21 @@
 /**
  * Basic Ziwei Doushu Calculations
- * Handles month index transformation and leap month adjustments
- * Time index is generated in lunar-converter.js
+ * 
+ * Handles month index transformation, leap month adjustments,
+ * and year/time stem-branch calculations. Time index is generated
+ * in lunar-converter.js.
+ * 
+ * Dependencies:
+ * - assets/data/constants.js (ziweiConstants)
+ * 
+ * Exports: registerAdapterModule('basic', ...)
  */
+
+'use strict';
+
+// ============================================================================
+// Month Index Calculation
+// ============================================================================
 
 /**
  * Convert lunar month to month index (0-11)
@@ -64,7 +77,6 @@ function getBasicIndices(lunar, leapMonthMode) {
     const isLeapMonth = lunar.isLeapMonth || lunar.isleap || false;
 
     if (!month || !day || timeIndex === undefined) {
-        console.warn('Invalid lunar date for basic indices:', lunar);
         return { monthIndex: 0, timeIndex: 0 };
     }
 

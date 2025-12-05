@@ -1,8 +1,25 @@
 /**
  * Ziwei Doushu Four Mutations System
- * Default: Zhongzhou School (中州派) for all 10 heavenly stems
+ * 
+ * Default: Zhongzhou School (中州派) for all 10 heavenly stems.
  * Controversial stems (甲、乙、丙、丁、戊、己) have alternative interpretations
+ * that users can select.
+ * 
+ * Dependencies: None
+ * 
+ * Exports:
+ * - window.MutationZhongzhou
+ * - window.getMutation
+ * - window.getAllMutations
+ * - window.updateStemSelections
+ * - window.getCurrentStemSelections
  */
+
+'use strict';
+
+// ============================================================================
+// Default Zhongzhou School Mutations
+// ============================================================================
 
 // Default Zhongzhou School Four Mutations (10 heavenly stems)
 const MutationZhongzhou = {
@@ -184,10 +201,9 @@ function initializeFromAdapter() {
             
             if (Object.keys(loadedSelections).length > 0) {
                 currentStemSelections = { ...DefaultControversialInterpretations, ...loadedSelections };
-                console.log('[ziweiMutations] Loaded user selections from adapter:', loadedSelections);
             }
         } catch (e) {
-            console.warn('[ziweiMutations] Failed to load selections from adapter:', e);
+            // Silently fail - use default selections
         }
     }
 }
@@ -234,9 +250,8 @@ const updateStemSelections = function(newSelections) {
                 const settingName = `stemInterpretation_${stem}`;
                 adapter.settings.set(settingName, newSelections[stem]);
             });
-            console.log('[ziweiMutations] Persisted user selections to adapter:', newSelections);
         } catch (e) {
-            console.warn('[ziweiMutations] Failed to persist selections to adapter:', e);
+            // Silently fail - settings not persisted
         }
     }
 };
@@ -265,8 +280,6 @@ const getInterpretationName = function(tiangan, interpretationKey) {
     
     return '中州派';
 };
-
-console.log('Ziwei Doushu Four Mutations System loaded');
 
 // Export functions for testing (in Node.js environment)
 if (typeof module !== 'undefined' && module.exports) {

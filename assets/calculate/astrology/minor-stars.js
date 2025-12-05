@@ -1,14 +1,25 @@
-'use strict';
-
 /**
  * Minor Stars (雜曜) Calculation Module
  * 
- * This module calculates positions of minor/miscellaneous stars in Ziwei Doushu.
- * Note: Current formulas are placeholders for testing display effects.
- * These will be updated with accurate astrological calculations later.
+ * Calculates positions of miscellaneous stars in Ziwei Doushu including:
+ * - Time-based stars (時系星): 台輔, 封誥, 天空, 天刑, 天姚, 解神, etc.
+ * - Day-based stars (日系星): 三台, 八座, 恩光, 天貴
+ * - Month-based stars (月系星): 天才, 天壽
+ * - Year-based stars (年系星): 天官, 天福, 天廚, etc.
+ * - Void stars (空亡星): 截空, 旬空
  * 
- * @module MinorStars
+ * Dependencies:
+ * - assets/js/data-adapter.js (ziweiAdapter)
+ * - assets/calculate/astrology/basic.js (basic module)
+ * 
+ * Exports: registerAdapterModule('minorStars', ...)
  */
+
+'use strict';
+
+// ============================================================================
+// Adapter Helpers
+// ============================================================================
 
 /**
  * Helper to get adapter module

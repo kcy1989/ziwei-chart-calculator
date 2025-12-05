@@ -1,0 +1,218 @@
+/* ========================================
+   Ziwei Interpretation Panel Styles (v2)
+   
+   SCOPE: This file manages the interpretation table displayed
+          when a user clicks on a palace cell.
+          
+   LAYOUT: Four-column table (Item1 | Interp1 | Item2 | Interp2)
+           Positioned below the cycle panel
+           
+   v2 Changes:
+   - 4-column layout for compact display
+   - Narrower item columns (18%)
+   - Section headers span 4 columns
+   ======================================== */
+
+/* ========================================
+   1. Panel Container
+   ======================================== */
+
+.ziwei-interpretation-panel {
+     width: 100%;
+     max-width: 640px;
+     margin: ０px auto 5px auto;
+     padding: 16px;
+     background: #fefefe;
+     border: 1px solid #d0d7de;
+     border-radius: 8px;
+     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+     display: none; /* Hidden by default, shown via JS */
+     box-sizing: border-box;
+     overflow-x: auto;
+ }
+
+/* ========================================
+   2. Table Structure
+   ======================================== */
+
+.ziwei-interp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    line-height: 1.6;
+    table-layout: fixed;
+    margin: 0;
+}
+
+.ziwei-interp-table td,
+.ziwei-interp-table th {
+    padding: 4px 8px 2px;
+    border-bottom: 1px solid #eee;
+    vertical-align: middle;
+}
+
+/* ========================================
+   3. Section Headers
+   ======================================== */
+
+.ziwei-interp-section-header th {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    color: #495057;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: left;
+    padding: 5px 8px;
+    border-bottom: 2px solid #d0d7de;
+    letter-spacing: 0.5px;
+}
+
+/* ========================================
+   4. Item Columns (1st and 3rd columns)
+   ======================================== */
+
+.ziwei-interp-item {
+    font-weight: 500;
+    color: #2c3e50;
+    white-space: nowrap;
+    border-right: 1px solid #f0f0f0;
+}
+
+.ziwei-interp-link {
+    color: #3498db;
+    text-decoration: none;
+    transition: color 0.2s ease;
+    border-bottom: 1px dashed transparent;
+}
+
+.ziwei-interp-link:hover {
+    color: #2980b9;
+    border-bottom-color: #2980b9;
+}
+
+.ziwei-interp-link:visited {
+    color: #8e44ad;
+}
+
+/* ========================================
+   5. Interpretation Columns (2nd and 4th columns)
+   ======================================== */
+
+.ziwei-interp-text {
+    color: #555;
+    font-size: 13px;
+}
+
+/* Add visual separator between column pairs */
+.ziwei-interp-row td:nth-child(2) {
+    border-right: 2px solid #e9ecef;
+}
+
+/* ========================================
+   6. Row Styling
+   ======================================== */
+
+.ziwei-interp-row:hover {
+    background: #f8f9fa;
+}
+
+.ziwei-interp-row:last-child td {
+    border-bottom: none;
+}
+
+/* Alternating row colors (optional, subtle) */
+.ziwei-interp-row:nth-child(even) {
+    background: #fcfcfc;
+}
+
+.ziwei-interp-row:nth-child(even):hover {
+    background: #f5f5f5;
+}
+
+/* ========================================
+    7. Empty Palace Styling
+    ======================================== */
+
+/* Empty palace now styled same as primary stars */
+
+/* ========================================
+   8. Mutation Suffix Styling
+   ======================================== */
+
+/* Stars with mutations get a subtle highlight */
+.ziwei-interp-link[href*="化祿"],
+.ziwei-interp-link[href*="化權"],
+.ziwei-interp-link[href*="化科"],
+.ziwei-interp-link[href*="化忌"] {
+    font-weight: 600;
+}
+
+/* ========================================
+   9. Responsive Adjustments
+   ======================================== */
+
+@media (max-width: 640px) {
+    .ziwei-interpretation-panel {
+        max-width: 100%;
+        margin: 0 8px 10px 8px;
+        padding: 10px;
+    }
+
+    .ziwei-interp-table {
+        font-size: 12px;
+    }
+
+    .ziwei-interp-table td,
+    .ziwei-interp-table th {
+        padding: 3px 6px 1px;
+    }
+
+    .ziwei-interp-item {
+        width: 14%;
+        font-size: 11px;
+    }
+
+    .ziwei-interp-text {
+        width: 36%;
+        font-size: 11px;
+    }
+}
+
+/* Stack to 2-column on very small screens */
+@media (max-width: 400px) {
+    .ziwei-interp-item {
+        width: 25%;
+    }
+
+    .ziwei-interp-text {
+        width: 75%;
+    }
+
+    /* Hide the second pair of columns */
+    .ziwei-interp-row td:nth-child(3),
+    .ziwei-interp-row td:nth-child(4) {
+        display: none;
+    }
+
+    .ziwei-interp-row td:nth-child(2) {
+        border-right: none;
+    }
+}
+
+/* ========================================
+   10. Animation
+   ======================================== */
+
+.ziwei-interpretation-panel {
+    animation: fadeInPanel 0.2s ease-out;
+}
+
+@keyframes fadeInPanel {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

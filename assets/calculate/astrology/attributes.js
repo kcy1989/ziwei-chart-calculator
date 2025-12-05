@@ -1,17 +1,24 @@
-'use strict';
-
 /**
- * Attributes (神煞) Calculation Module
+ * Attributes (神煎) Calculation Module
  * 
- * Three main categories of Tai Sui stars (太歲神煞):
- * 1. Tai Sui (太歲) - 12 stars starting from year branch
- * 2. Jiang Qian (將前) - 12 stars starting from calculated position
- * 3. Bo Shi (博士) - 12 stars starting from Lu Cun (祿存) position
+ * Calculates three main categories of Tai Sui stars (太歲神煎):
+ * - Tai Sui (太歲) - 12 stars starting from year branch
+ * - Jiang Qian (將前) - 12 stars starting from calculated position
+ * - Bo Shi (博士) - 12 stars starting from Lu Cun (祿存) position
  * 
  * Each palace receives stars from all three categories combined.
  * 
- * @module Attributes
+ * Dependencies:
+ * - assets/js/data-adapter.js (ziweiAdapter)
+ * 
+ * Exports: registerAdapterModule('attributes', ...)
  */
+
+'use strict';
+
+// ============================================================================
+// Star Name Tables
+// ============================================================================
 
 /**
  * Tai Sui (太歲) - 12 sequential stars starting from year branch
@@ -166,20 +173,12 @@ function getAttributesForPalace(palaceIndex, attributesMap) {
 }
 
 /**
- * registerAdapterModule centralized in assets/js/adapter-register.js
+ * Register module with adapter
  */
-
-// Expose public API (T076: No global backward compat references)
-registerAdapterModule('attributes', {
-    calculateAttributes: calculateAllAttributes,
-    calculateAllAttributes,
-    getAttributesForPalace
-});
-
-// Expose public API through centralized adapter registration
 window.registerAdapterModule('attributes', {
     calculateTaiSui,
     calculateJiangQian,
     calculateBoShi,
-    calculateAllAttributes
+    calculateAllAttributes,
+    getAttributesForPalace
 });

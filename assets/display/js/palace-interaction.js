@@ -1,11 +1,8 @@
-'use strict';
-
 /**
- * Palace Interaction Module (Optimized)
- * Handles click events on palace cells to highlight three-way-four-square (三方四正)
- * and draw connection lines using Canvas API
+ * Palace Interaction Module
  * 
- * Corresponding CSS: assets/display/css/palace-interaction.css
+ * Handles click events on palace cells to highlight three-way-four-square (三方四正)
+ * and draw connection lines using Canvas API.
  * 
  * Performance optimizations:
  * - Pre-computed tri-square lookup table
@@ -15,7 +12,16 @@
  * - Differential class updates (only change what's needed)
  * - Event delegation for click handling
  * - Fixed 640x640px canvas (no responsive resizing)
+ * 
+ * Dependencies:
+ * - assets/data/constants.js (ziweiConstants)
+ * 
+ * Corresponding CSS: assets/display/css/palace-interaction.css
+ * 
+ * Exports: window.initializePalaceInteraction
  */
+
+'use strict';
 
 /**
  * Initialize palace interaction for the chart
@@ -114,8 +120,8 @@ function initializePalaceInteraction(grid) {
         
         // Validate mapping
         const mappedCount = cellsByBranchIndex.filter(c => c !== null).length;
-        if (mappedCount < 12) {
-            console.warn(`[Palace Interaction] Only ${mappedCount}/12 cells mapped.`);
+        if (DEBUG && mappedCount < 12) {
+            console.log(`[Palace Interaction] Only ${mappedCount}/12 cells mapped.`);
         } else if (DEBUG) {
             console.log('[Palace Interaction] All 12 cells mapped successfully');
         }
@@ -244,6 +250,11 @@ function initializePalaceInteraction(grid) {
                 console.error('[Palace Interaction] Error in clear callback:', e);
             }
         }
+        
+        // Dispatch palace cleared event for interpretation panel
+        if (document.dispatchEvent) {
+            document.dispatchEvent(new CustomEvent('ziwei-palace-cleared'));
+        }
     }
     
     /**
@@ -256,7 +267,6 @@ function initializePalaceInteraction(grid) {
      */
     function highlightRelatedPalaces(branchIndex, source) {
         if (branchIndex < 0 || branchIndex > 11) {
-            console.warn(`[Palace Interaction] Invalid branchIndex: ${branchIndex}`);
             return;
         }
         
@@ -318,6 +328,13 @@ function initializePalaceInteraction(grid) {
         
         // Draw connection lines immediately (synchronous) for instant visual feedback
         drawConnectionLines(branchIndex, related);
+        
+        // Dispatch palace selected event for interpretation panel
+        if (document.dispatchEvent) {
+            document.dispatchEvent(new CustomEvent('ziwei-palace-selected', {
+                detail: { branchIndex, source, related }
+            }));
+        }
     }
     
     // ============================================================================

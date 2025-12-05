@@ -1,26 +1,32 @@
 /**
  * Palace Names Database
- * Stores palace names for different Ziwei Doushu schools and traditions
- * Supports multiple schools/派別 for future expansion
+ * 
+ * Stores palace names for different Ziwei Doushu schools and traditions.
+ * Supports multiple schools/派別 for future expansion.
+ * 
+ * Dependencies: None
+ * 
+ * Exports: window.getPalaceNames, window.getShenPalaceCombined
  */
 
-/**
- * Default/Standard palace names (紫微斗數十二宮 - 標準派)
- * Used as the primary naming system
- */
+'use strict';
+
+// ============================================================================
+// Standard Palace Names (紫微斗數十二宮 - 標準派)
+// ============================================================================
 const PALACE_NAMES_STANDARD = [
-    '命宮',    
-    '父母',    
-    '福德',    
-    '田宅',    
-    '事業',    
-    '交友',    
-    '遷移',    
-    '疾厄',    
-    '財帛',    
-    '子女',    
-    '夫妻',    
-    '兄弟'    
+    '命宮',
+    '父母',
+    '福德',
+    '田宅',
+    '事業',
+    '交友',
+    '遷移',
+    '疾厄',
+    '財帛',
+    '子女',
+    '夫妻',
+    '兄弟'
 ];
 
 /**
@@ -34,12 +40,12 @@ const PALACE_NAMES_STANDARD = [
 const SHEN_PALACE_COMBINE = {
     // Default/Standard combinations
     '命宮': '身命',     // Shen + Ming
-    '夫妻': '身夫',     // Shen + Spouse
-    '財帛': '身財',     // Shen + Wealth
-    '遷移': '身遷',     // Shen + Travel
-    '事業': '身事',     // Shen + Career (default)
-    '官祿': '身官',     // Shen + Official
-    '福德': '身福'      // Shen + Fortune
+    '福德': '身福', // Shen + Fortune
+    '事業': '身事', // Shen + Career (default)
+    '官祿': '身官',   // Shen + Official
+    '夫妻': '身夫', // Shen + Spouse
+    '財帛': '身財', // Shen + Wealth
+    '遷移': '身遷', // Shen + Travel
 };
 
 /**

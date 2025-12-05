@@ -13,11 +13,19 @@
  * Heavenly stems grouped into 5 categories (甲乙, 丙丁, 戊己, 庚辛, 壬癸)
  * Earthly branches grouped into 6 categories (子丑, 寅卯, 辰巳, 午未, 申酉, 戌亥)
  * Total: 5 x 6 = 30 possibilities
+ * 
+ * Dependencies: None
+ * 
+ * Exports: window.nayinTable, window.getNayinJu
  */
 
+'use strict';
+
+// ============================================================================
+// Wuxing Loci Table - 6x5 Matrix Format
+// ============================================================================
+
 /**
- * Wuxing Loci Table - 6x5 Matrix Format
- * 
  * Rows: Earthly Branch Groups (地支)
  *   Row 0: 子丑 (indices 0-1)
  *   Row 1: 寅卯 (indices 2-3)
@@ -32,7 +40,6 @@
  *   Col 2: 戊己 (indices 4-5)
  *   Col 3: 庚辛 (indices 6-7)
  *   Col 4: 壬癸 (indices 8-9)
- * 
  */
 const nayinMatrix = [
     //     甲乙  丙丁  戊己  庚辛  壬癸
@@ -73,7 +80,6 @@ function getNayin(stemIndex, branchIndex) {
     const loci = nayinTable[key];
     
     if (loci === undefined) {
-        console.warn(`Nayin loci not found for stem ${stemIndex}, branch ${branchIndex} (key: ${key})`);
         return null;
     }
     
@@ -96,8 +102,8 @@ function getNayinName(loci) {
     return names[loci] || '';
 }
 
-// Expose public API
-registerAdapterModule('nayin', {
+// Expose public API through centralized adapter registration (assets/js/adapter-utils.js)
+window.registerAdapterModule('nayin', {
     getNayin,
     getNayinName
 });
@@ -106,14 +112,3 @@ window.ziweiNayin = {
     getNayin,
     getNayinName
 };
-
-function registerAdapterModule(name, api) {
-    var adapter = window.ziweiAdapter;
-    if (adapter && typeof adapter.registerModule === 'function') {
-        adapter.registerModule(name, api);
-    } else {
-        window.__ziweiAdapterModules = window.__ziweiAdapterModules || {};
-        window.__ziweiAdapterModules[name] = api;
-    }
-}
-

@@ -1,7 +1,7 @@
-'use strict';
-
 /**
- * Life Cycle Calculations - Major Cycles (大運) and Twelve Life Stages (十二長生)
+ * Life Cycle Calculations Module
+ * 
+ * Calculates Major Cycles (大運) and Twelve Life Stages (十二長生).
  * 
  * Twelve Life Stages Order (Fixed):
  * 長生 → 沐浴 → 冠帶 → 臨官 → 帝旺 → 衰 → 病 → 死 → 墓 → 絕 → 胎 → 養
@@ -10,16 +10,25 @@
  * 2 (Water) → 8, 3 (Wood) → 11, 4 (Metal) → 5, 5 (Fire) → 8, 6 (Earth) → 2
  * 
  * Major Cycle Starting Age by Nayin Loci:
- * 2 (水二局) → age 2-11, 3 (木三局) → 3-12, 4 (金四局) → 4-13, 5 (火五局) → 5-14, 6 (土六局) → 6-15
+ * 2 (水二局) → age 2-11, 3 (木三局) → 3-12, 4 (金四局) → 4-13,
+ * 5 (火五局) → 5-14, 6 (土六局) → 6-15
  * 
  * Arrangement rules:
  * - Yang male (陽男) or Yin female (陰女): clockwise
  * - Yin male (陰男) or Yang female (陽女): counter-clockwise
+ * 
+ * Dependencies:
+ * - assets/js/data-adapter.js (ziweiAdapter)
+ * - assets/calculate/astrology/basic.js (basic module)
+ * 
+ * Exports: registerAdapterModule('lifeCycle', ...)
  */
 
-/**
- * Helper to get adapter module
- */
+'use strict';
+
+// ============================================================================
+// Adapter Helpers
+// ============================================================================
 function getAdapterModule(name) {
     var adapter = window.ziweiAdapter;
     return adapter && adapter.getModule ? adapter.getModule(name) : null;
@@ -51,7 +60,6 @@ function calculateTwelveLongLifePositions(nayinLoci, gender, lunarYear) {
     // Get arrangement direction using basic module via adapter
     var basicModule = getAdapterModule('basic');
     if (!basicModule || typeof basicModule.isClockwise !== 'function') {
-        console.warn('Basic module not available for isClockwise calculation');
         return {};
     }
     
@@ -89,7 +97,6 @@ function calculateMajorCycles(nayinLoci, gender, lunarYear, mingPalaceIndex) {
     // Get arrangement direction using basic module via adapter
     var basicModule = getAdapterModule('basic');
     if (!basicModule || typeof basicModule.isClockwise !== 'function') {
-        console.warn('Basic module not available for isClockwise calculation');
         return [];
     }
     
@@ -132,7 +139,6 @@ function calculateMajorCycles(nayinLoci, gender, lunarYear, mingPalaceIndex) {
  */
 function getMajorCycleForPalace(palaceIndex, cycles) {
     if (!Array.isArray(cycles)) {
-        console.warn('Invalid cycles array');
         return null;
     }
     return cycles.find(cycle => cycle.palaceIndex === palaceIndex) || null;

@@ -1,641 +1,329 @@
 /**
- * Main calculator module for Ziwei Chart
+ * Main Calculator Module for Ziwei Chart
+ * 
+ * Orchestrates the complete chart calculation process including:
+ * - Input normalization and validation
+ * - Lunar/Solar date conversion
+ * - Chart data computation via adapter modules
+ * - Result caching and optimization
+ * 
+ * Dependencies:
+ * - assets/data/constants.js
+ * - assets/js/adapter-utils.js
+ * - assets/js/data-adapter.js
+ * 
+ * Exports: window.ziweiCalculator
  */
 
-// ============================================================================
-// Cache Layer & Performance Utilities
-// ============================================================================
+'use strict';
 
-/**
- * LRU Cache for chart calculations
- * Stores complete calculation results to speed up repeated submissions
- */
-const computeCache = new Map();
-const CACHE_CONFIG = {
-    maxSize: window?.ziweiConstants?.PERF_CONFIG?.CACHE_MAX_SIZE ?? 50,
-    debug: window?.ziweiConstants?.DEBUG?.CALCULATOR ?? false
-};
+(function(window) {
+    // ============================================================================
+    // Constants & Configuration
+    // ============================================================================
+    const constants = window.ziweiConstants;
+    const ADAPTER_KEYS = constants.ADAPTER_KEYS;
+    const PERF_CONFIG = constants.PERF_CONFIG;
+    const DEBUG = constants.DEBUG.CALCULATOR;
+    const DEFAULTS = constants.DEFAULTS;
+    const CALCULATION_SETTINGS = constants.CALCULATION_SETTINGS;
 
-const ADAPTER_CONTEXT_KEYS = Object.freeze([
-    'adapterOutput',
-    'calcResult',
-    'normalizedInput',
-    'meta',
-    'raw'
-]);
+    const CACHE_MAX_SIZE = PERF_CONFIG.CACHE_MAX_SIZE;
 
-function clearAdapterChartContext(options = {}) {
-    const { preserveFormInput = false } = options || {};
-    const adapter = window.ziweiAdapter;
-    const storage = adapter?.storage;
-    if (!storage || typeof storage.remove !== 'function') {
-        return;
+    const ADAPTER_CONTEXT_KEYS = Object.freeze([
+        ADAPTER_KEYS.ADAPTER_OUTPUT,
+        ADAPTER_KEYS.CALC_RESULT,
+        ADAPTER_KEYS.NORMALIZED_INPUT,
+        ADAPTER_KEYS.META,
+        ADAPTER_KEYS.RAW
+    ]);
+
+    // ============================================================================
+    // Cache Implementation
+    // ============================================================================
+    const computeCache = new Map();
+
+    /**
+     * Prune cache if size exceeds limit (FIFO)
+     */
+    function pruneCacheIfNeeded() {
+        if (computeCache.size >= CACHE_MAX_SIZE) {
+            const firstKey = computeCache.keys().next().value;
+            computeCache.delete(firstKey);
+        }
     }
-    ADAPTER_CONTEXT_KEYS.forEach((key) => {
-        try {
+
+    /**
+     * Clear all cached computation results
+     */
+    function clearCalculationCache() {
+        computeCache.clear();
+    }
+
+    /**
+     * Get cached computation result
+     * @param {string} cacheKey
+     * @returns {Object|null}
+     */
+    function getCachedResult(cacheKey) {
+        if (!cacheKey || !computeCache.has(cacheKey)) {
+            return null;
+        }
+        return computeCache.get(cacheKey);
+    }
+
+    /**
+     * Store computation result in cache
+     * @param {string} cacheKey
+     * @param {Object} result
+     */
+    function setCachedResult(cacheKey, result) {
+        if (!cacheKey) return;
+        pruneCacheIfNeeded();
+        computeCache.set(cacheKey, result);
+    }
+
+    // ============================================================================
+    // Adapter Context Management
+    // ============================================================================
+    
+    /**
+     * Clear adapter chart context
+     * @param {Object} options
+     */
+    function clearAdapterChartContext(options = {}) {
+        const { preserveFormInput = false } = options;
+        const utils = window.ziweiAdapterUtils;
+        const storage = utils?.getStorage();
+        
+        if (!storage || typeof storage.remove !== 'function') {
+            return;
+        }
+
+        ADAPTER_CONTEXT_KEYS.forEach((key) => {
             storage.remove(key);
-        } catch (err) {
-            if (CACHE_CONFIG.debug) {
-                console.warn('[ziweiCalculator] Failed to clear adapter context key', key, err);
-            }
-        }
-    });
-    if (!preserveFormInput) {
-        try {
-            storage.remove('formInput');
-        } catch (err2) {
-            if (CACHE_CONFIG.debug) {
-                console.warn('[ziweiCalculator] Failed to clear adapter formInput', err2);
-            }
+        });
+
+        if (!preserveFormInput) {
+            storage.remove(ADAPTER_KEYS.FORM_INPUT);
         }
     }
-}
 
-function primeAdapterFormInput(formData) {
-    const adapter = window.ziweiAdapter;
-    const storage = adapter?.storage;
-    if (!storage || typeof storage.set !== 'function') {
-        return;
-    }
-    try {
-        if (formData) {
-            // Sanitize personal fields before priming adapter storage
-            const sanitized = sanitizeFormForStorage(formData);
-            storage.set('formInput', sanitized);
-        }
-    } catch (err) {
-        if (CACHE_CONFIG.debug) {
-            console.warn('[ziweiCalculator] Failed to prime adapter formInput snapshot', err);
-        }
-    }
-}
-
-/**
- * Remove personal fields from a form-like object before persisting to adapter storage.
- * This ensures we do not store PII (name, birthplace, exact birthdate/time) in persistent storage.
- * @param {Object} formData
- * @returns {Object} sanitized copy
- */
-function sanitizeFormForStorage(formData) {
-    if (!formData || typeof formData !== 'object') return formData;
-    const copy = Object.assign({}, formData);
-
-    // Remove common top-level personal fields
-    delete copy.name;
-    delete copy.birthplace;
-    delete copy.gender;
-
-    // Remove normalized/solar fields if present
-    if (copy.solar && typeof copy.solar === 'object') {
-        const solarCopy = Object.assign({}, copy.solar);
-        delete solarCopy.year;
-        delete solarCopy.month;
-        delete solarCopy.day;
-        delete solarCopy.hour;
-        delete solarCopy.minute;
-        copy.solar = solarCopy;
+    /**
+     * Prime adapter with form input data
+     * @param {Object} formData
+     */
+    function primeAdapterFormInput(formData) {
+        const utils = window.ziweiAdapterUtils;
+        if (!formData || !utils) return;
+        
+        const sanitized = sanitizeFormForStorage(formData);
+        utils.setStorageValue(ADAPTER_KEYS.FORM_INPUT, sanitized);
     }
 
-    // Remove meta personal fields
-    if (copy.meta && typeof copy.meta === 'object') {
-        const metaCopy = Object.assign({}, copy.meta);
-        delete metaCopy.name;
-        delete metaCopy.birthplace;
-        delete metaCopy.gender;
-        delete metaCopy.birthdate;
-        delete metaCopy.birthtime;
-        copy.meta = metaCopy;
-    }
+    // ============================================================================
+    // Data Sanitization
+    // ============================================================================
 
-    // Also remove raw personal fields if present
-    if (copy.raw && typeof copy.raw === 'object') {
-        const rawCopy = Object.assign({}, copy.raw);
-        delete rawCopy.name;
-        delete rawCopy.birthplace;
-        delete rawCopy.gender;
-        delete rawCopy.year;
-        delete rawCopy.month;
-        delete rawCopy.day;
-        delete rawCopy.hour;
-        delete rawCopy.minute;
-        copy.raw = rawCopy;
-    }
-
-    return copy;
-}
-
-/**
- * Generate cache key from form input
- * Uses only critical fields: birthDate, birthTime, gender, calendarType, leapMonth
- * @param {Object} formData The form data object
- * @returns {string} Cache key for lookup
- */
-function getCacheKey(formData) {
-    if (!formData) return '';
-
-    const solar = formData.solar || formData;
-    const meta = formData.meta || {};
-
-    const key = [
-        solar.year,
-        solar.month,
-        solar.day,
-        solar.hour,
-        solar.minute,
-        meta.gender || formData.gender || 'unknown',
-        meta.calendarType || formData.calendarType || 'solar',
-        // Include leapMonthHandling in cache key so different handling modes produce distinct keys
-        (meta.leapMonthHandling !== undefined && meta.leapMonthHandling !== null)
-            ? String(meta.leapMonthHandling)
-            : (formData.leapMonthHandling !== undefined && formData.leapMonthHandling !== null)
-                ? String(formData.leapMonthHandling)
-                : (meta.leapMonth || formData.leapMonth ? 'leap' : 'noleap')
-    ].join('|');
-    // Also include ziHourHandling (子時處理) so choosing ziChange vs midnightChange
-    // produces different cache keys and forces recompute when the mode changes.
-    var ziHandling = (meta.ziHourHandling !== undefined && meta.ziHourHandling !== null)
-        ? String(meta.ziHourHandling)
-        : (formData.ziHourHandling !== undefined && formData.ziHourHandling !== null)
-            ? String(formData.ziHourHandling)
-            : 'midnightChange';
-    
-    // Include stem interpretations in cache key so different mutation settings produce distinct keys
-    var stemInterpretations = '';
-    const rawData = formData.raw || formData;
-    if (rawData.stemInterpretations && typeof rawData.stemInterpretations === 'object') {
-        // Sort keys to ensure consistent ordering
-        const sortedKeys = Object.keys(rawData.stemInterpretations).sort();
-        const interpretations = sortedKeys.map(key => `${key}:${rawData.stemInterpretations[key]}`);
-        stemInterpretations = interpretations.join(',');
-    }
-    
-    return key + '|' + ziHandling + '|' + stemInterpretations;
-}
-
-/**
- * Prune cache if size exceeds limit
- * Removes oldest entry (FIFO via Map iteration)
- */
-function pruneCacheIfNeeded() {
-    if (computeCache.size >= CACHE_CONFIG.maxSize) {
-        const firstKey = computeCache.keys().next().value;
-        computeCache.delete(firstKey);
-        if (CACHE_CONFIG.debug) {
-            console.log('[ziweiCalculator] Cache pruned, removed oldest entry');
-        }
-    }
-}
-
-/**
- * Clear all cached computation results
- * @returns {void}
- */
-function clearCalculationCache() {
-    computeCache.clear();
-    if (CACHE_CONFIG.debug) {
-        console.log('[ziweiCalculator] Cache cleared');
-    }
-}
-
-/**
- * Get cached computation result if available
- * @param {string} cacheKey The cache key
- * @returns {Object|null} Cached result or null if not found
- */
-function getCachedResult(cacheKey) {
-    if (!cacheKey || !computeCache.has(cacheKey)) {
-        return null;
-    }
-    const cached = computeCache.get(cacheKey);
-    if (CACHE_CONFIG.debug) {
-        console.log('[ziweiCalculator] Cache HIT for key:', cacheKey);
-    }
-    return cached;
-}
-
-/**
- * Store computation result in cache
- * @param {string} cacheKey The cache key
- * @param {Object} result The computation result to cache
- * @returns {void}
- */
-function setCachedResult(cacheKey, result) {
-    if (!cacheKey) return;
-    pruneCacheIfNeeded();
-    computeCache.set(cacheKey, result);
-    if (CACHE_CONFIG.debug) {
-        console.log('[ziweiCalculator] Cache MISS, storing result for key:', cacheKey, 'Cache size:', computeCache.size);
-    }
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('[calculator.js] DOMContentLoaded fired');
-    // Removed redundant window.ziweiForm.init() - form.js self-inits
-    const container = document.querySelector('.ziwei-cal');
-    if (!container) {
-        console.error('[calculator.js] No .ziwei-cal container');
-        return;
-    }
-    console.log('[calculator.js] Container found, adding listener');
-    document.addEventListener('ziwei-form-submit', async (e) => {
-        const { formData } = e.detail;
-
-        // Save form state for back button
-        if (window.ziweiForm && typeof window.ziweiForm.saveState === 'function') {
-            window.ziweiForm.saveState();
+    /**
+     * Remove personal fields from form data before storage
+     * @param {Object} formData
+     * @returns {Object}
+     */
+    function sanitizeFormForStorage(formData) {
+        if (!formData || typeof formData !== 'object') {
+            return formData;
         }
 
-        // Adapter should forget previous chart context and accept the new form payload immediately
-        clearAdapterChartContext({ preserveFormInput: true });
-        primeAdapterFormInput(formData);
+        const copy = Object.assign({}, formData);
+        
+        // Remove top-level personal fields
+        delete copy.name;
+        delete copy.birthplace;
+        delete copy.gender;
 
-        try {
-            // Make API request with cache support
-            const calculationResult = await computeChartWithCache(formData);
-
-            // Update chart display
-            const chartHtml = await showChart(calculationResult);
-            await updateDisplay(chartHtml, calculationResult);
-
-        } catch (err) {
-            console.error('排盤錯誤:', err);
-            const adapterErrors = window.ziweiAdapter?.errors;
-            if (adapterErrors?.isAdapterError && adapterErrors.isAdapterError(err) && window.ziweiForm?.handleAdapterError) {
-                window.ziweiForm.handleAdapterError(err);
-            } else {
-                window.ziweiForm.showError(err.message || '排盤時發生錯誤');
-            }
-        }
-    });
-
-    // Handle control bar button clicks via event delegation
-    // (Settings button is handled internally by control.js)
-    document.addEventListener('click', (e) => {
-        const backBtn = e.target.closest('.ziwei-back-btn');
-        if (backBtn) {
-            clearAdapterChartContext();
-            const chartContainer = document.querySelector('[data-ziwei-chart]');
-            if (chartContainer) {
-                window.ziweiForm.restoreForm(chartContainer);
-            }
-            return;
+        // Remove solar date fields
+        if (copy.solar && typeof copy.solar === 'object') {
+            const solarCopy = Object.assign({}, copy.solar);
+            delete solarCopy.year;
+            delete solarCopy.month;
+            delete solarCopy.day;
+            delete solarCopy.hour;
+            delete solarCopy.minute;
+            copy.solar = solarCopy;
         }
 
-        const prevBtn = e.target.closest('.ziwei-control-prev-hour');
-        if (prevBtn) {
-            document.dispatchEvent(new CustomEvent('ziwei-control-prev-hour'));
-            console.log('Control bar: previous hour requested');
-            return;
+        // Remove meta personal fields
+        if (copy.meta && typeof copy.meta === 'object') {
+            const metaCopy = Object.assign({}, copy.meta);
+            delete metaCopy.name;
+            delete metaCopy.gender;
+            delete metaCopy.birthplace;
+            copy.meta = metaCopy;
         }
 
-        const nextBtn = e.target.closest('.ziwei-control-next-hour');
-        if (nextBtn) {
-            document.dispatchEvent(new CustomEvent('ziwei-control-next-hour'));
-            console.log('Control bar: next hour requested');
-            return;
-        }
-    });
+        return copy;
+    }
 
-    // T041: Listen for settings changes and trigger chart recalculation
-    document.addEventListener('ziwei-settings-changed', (e) => {
-        // Only recalculate if the changed setting affects chart computation
-        const detail = e && e.detail ? e.detail : {};
-        const setting = detail.setting;
-        // These settings affect calculation: school, leapMonthHandling, ziHourHandling, stem interpretations
-        // (school is not yet implemented, but leapMonthHandling and ziHourHandling are)
-        const affectsCalculation = [
-            'school',
-            'leapMonthHandling',
-            'ziHourHandling',
-            // Stem interpretation settings (甲、戊、庚、辛、壬、癸)
-            'stemInterpretation_甲',
-            'stemInterpretation_戊',
-            'stemInterpretation_庚',
-            'stemInterpretation_辛',
-            'stemInterpretation_壬',
-            'stemInterpretation_癸'
+    // ============================================================================
+    // Cache Key Generation
+    // ============================================================================
+
+    /**
+     * Generate cache key from form input
+     * @param {Object} formData
+     * @returns {string}
+     */
+    function getCacheKey(formData) {
+        if (!formData) return '';
+
+        const solar = formData.solar || formData;
+        const meta = formData.meta || {};
+
+        const keyParts = [
+            solar.year,
+            solar.month,
+            solar.day,
+            solar.hour,
+            solar.minute,
+            meta.gender || formData.gender || 'unknown',
+            meta.calendarType || formData.calendarType || DEFAULTS.CALENDAR_TYPE,
+            resolveLeapMonthHandling(meta, formData),
+            resolveZiHourHandling(meta, formData)
         ];
-        if (!affectsCalculation.includes(setting)) return;
 
-        // Get the latest form data from adapter storage (canonical)
-        let formData = null;
-        try {
-            const adapter = window.ziweiAdapter;
-            if (adapter && adapter.storage && typeof adapter.storage.get === 'function') {
-                formData = adapter.storage.get('formInput');
-            }
-        } catch (e) {}
-        if (!formData) {
-            // Fallback: try to get from normalizedInput
-            try {
-                const adapter = window.ziweiAdapter;
-                if (adapter && adapter.storage && typeof adapter.storage.get === 'function') {
-                    const normalized = adapter.storage.get('normalizedInput');
-                    if (normalized && normalized.raw) formData = Object.assign({}, normalized.raw);
-                }
-            } catch (e) {}
+        let key = keyParts.join('|');
+
+        // Include stem interpretations for cache differentiation
+        const stemInterpretations = extractStemInterpretations(formData);
+        if (stemInterpretations) {
+            key += '|' + stemInterpretations;
         }
-        if (!formData) return;
 
-        // Update formData with the changed setting value
-        formData[setting] = detail.value;
-
-        // Dispatch a centralized submit event so calculator clears/primes adapter and runs the canonical compute pipeline
-        const container = document.querySelector('.ziwei-cal') || document;
-        try {
-            container.dispatchEvent(new CustomEvent('ziwei-form-submit', { detail: { formData } }));
-        } catch (err) {
-            console.error('[calculator.js] Failed to dispatch ziwei-form-submit for settings change', err);
-        }
-    });
-});
-
-// ============================================================================
-// Computation Functions with Cache Support
-// ============================================================================
-
-/**
- * Internal computation logic (original DOMContentLoaded handler extracted)
- * Performs lunar conversion and API submission
- * @param {Object} formData The form data to compute
- * @returns {Promise<Object>} The chart data from API
- */
-function buildApiPayload(normalizedInput) {
-    if (!normalizedInput || !normalizedInput.meta || !normalizedInput.solar) {
-        throw new Error('資料轉換錯誤，缺少必要欄位');
+        return key;
     }
 
-    const solar = normalizedInput.solar;
-    const meta = normalizedInput.meta;
-
-    return {
-        name: meta.name,
-        gender: meta.gender,
-        year: solar.year,
-        month: solar.month,
-        day: solar.day,
-        hour: solar.hour,
-        minute: solar.minute,
-        birthplace: meta.birthplace || '',
-        calendarType: meta.calendarType,
-        leapMonth: meta.leapMonth,
-        lunar: normalizedInput.lunar
-    };
-}
-
-async function computeChartInternal(normalizedInput) {
-    const apiPayload = buildApiPayload(normalizedInput);
-    console.log('Submitting to API with data:', apiPayload);
-    const chartData = await window.submitToApi(apiPayload);
-    console.log('API response:', chartData);
-
-    if (!chartData) {
-        throw new Error('無效的伺服器回應');
+    /**
+     * Resolve leap month handling value
+     */
+    function resolveLeapMonthHandling(meta, formData) {
+        if (meta.leapMonthHandling !== undefined && meta.leapMonthHandling !== null) {
+            return String(meta.leapMonthHandling);
+        }
+        if (formData.leapMonthHandling !== undefined && formData.leapMonthHandling !== null) {
+            return String(formData.leapMonthHandling);
+        }
+        return '';
     }
 
-    return chartData;
-}
-
-/**
- * Computation with caching support
- * Checks cache first, then performs computation if needed
- * @param {Object} formData The form data to compute
-* @returns {Promise<Object>} The chart data from API or cache
- */
-async function computeChartWithCache(formData) {
-    const startTime = performance.now();
-    
-    try {
-        // Short debug to trace calls coming from settings changes (ziChange)
-        if (CACHE_CONFIG.debug) {
-            try {
-                console.log('[ziweiCalculator] computeChartWithCache called with formData (short):', {
-                    birthdate: formData && (formData.birthdate || formData.date) || null,
-                    birthtime: formData && (formData.birthtime || formData.time) || null,
-                    year: formData && formData.year,
-                    month: formData && formData.month,
-                    day: formData && formData.day,
-                    hour: formData && formData.hour,
-                    minute: formData && formData.minute,
-                    ziHourHandling: formData && formData.ziHourHandling
-                });
-            } catch (dbg) {}
+    /**
+     * Resolve zi hour handling value
+     */
+    function resolveZiHourHandling(meta, formData) {
+        if (meta.ziHourHandling !== undefined) {
+            return String(meta.ziHourHandling);
         }
-        const adapter = window.ziweiAdapter;
-        if (!adapter || !adapter.input || !adapter.output) {
-            throw new Error('資料轉換模組尚未載入');
+        if (formData.ziHourHandling !== undefined) {
+            return String(formData.ziHourHandling);
         }
-            // Ensure ziHourHandling is preserved across flows (settings live outside the form)
-            // ziHourHandling resolution is handled by adapter.input.normalize which
-            // already consults adapter.settings; no need to read legacy sessionStorage here.
+        return DEFAULTS.ZI_HOUR_HANDLING;
+    }
 
-            const normalizedInput = adapter.input.normalize(formData);
-        // Keep a copy of the latest normalized raw form data in adapter storage
-        try {
-            if (adapter && adapter.storage && typeof adapter.storage.set === 'function') {
-                adapter.storage.set('formInput', normalizedInput.raw ? Object.assign({}, normalizedInput.raw) : Object.assign({}, formData));
-            }
-        } catch (e) {}
-        const cacheKey = getCacheKey(normalizedInput);
+    /**
+     * Extract stem interpretations for cache key
+     */
+    function extractStemInterpretations(formData) {
+        const rawData = formData.raw || formData;
+        if (!rawData.stemInterpretations || typeof rawData.stemInterpretations !== 'object') {
+            return '';
+        }
+        const sortedKeys = Object.keys(rawData.stemInterpretations).sort();
+        return sortedKeys.map(key => `${key}:${rawData.stemInterpretations[key]}`).join(',');
+    }
 
-        const cachedResult = getCachedResult(cacheKey);
-        if (cachedResult) {
-            const duration = (performance.now() - startTime).toFixed(2);
-            if (CACHE_CONFIG.debug) {
-                console.log(`[ziweiCalculator] Cache hit, returned in ${duration}ms`);
-            }
-            // On cache hit, do NOT persist user's personal fields. Create a transient
-            // adapterOutput for display that includes the user's current name/birthplace
-            // but do NOT write those fields into adapter.storage. Persist sanitized
-            // copies instead (no PII).
-            try {
-                const originalAdapterOutput = cachedResult.adapterOutput || null;
-                const originalCalcResult = cachedResult.calcResult || null;
+    // ============================================================================
+    // Time Index Calculation
+    // ============================================================================
 
-                // Create display copy that includes user-provided presentation fields
-                const displayAdapterOutput = originalAdapterOutput ? Object.assign({}, originalAdapterOutput) : null;
-                if (displayAdapterOutput && displayAdapterOutput.meta && normalizedInput.meta) {
-                    if (typeof normalizedInput.meta.name === 'string') displayAdapterOutput.meta = Object.assign({}, displayAdapterOutput.meta, { name: normalizedInput.meta.name });
-                    if (typeof normalizedInput.meta.birthplace === 'string') displayAdapterOutput.meta = Object.assign({}, displayAdapterOutput.meta, { birthplace: normalizedInput.meta.birthplace });
-                    if (typeof normalizedInput.meta.gender === 'string') displayAdapterOutput.meta = Object.assign({}, displayAdapterOutput.meta, { gender: normalizedInput.meta.gender });
-                }
-
-                // Prepare sanitized versions for storage (remove PII)
-                const sanitizedAdapterOutput = originalAdapterOutput ? Object.assign({}, originalAdapterOutput) : null;
-                if (sanitizedAdapterOutput && sanitizedAdapterOutput.meta) {
-                    const metaCopy = Object.assign({}, sanitizedAdapterOutput.meta);
-                    delete metaCopy.name;
-                    delete metaCopy.birthplace;
-                    delete metaCopy.gender;
-                    sanitizedAdapterOutput.meta = metaCopy;
-                }
-
-                const sanitizedNormalized = sanitizeFormForStorage(normalizedInput);
-
-                // Persist sanitized context only
-                try {
-                    if (adapter && adapter.storage && typeof adapter.storage.set === 'function') {
-                        adapter.storage.set('normalizedInput', sanitizedNormalized);
-                        if (sanitizedAdapterOutput) adapter.storage.set('adapterOutput', sanitizedAdapterOutput);
-                        if (originalCalcResult) adapter.storage.set('calcResult', originalCalcResult);
-                        if (sanitizedAdapterOutput && sanitizedAdapterOutput.meta) adapter.storage.set('meta', sanitizedAdapterOutput.meta);
-                    }
-                } catch (e) {}
-
-                // Persist sanitized adapter output into adapter memory (no PII)
-                try {
-                    if (adapter && typeof adapter.setCurrentChart === 'function') {
-                        adapter.setCurrentChart(sanitizedAdapterOutput || null);
-                    }
-                } catch (e) {}
-
-                // Emit events using the displayAdapterOutput (includes user's current name)
-                try {
-                    if (displayAdapterOutput && displayAdapterOutput.errors && Object.keys(displayAdapterOutput.errors).length) {
-                        document.dispatchEvent(new CustomEvent('ziwei-chart-error', { detail: { adapterOutput: displayAdapterOutput, calcResult: originalCalcResult, errors: displayAdapterOutput.errors } }));
-                    }
-                    document.dispatchEvent(new CustomEvent('ziwei-chart-generated', { detail: { adapterOutput: displayAdapterOutput || originalAdapterOutput, calcResult: originalCalcResult } }));
-                } catch (e) {}
-
-                return {
-                    calcResult: originalCalcResult,
-                    normalizedInput: normalizedInput,
-                    adapterOutput: displayAdapterOutput || originalAdapterOutput
-                };
-            } catch (err2) {
-                // Fallback: behave as before but ensure sanitized persistence
-                try {
-                    const sanitizedNormalized = sanitizeFormForStorage(normalizedInput);
-                    if (adapter && adapter.storage && typeof adapter.storage.set === 'function') {
-                        adapter.storage.set('normalizedInput', sanitizedNormalized);
-                        adapter.storage.set('adapterOutput', cachedResult.adapterOutput);
-                        adapter.storage.set('calcResult', cachedResult.calcResult);
-                        if (cachedResult.adapterOutput && cachedResult.adapterOutput.meta) adapter.storage.set('meta', cachedResult.adapterOutput.meta);
-                    }
-                } catch (e) {}
-
-                try {
-                    if (adapter && typeof adapter.setCurrentChart === 'function') {
-                        adapter.setCurrentChart(cachedResult.adapterOutput || null);
-                    }
-                } catch (e) {}
-
-                try {
-                    if (cachedResult && cachedResult.adapterOutput && cachedResult.adapterOutput.errors && Object.keys(cachedResult.adapterOutput.errors).length) {
-                        document.dispatchEvent(new CustomEvent('ziwei-chart-error', { detail: { adapterOutput: cachedResult.adapterOutput, calcResult: cachedResult.calcResult, errors: cachedResult.adapterOutput.errors } }));
-                    }
-                    document.dispatchEvent(new CustomEvent('ziwei-chart-generated', { detail: { adapterOutput: cachedResult.adapterOutput, calcResult: cachedResult.calcResult } }));
-                } catch (e) {}
-
-                return {
-                    calcResult: cachedResult.calcResult,
-                    normalizedInput: normalizedInput,
-                    adapterOutput: cachedResult.adapterOutput
-                };
-            }
+    /**
+     * Convert time string to military hour index (0-11)
+     * @param {string} timeStr Time in HH:MM format
+     * @returns {number} Index 0-11
+     */
+    function getMilitaryHourIndex(timeStr) {
+        if (!timeStr || typeof timeStr !== 'string') {
+            return 0;
         }
 
-        if (CACHE_CONFIG.debug) {
-            console.log('[ziweiCalculator] Cache miss, computing...');
+        const parts = timeStr.split(':');
+        const hour = parseInt(parts[0], 10);
+        
+        if (isNaN(hour)) {
+            return 0;
         }
 
-        const calcResult = await computeChartInternal(normalizedInput);
-    const adapterOutput = adapter.output.process(calcResult, normalizedInput);
-        const duration = performance.now() - startTime;
+        // Use constants for time ranges
+        if (hour >= 23 || hour < 1) return 0;   // 子
+        if (hour >= 1 && hour < 3) return 1;    // 丑
+        if (hour >= 3 && hour < 5) return 2;    // 寅
+        if (hour >= 5 && hour < 7) return 3;    // 卯
+        if (hour >= 7 && hour < 9) return 4;    // 辰
+        if (hour >= 9 && hour < 11) return 5;   // 巳
+        if (hour >= 11 && hour < 13) return 6;  // 午
+        if (hour >= 13 && hour < 15) return 7;  // 未
+        if (hour >= 15 && hour < 17) return 8;  // 申
+        if (hour >= 17 && hour < 19) return 9;  // 酉
+        if (hour >= 19 && hour < 21) return 10; // 戌
+        if (hour >= 21 && hour < 23) return 11; // 亥
+        
+        return 0;
+    }
 
-            // Persist computed context into adapter storage for UI flows and snapshotting
-            try {
-                if (adapter && adapter.storage && typeof adapter.storage.set === 'function') {
-                    adapter.storage.set('normalizedInput', normalizedInput);
-                    adapter.storage.set('adapterOutput', adapterOutput);
-                    adapter.storage.set('calcResult', calcResult);
-                    if (adapterOutput && adapterOutput.meta) adapter.storage.set('meta', adapterOutput.meta);
-                }
-            } catch (e) {}
+    // ============================================================================
+    // API Payload Building
+    // ============================================================================
 
-            setCachedResult(cacheKey, {
-                calcResult,
-                adapterOutput
-            });
-
-        // Persist current chart in adapter memory for display modules
-        try {
-            if (adapter && typeof adapter.setCurrentChart === 'function') {
-                adapter.setCurrentChart(adapterOutput);
-            }
-        } catch (e) {
-            // ignore
+    /**
+     * Build API payload from normalized input
+     * @param {Object} normalizedInput
+     * @returns {Object}
+     */
+    function buildApiPayload(normalizedInput) {
+        if (!normalizedInput?.meta || !normalizedInput?.solar) {
+            throw new Error('資料轉換錯誤，缺少必要欄位');
         }
 
-        // Emit global event so display modules can react to new chart
-        try {
-            // If there were errors during the process, emit ziwei-chart-error so display can show partial results
-            if (adapterOutput && adapterOutput.errors && Object.keys(adapterOutput.errors).length) {
-                document.dispatchEvent(new CustomEvent('ziwei-chart-error', { detail: { adapterOutput: adapterOutput, calcResult: calcResult, errors: adapterOutput.errors } }));
-            }
-            document.dispatchEvent(new CustomEvent('ziwei-chart-generated', { detail: { adapterOutput: adapterOutput, calcResult: calcResult } }));
-        } catch (e) {
-            // ignore
-        }
-
-        // Check if we need to restore cycle state after chart generation
-        try {
-            if (adapter && adapter.storage && typeof adapter.storage.get === 'function') {
-                const formData = adapter.storage.get('formInput');
-                if (formData && formData._cycleStateToRestore) {
-                    // Schedule cycle state restoration after a short delay to ensure DOM is ready
-                    setTimeout(() => {
-                        restoreCycleState(formData._cycleStateToRestore);
-                        // Clean up the temporary state
-                        delete formData._cycleStateToRestore;
-                        adapter.storage.set('formInput', formData);
-                    }, 100);
-                }
-            }
-        } catch (e) {
-            console.warn('[ziweiCalculator] Failed to schedule cycle state restoration:', e);
-        }
-
-        if (CACHE_CONFIG.debug) {
-            console.log(`[ziweiCalculator] Computation completed in ${duration.toFixed(2)}ms`);
-        }
+        const { solar, meta } = normalizedInput;
 
         return {
-            calcResult,
-            normalizedInput,
-            adapterOutput
+            name: meta.name,
+            gender: meta.gender,
+            year: solar.year,
+            month: solar.month,
+            day: solar.day,
+            hour: solar.hour,
+            minute: solar.minute,
+            birthplace: meta.birthplace || '',
+            calendarType: meta.calendarType,
+            leapMonth: meta.leapMonth,
+            lunar: normalizedInput.lunar
         };
-    } catch (error) {
-        if (CACHE_CONFIG.debug) {
-            console.log('[ziweiCalculator] Computation failed:', error);
-        }
-        // Record error in adapter memory and broadcast event for display logic
-        try {
-            const adapter = window.ziweiAdapter;
-            if (adapter && typeof adapter.setCurrentChart === 'function') {
-                adapter.setCurrentChart(null);
-            }
-            document.dispatchEvent(new CustomEvent('ziwei-chart-error', { detail: { error: error } }));
-        } catch (e) {
-            // ignore
-        }
-        throw error;
     }
-}
 
-/**
- * Submit form data to WordPress API
- * @param {Object} formData The form values to submit
- * @returns {Promise<Object>} API response data
- */
-window.submitToApi = async function submitToApi(formData) {
-    try {
+    // ============================================================================
+    // Chart Computation
+    // ============================================================================
+
+    /**
+     * Submit form data to WordPress API
+     * @param {Object} formData
+     * @returns {Promise<Object>}
+     */
+    async function submitToApi(formData) {
         if (!window.ziweiCalData?.restUrl) {
             throw new Error('REST API 設定缺失，請重新載入頁面');
         }
 
-    // Submission debug logs removed to reduce console noise
-        
         const response = await fetch(window.ziweiCalData.restUrl, {
             method: 'POST',
             headers: {
@@ -646,218 +334,437 @@ window.submitToApi = async function submitToApi(formData) {
         });
 
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('API Error Response:', errorText);
-            throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+            throw new Error(`API 請求失敗: ${response.status}`);
         }
 
-        const result = await response.json();
-        if (!result.success && result.data) {
-            throw new Error(result.data);
-        }
-
-        return result;
-    } catch (error) {
-        console.error('API Error:', error);
-        let message = '無法連接到伺服器，請稍後再試';
-
-        if (error instanceof Error && error.message) {
-            if (error.message.includes('Failed to fetch')) {
-                message = '無法連線到伺服器，請確認網路或稍後再試';
-            } else {
-                message = error.message;
-            }
-        }
-
-        throw new Error(message);
+        return response.json();
     }
-}
 
-
-/**
- * Call the chart renderer module to generate chart HTML
- * @param {Object} chartData The data returned from API
- * @returns {Promise<HTMLElement>} The chart element
- */
-window.showChart = async function showChart(chartData) {
-    try {
-        // If the caller passed the full computation wrapper { calcResult, adapterOutput }
-        // prefer adapterOutput so the renderer uses the client-side normalized data
-        // (which may include ziHour or leap-month adjustments). Fall back to the
-        // provided chartData if adapterOutput isn't present.
-        if (chartData && chartData.adapterOutput) {
-            if (CACHE_CONFIG.debug) console.log('[ziweiCalculator] showChart forwarding adapterOutput + calcResult wrapper to renderer');
-            console.log('[DEBUG CALC] About to call ziweiChart.draw. window.ziweiChart exists:', !!window.ziweiChart, 'draw function:', typeof (window.ziweiChart?.draw));
-            if (!window.ziweiChart || typeof window.ziweiChart.draw !== 'function') {
-                throw new Error('Chart renderer ziweiChart.draw not loaded. Verify chart.js script execution.');
-            }
-            return window.ziweiChart.draw(chartData);
+    /**
+     * Internal computation logic using client-side adapter
+     * @param {Object} formData
+     * @returns {Promise<Object>}
+     */
+    async function computeChartInternal(formData) {
+        const adapter = window.ziweiAdapter;
+        if (!adapter?.calculate) {
+            throw new Error('計算模組尚未載入，無法進行排盤計算');
         }
-        if (CACHE_CONFIG.debug) console.log('[ziweiCalculator] showChart forwarding provided chartData to renderer');
-        console.log('[DEBUG CALC] About to call ziweiChart.draw. window.ziweiChart exists:', !!window.ziweiChart, 'draw function:', typeof (window.ziweiChart?.draw));
-        if (!window.ziweiChart || typeof window.ziweiChart.draw !== 'function') {
-            throw new Error('Chart renderer ziweiChart.draw not loaded. Verify chart.js script execution.');
+    
+        try {
+            return adapter.calculate(formData);
+        } catch (error) {
+            console.error('[ziweiCalculator] Client-side calculation failed:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Main computation with caching
+     * @param {Object} formData
+     * @returns {Promise<Object>}
+     */
+    async function computeChartWithCache(formData) {
+        const startTime = performance.now();
+    
+        const adapter = window.ziweiAdapter;
+        if (!adapter?.normalizeInput || !adapter?.calculate) {
+            throw new Error('資料轉換模組尚未載入');
+        }
+    
+        const cacheKey = getCacheKey(formData);
+        const cachedResult = getCachedResult(cacheKey);
+    
+        if (cachedResult) {
+            return handleCacheHit(cachedResult, formData, startTime);
+        }
+    
+        return handleCacheMiss(formData, cacheKey, adapter, startTime);
+    }
+
+    /**
+     * Handle cache hit scenario
+     */
+    function handleCacheHit(cachedResult, formData, startTime) {
+        // Build display output with current user data from formData (not cached normalizedInput)
+        // This ensures name/gender/birthplace are always fresh from the current form submission
+        const displayOutput = buildDisplayOutputWithFormData(
+            cachedResult.adapterOutput,
+            cachedResult.normalizedInput,
+            formData
+        );
+    
+        emitChartEvent('ziwei-chart-generated', {
+            adapterOutput: displayOutput,
+            calcResult: cachedResult.calcResult
+        });
+    
+        return {
+            calcResult: cachedResult.calcResult,
+            normalizedInput: cachedResult.normalizedInput,
+            adapterOutput: displayOutput
+        };
+    }
+
+    /**
+     * Handle cache miss scenario
+     */
+    async function handleCacheMiss(formData, cacheKey, adapter, startTime) {
+        const normalizedInput = adapter.normalizeInput(formData);
+    
+        // Store form input reference
+        const utils = window.ziweiAdapterUtils;
+        if (utils) {
+            utils.setStorageValue(ADAPTER_KEYS.FORM_INPUT, normalizedInput.raw || formData);
+        }
+    
+        const calcResult = await computeChartInternal(formData);
+    
+        // Handle API error responses
+        if (calcResult && calcResult.success === false) {
+            const adapterOutput = { errors: { api: calcResult.message || 'API error' } };
+            return { calcResult, normalizedInput, adapterOutput };
+        }
+    
+        // Use the calculation result directly
+        const adapterOutput = calcResult;
+    
+        // Build display output
+        const displayOutput = buildDisplayOutput(adapterOutput, normalizedInput);
+    
+        // Store sanitized data
+        persistComputationResult(adapter, normalizedInput, adapterOutput, calcResult);
+    
+        // Cache the result
+        setCachedResult(cacheKey, { calcResult, adapterOutput, normalizedInput });
+    
+        // Persist current chart
+        if (typeof adapter.setCurrentChart === 'function') {
+            adapter.setCurrentChart(adapterOutput);
+        }
+    
+        // Emit events
+        if (adapterOutput?.errors && Object.keys(adapterOutput.errors).length) {
+            emitChartEvent('ziwei-chart-error', {
+                adapterOutput: displayOutput,
+                calcResult,
+                errors: adapterOutput.errors
+            });
+        }
+    
+        emitChartEvent('ziwei-chart-generated', {
+            adapterOutput: displayOutput,
+            calcResult
+        });
+    
+        return { calcResult, normalizedInput, adapterOutput: displayOutput };
+    }
+
+    /**
+     * Build display output with user data overlaid
+     */
+    function buildDisplayOutput(adapterOutput, normalizedInput) {
+        if (!adapterOutput) return null;
+
+        const displayOutput = Object.assign({}, adapterOutput);
+        if (displayOutput.meta && normalizedInput?.meta) {
+            displayOutput.meta = Object.assign({}, displayOutput.meta, {
+                name: normalizedInput.meta.name,
+                birthplace: normalizedInput.meta.birthplace,
+                gender: normalizedInput.meta.gender
+            });
+        }
+        
+        return displayOutput;
+    }
+
+    /**
+     * Build display output with user data from current formData (for cache hit scenarios)
+     * This ensures personal info (name, gender, birthplace) is always fresh from the current submission
+     * @param {Object} adapterOutput - Cached adapter output
+     * @param {Object} normalizedInput - Cached normalized input (may have stale personal info)
+     * @param {Object} formData - Current form submission data with fresh personal info
+     * @returns {Object} Display output with fresh personal info
+     */
+    function buildDisplayOutputWithFormData(adapterOutput, normalizedInput, formData) {
+        if (!adapterOutput) return null;
+
+        const displayOutput = Object.assign({}, adapterOutput);
+        
+        // Use formData for personal info (name, gender, birthplace) - always fresh from current submission
+        // Use normalizedInput/adapterOutput for calculated data (dates, lunar info, etc.)
+        if (displayOutput.meta) {
+            displayOutput.meta = Object.assign({}, displayOutput.meta, {
+                name: formData?.name || normalizedInput?.meta?.name || displayOutput.meta.name,
+                birthplace: formData?.birthplace || normalizedInput?.meta?.birthplace || displayOutput.meta.birthplace,
+                gender: formData?.gender || normalizedInput?.meta?.gender || displayOutput.meta.gender
+            });
+        }
+        
+        return displayOutput;
+    }
+
+    /**
+     * Persist computation result to adapter storage (sanitized)
+     */
+    function persistComputationResult(adapter, normalizedInput, adapterOutput, calcResult) {
+        const storage = adapter?.storage;
+        if (!storage || typeof storage.set !== 'function') return;
+
+        const sanitizedNormalized = sanitizeFormForStorage(normalizedInput);
+        const sanitizedOutput = sanitizeAdapterOutput(adapterOutput);
+
+        storage.set(ADAPTER_KEYS.NORMALIZED_INPUT, sanitizedNormalized);
+        storage.set(ADAPTER_KEYS.ADAPTER_OUTPUT, sanitizedOutput);
+        storage.set(ADAPTER_KEYS.CALC_RESULT, calcResult);
+        
+        if (sanitizedOutput?.meta) {
+            storage.set(ADAPTER_KEYS.META, sanitizedOutput.meta);
+        }
+    }
+
+    /**
+     * Sanitize adapter output for storage
+     */
+    function sanitizeAdapterOutput(output) {
+        if (!output) return null;
+
+        const sanitized = Object.assign({}, output);
+        if (sanitized.meta) {
+            const metaCopy = Object.assign({}, sanitized.meta);
+            delete metaCopy.name;
+            delete metaCopy.birthplace;
+            delete metaCopy.gender;
+            sanitized.meta = metaCopy;
+        }
+        return sanitized;
+    }
+
+    /**
+     * Emit chart event
+     */
+    function emitChartEvent(eventName, detail) {
+        document.dispatchEvent(new CustomEvent(eventName, { detail }));
+    }
+
+    // ============================================================================
+    // Display Functions
+    // ============================================================================
+
+    /**
+     * Show chart from calculation result
+     * @param {Object} chartData
+     * @returns {HTMLElement}
+     */
+    function showChart(chartData) {
+        if (!window.ziweiChart?.draw) {
+            throw new Error('Chart renderer not loaded');
         }
         return window.ziweiChart.draw(chartData);
-    } catch (err) {
-        console.error('[ziweiCalculator] showChart wrapper failed:', err);
-        throw err;
     }
-}
 
-/**
- * Update the display with new chart HTML instantly (No flicker)
- * @param {HTMLElement} chartElement The chart element to display
- * @returns {Promise<void>}
- */
-async function updateDisplay(chartElement, _calculationResult) {
-    const form = document.getElementById('ziwei-cal-form');
-    
-    // ========================================================================
-    // 情況 1: 已經在圖表模式 -> 進行原地更新 (不閃爍)
-    // ========================================================================
-    if (!form) {
-        const existingChart = document.querySelector('[data-ziwei-chart="1"]');
-        
-        if (existingChart && existingChart.parentNode) {
-            // 保存當前滾動位置
-            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-            const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-            
-            // 標記新圖表
-            chartElement.setAttribute('data-ziwei-chart', '1');
-            
-            // 🎯 關鍵修改：使用 innerHTML 替換內容，而不是替換整個節點
-            // 這樣可以避免 DOM 節點的移除和重新插入，從而消除閃爍
-            existingChart.innerHTML = chartElement.innerHTML;
-            
-            // 複製新元素的所有屬性到現有元素
-            Array.from(chartElement.attributes).forEach(attr => {
-                if (attr.name !== 'data-ziwei-chart') {
-                    existingChart.setAttribute(attr.name, attr.value);
-                }
-            });
-            
-            // 恢復滾動位置（防止頁面跳動）
-            window.scrollTo(scrollLeft, scrollTop);
-            
-            // 發送更新事件
-            try {
-                document.dispatchEvent(new CustomEvent('ziwei-chart-updated', { 
-                    detail: { chartElement: existingChart, calculationResult: _calculationResult } 
-                }));
-            } catch (e) { 
-                console.warn('Event dispatch failed:', e);
+    /**
+     * Update display with new chart element
+     * @param {HTMLElement} chartElement
+     * @returns {Promise<void>}
+     */
+    async function updateDisplay(chartElement) {
+        const form = document.getElementById('ziwei-cal-form');
+
+        if (!form) {
+            // Already in chart mode - replace in place
+            const existingChart = document.querySelector('[data-ziwei-chart="1"]');
+            if (existingChart?.parentNode) {
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+
+                chartElement.setAttribute('data-ziwei-chart', '1');
+                existingChart.parentNode.replaceChild(chartElement, existingChart);
+
+                window.scrollTo(scrollLeft, scrollTop);
             }
             return;
         }
-    }
 
-    // ========================================================================
-    // 情況 2: 從表單切換到圖表 (第一次排盤)
-    // ========================================================================
-    const container = form.closest('.ziwei-cal');
-    
-    if (container) {
-        container.setAttribute('data-ziwei-mode', 'chart');
-    }
-    
-    chartElement.setAttribute('data-ziwei-chart', '1');
-
-    // 建立控制列
-    if (window.ziweiControl && typeof window.ziweiControl.createBar === 'function') {
-        window.ziweiControl.createBar({
-            mountNode: form.parentNode,
-            beforeNode: form
+        // Transition from form to chart
+        chartElement.setAttribute('data-ziwei-chart', '1');
+        const container = form.parentNode;
+        
+        // Update container mode to 'chart' for CSS styling
+        if (container && container.hasAttribute('data-ziwei-mode')) {
+            container.setAttribute('data-ziwei-mode', 'chart');
+        }
+        
+        // 建立控制列
+        if (window.ziweiControl && typeof window.ziweiControl.createBar === 'function') {
+            window.ziweiControl.createBar({
+                mountNode: container,
+                beforeNode: form
+            });
+        }
+        
+        form.style.opacity = '0';
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        container.replaceChild(chartElement, form);
+        chartElement.style.opacity = '0';
+        
+        requestAnimationFrame(() => {
+            chartElement.style.transition = 'opacity 0.2s ease-out';
+            chartElement.style.opacity = '1';
         });
     }
-    
-    // 首次渲染可以使用 replaceWith（因為是從表單切換到圖表）
-    form.replaceWith(chartElement);
-    
-    // 發送首次渲染事件
-    try {
-        document.dispatchEvent(new CustomEvent('ziwei-chart-ready', { 
-            detail: { chartElement, calculationResult: _calculationResult } 
-        }));
-    } catch (e) {
-        console.warn('Event dispatch failed:', e);
-    }
-}
 
-// ============================================================================
-// Public API Export
-// ============================================================================
+    // ============================================================================
+    // Cycle State Management
+    // ============================================================================
 
-/**
- * Public calculator API
- */
-window.ziweiCalculator = {
-    compute: computeChartWithCache,
-    clearCache: clearCalculationCache
-};
+    /**
+     * Capture current cycle view state
+     * @returns {Object|null}
+     */
+    function captureCurrentCycleState() {
+        const activeMajor = document.querySelector('.ziwei-major-cycle-button.active');
+        const activeAnnual = document.querySelector('.ziwei-annual-cycle-button.active');
 
-/**
- * Restore cycle view state after chart recomputation
- * @param {Object} cycleState State object from captureCurrentCycleState
- */
-function restoreCycleState(cycleState) {
-    if (!cycleState) return;
-
-    try {
-        // Restore major cycle selection
-        if (cycleState.majorCycleIndex !== null) {
-            const majorButton = document.querySelector(`.ziwei-major-cycle-button[data-cycle-index="${cycleState.majorCycleIndex}"]`);
-            if (majorButton) {
-                majorButton.click();
-            }
+        if (!activeMajor && !activeAnnual) {
+            return null;
         }
 
-        // Restore annual cycle selection after a short delay to ensure major cycle is processed
+        return {
+            majorCycleIndex: activeMajor?.dataset?.cycleIndex 
+                ? parseInt(activeMajor.dataset.cycleIndex, 10) 
+                : null,
+            annualCycleAge: activeAnnual?.dataset?.age 
+                ? parseInt(activeAnnual.dataset.age, 10) 
+                : null,
+            annualCycleYear: activeAnnual?.dataset?.year 
+                ? parseInt(activeAnnual.dataset.year, 10) 
+                : null
+        };
+    }
+
+    /**
+     * Restore cycle view state
+     * @param {Object} cycleState
+     */
+    function restoreCycleState(cycleState) {
+        if (!cycleState) return;
+
+        if (cycleState.majorCycleIndex !== null) {
+            const majorButton = document.querySelector(
+                `.ziwei-major-cycle-button[data-cycle-index="${cycleState.majorCycleIndex}"]`
+            );
+            majorButton?.click();
+        }
+
         if (cycleState.annualCycleAge !== null || cycleState.annualCycleYear !== null) {
             setTimeout(() => {
                 let annualButton;
                 if (cycleState.annualCycleAge !== null) {
-                    annualButton = document.querySelector(`.ziwei-annual-cycle-button[data-age="${cycleState.annualCycleAge}"]`);
+                    annualButton = document.querySelector(
+                        `.ziwei-annual-cycle-button[data-age="${cycleState.annualCycleAge}"]`
+                    );
                 } else if (cycleState.annualCycleYear !== null) {
-                    annualButton = document.querySelector(`.ziwei-annual-cycle-button[data-year="${cycleState.annualCycleYear}"]`);
+                    annualButton = document.querySelector(
+                        `.ziwei-annual-cycle-button[data-year="${cycleState.annualCycleYear}"]`
+                    );
                 }
-                if (annualButton) {
-                    annualButton.click();
-                }
-            }, 200); // Wait a bit longer for major cycle processing
+                annualButton?.click();
+            }, 50);
         }
-    } catch (e) {
-        console.warn('[ziweiCalculator] Failed to restore cycle state:', e);
     }
-}
-function getMilitaryHourIndex(timeStr) {
-    if (!timeStr) return 0;  // Default to 子 (midnight)
-    const parts = timeStr.split(':');
-    const hour = parseInt(parts[0], 10);
-    if (isNaN(hour)) return 0;
-    if (hour === 0 || hour === 23) return 0; // 子
-    if (hour >= 1 && hour < 3) return 1;      // 丑
-    if (hour >= 3 && hour < 5) return 2;      // 寅
-    if (hour >= 5 && hour < 7) return 3;      // 卯
-    if (hour >= 7 && hour < 9) return 4;      // 辰
-    if (hour >= 9 && hour < 11) return 5;     // 巳
-    if (hour >= 11 && hour < 13) return 6;    // 午
-    if (hour >= 13 && hour < 15) return 7;    // 未
-    if (hour >= 15 && hour < 17) return 8;    // 申
-    if (hour >= 17 && hour < 19) return 9;    // 酉
-    if (hour >= 19 && hour < 21) return 10;   // 戌
-    if (hour >= 21 && hour < 23) return 11;   // 亥
-    return 0;  // Default fallback
-}
 
+    // ============================================================================
+    // Settings Change Handler
+    // ============================================================================
 
-if (typeof window !== 'undefined') {
-    window.ziweiCalculator = window.ziweiCalculator || {};
-    window.ziweiCalculator.compute = computeChartWithCache;
-    window.ziweiCalculator.clearCache = clearCalculationCache;
-    window.ziweiCalculator.getMilitaryHourIndex = getMilitaryHourIndex;
-    if (CACHE_CONFIG.debug) {
-        console.log('[ziweiCalculator] Window export complete');
+    /**
+     * Handle settings that affect calculation
+     */
+    function setupSettingsListener() {
+        document.addEventListener('ziwei-setting-changed', async (e) => {
+            const { setting } = e.detail || {};
+            if (!CALCULATION_SETTINGS.includes(setting)) return;
+
+            const utils = window.ziweiAdapterUtils;
+            let formData = utils?.getStorageValue(ADAPTER_KEYS.FORM_INPUT);
+            
+            if (!formData) {
+                const normalized = utils?.getStorageValue(ADAPTER_KEYS.NORMALIZED_INPUT);
+                if (normalized?.raw) {
+                    formData = normalized.raw;
+                }
+            }
+
+            if (!formData) return;
+
+            const cycleState = captureCurrentCycleState();
+            if (cycleState) {
+                formData._cycleStateToRestore = cycleState;
+            }
+
+            try {
+                const result = await computeChartWithCache(formData);
+                const chartElement = await showChart(result);
+                await updateDisplay(chartElement);
+            } catch (err) {
+                console.error('[ziweiCalculator] Recomputation failed:', err);
+            }
+        });
     }
-}
+
+    // ============================================================================
+    // Initialization
+    // ============================================================================
+
+    function initialize() {
+        setupSettingsListener();
+
+        document.addEventListener('ziwei-form-submit', async (e) => {
+            const { formData } = e.detail;
+            console.log('[DEBUG] ziwei-form-submit received', { formData });
+
+            if (window.ziweiForm?.saveState) {
+                window.ziweiForm.saveState();
+            }
+
+            clearAdapterChartContext({ preserveFormInput: true });
+            primeAdapterFormInput(formData);
+
+            try {
+                const result = await computeChartWithCache(formData);
+                const chartElement = await showChart(result);
+                await updateDisplay(chartElement);
+            } catch (error) {
+                console.error('[ziweiCalculator] Computation failed:', error);
+                if (window.ziweiForm?.handleAdapterError) {
+                    window.ziweiForm.handleAdapterError(error);
+                }
+            }
+        });
+    }
+
+    // ============================================================================
+    // Public API
+    // ============================================================================
+
+    window.ziweiCalculator = {
+        compute: computeChartWithCache,
+        clearCache: clearCalculationCache,
+        getMilitaryHourIndex,
+        showChart,
+        updateDisplay,
+        captureCurrentCycleState,
+        restoreCycleState
+    };
+
+    window.submitToApi = submitToApi;
+
+    // Initialize on DOM ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initialize);
+    } else {
+        initialize();
+    }
+})(window);

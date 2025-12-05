@@ -1,11 +1,25 @@
+/**
+ * Major Cycle Stars Module
+ * 
+ * Calculates positions of major cycle stars (大限星曜):
+ * - 大限文昌 (大昌) - Major Cycle Literary Talent
+ * - 大限文曲 (大曲) - Major Cycle Literary Craft
+ * - 大限祿存 (大祿) - Major Cycle Prosperity
+ * - 大限擎羊 (大羊) - Major Cycle Positive Poison
+ * - 大限陀羅 (大陀) - Major Cycle Curved Trap
+ * - And more...
+ * 
+ * Dependencies:
+ * - assets/data/constants.js (ziweiConstants)
+ * 
+ * Exports: registerAdapterModule('majorCycle', ...)
+ */
+
 'use strict';
 
-/**
- * Major Cycle Stars Module for Ziwei Doushu
- * Calculates positions of major cycle stars (大限星曜):
- * - 大限文昌 (Major Cycle Literary Talent / 大昌)
- * - 大限文曲 (Major Cycle Literary Craft / 大曲)
- */
+// ============================================================================
+// Helper Functions
+// ============================================================================
 
 /**
  * Convert heavenly stem character to index (0-9)

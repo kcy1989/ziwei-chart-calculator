@@ -41,15 +41,7 @@
             </label>
             <div class="ziwei-cal-datetime-row">
                 <div class="ziwei-cal-date-section">
-                    <select id="ziwei-birth-year" name="year" class="ziwei-cal-year-input" required>
-                        <?php 
-                            $currentYear = (int)date('Y');
-                            for ($year = 1800; $year <= 2100; $year++): 
-                                $selected = ($year === $currentYear) ? 'selected' : '';
-                        ?>
-                            <option value="<?php echo $year; ?>" <?php echo $selected; ?>><?php echo $year; ?></option>
-                        <?php endfor; ?>
-                    </select>
+                    <input type="text" id="ziwei-birth-year" name="year" class="ziwei-cal-year-input" value="<?php echo date('Y'); ?>" placeholder="例如：1990" required pattern="[0-9]{4}" maxlength="4" inputmode="numeric">
                     <span class="ziwei-cal-unit">年</span>
 
                     <select id="ziwei-birth-month" name="month" class="ziwei-cal-md-input" required>
@@ -115,21 +107,22 @@
     </form>
     <script>
 document.addEventListener('DOMContentLoaded', function() {
+  const DEBUG = window.ziweiCalData?.env?.isDebug || false;
   const form = document.getElementById('ziwei-cal-form');
   if (!form) return console.error('[inline] Form not found');
-  console.log('[inline] Form found, attaching submit');
+  if (DEBUG) console.log('[inline] Form found, attaching submit');
   form.addEventListener('submit', async function(e) {
     e.preventDefault();
     e.stopPropagation();
-    console.log('[inline] Submit fired - single');
+    if (DEBUG) console.log('[inline] Submit fired - single');
     const formData = new FormData(form);
     const payload = Object.fromEntries(formData);
-    console.log('[inline] Payload:', payload);
+    if (DEBUG) console.log('[inline] Payload:', payload);
     
     window.ziweiCalData = window.ziweiCalData || {};
     const restUrl = window.ziweiCalData.restUrl || '/wp-json/ziwei-cal/v1/calculate';
     const nonce = window.ziweiCalData.nonce || '';
-    console.log('[inline] Using restUrl:', restUrl, 'nonce:', !!nonce);
+    if (DEBUG) console.log('[inline] Using restUrl:', restUrl, 'nonce:', !!nonce);
     
     try {
       const resp = await fetch(restUrl, {
@@ -138,28 +131,28 @@ document.addEventListener('DOMContentLoaded', function() {
         body: JSON.stringify(payload)
       });
       const data = await resp.json();
-      console.log('[inline] API success:', data);
+      if (DEBUG) console.log('[inline] API success:', data);
       
       // Poll for chart.draw ready
       let pollCount = 0;
       const pollChart = () => {
         if (window.ziweiChart && typeof window.ziweiChart.draw === 'function') {
-          console.log('[inline] chart.draw ready, drawing');
+          if (DEBUG) console.log('[inline] chart.draw ready, drawing');
           try {
             const chartWrapper = window.ziweiChart.draw(data.data);
-            console.log('[inline] Chart drawn:', !!chartWrapper);
+            if (DEBUG) console.log('[inline] Chart drawn:', !!chartWrapper);
             const container = form.closest('.ziwei-cal');
             if (container && chartWrapper) {
               form.replaceWith(chartWrapper);
               container.setAttribute('data-ziwei-mode', 'chart');
-              console.log('[inline] Chart inserted');
+              if (DEBUG) console.log('[inline] Chart inserted');
             }
           } catch (drawErr) {
             console.error('[inline] draw error:', drawErr);
           }
         } else if (pollCount < 100) {
           pollCount++;
-          console.log('[inline] Polling chart.draw attempt', pollCount);
+          if (DEBUG) console.log('[inline] Polling chart.draw attempt', pollCount);
           setTimeout(pollChart, 50);
         } else {
           console.error('[inline] chart.draw timeout after 5s');
@@ -176,6 +169,5 @@ document.addEventListener('DOMContentLoaded', function() {
 window.ziweiCalData = window.ziweiCalData || {};
 window.ziweiCalData.restUrl = '<?php echo esc_js(rest_url("ziwei-cal/v1/calculate")); ?>';
 window.ziweiCalData.nonce = '<?php echo esc_js(wp_create_nonce("wp_rest")); ?>';
-console.log('[inline data] ziweiCalData ready:', window.ziweiCalData.restUrl);
 </script>
     </div>

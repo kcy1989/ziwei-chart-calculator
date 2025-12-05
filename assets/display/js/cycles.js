@@ -1,12 +1,26 @@
-'use strict';
-
 /**
  * Major and Annual Cycles Display Module
  * 
+ * Renders the cycle panel below the chart with major (大限) and annual (流年)
+ * cycle buttons. Handles cycle selection, palace highlighting, and star display.
+ * 
+ * Dependencies:
+ * - assets/data/constants.js (ziweiConstants)
+ * - assets/js/data-adapter.js (ziweiAdapter)
+ * 
  * Corresponding CSS: assets/display/css/cycles.css
+ * 
+ * Exports: window.ziweiCycles
  */
 
+'use strict';
+
 (function() {
+
+    // ============================================================================
+    // Adapter Helpers
+    // ============================================================================
+
     function getAdapterModule(name) {
         const adapter = window.ziweiAdapter;
         if (!adapter) {
@@ -128,28 +142,26 @@
          */
         const generateAnnualLabels = () => {
             const adapter = window.ziweiAdapter;
-            const baseLabels = ['流父','流福','流田','流事','流友','流遷','流疾','流財','流子','流夫','流兄'];
-            
+            const baseLabels = ['年父','年福','年田','年事','年友','年遷','年疾','年財','年子','年夫','年兄'];
+
             // Read user's palace name settings from adapter
             if (!adapter || !adapter.settings || typeof adapter.settings.get !== 'function') {
                 return baseLabels;
             }
-            
+
             const careerSetting = adapter.settings.get('palaceNameCareer') || 'career';
             const friendsSetting = adapter.settings.get('palaceNameFriends') || 'friends';
-            
+
             // Apply career palace setting (position 3 in ANNUAL_LABELS array = position 4 relative to Ming)
             if (careerSetting === 'official') {
-                baseLabels[3] = '流官';
+                baseLabels[3] = '年官';
             }
-            
+
             // Apply friends palace setting (position 4 in ANNUAL_LABELS array = position 5 relative to Ming)
-            if (friendsSetting === 'servants') {
-                baseLabels[4] = '流僕';
-            } else if (friendsSetting === 'servants_alt') {
-                baseLabels[4] = '流僕';
+            if (friendsSetting === 'servants' || friendsSetting === 'servants_alt') {
+                baseLabels[4] = '年僕';
             }
-            
+
             return baseLabels;
         };
 
@@ -508,21 +520,17 @@
             if (annualRow && annualRow.style.display !== 'none' && typeof window.ziweiChartHelpers?.setAnnualCycleLabels === 'function') {
                 const annualBtnActive = annualRow.querySelector('.ziwei-cycle-button-active');
                 if (annualBtnActive) {
-                    const annualAge = parseInt(annualBtnActive.dataset.age, 10);
-                    const cycleIndex = parseInt(annualBtnActive.dataset.cycleIndex, 10);
-                    
-                    if (Number.isInteger(cycleIndex)) {
-                        // Find the cycle object to get branchIndex
-                        const cycleLookup = majorCycles.find(c => c.cycleIndex === cycleIndex);
-                        if (cycleLookup && palaceData) {
-                            const stemBranch = getPalaceStemBranch(cycleLookup.palaceIndex);
-                            if (stemBranch && stemBranch.length >= 2) {
-                                const branchChar = stemBranch.charAt(1);
-                                const branchIndex = branchCharToIndex(branchChar);
-                                if (Number.isInteger(branchIndex) && branchIndex >= 0) {
-                                    const ANNUAL_LABELS = generateAnnualLabels();
-                                    window.ziweiChartHelpers.setAnnualCycleLabels(branchIndex, ANNUAL_LABELS);
-                                }
+                    // Extract branch index from the active annual button's stem-branch text
+                    const stemBranchDiv = annualBtnActive.querySelector('.ziwei-annual-stem-branch');
+                    if (stemBranchDiv) {
+                        const stemBranchText = stemBranchDiv.textContent || '';
+                        // Format: "乙卯37歲" - extract branch character (second character)
+                        if (stemBranchText.length >= 2) {
+                            const branchChar = stemBranchText.charAt(1);
+                            const branchIndex = branchCharToIndex(branchChar);
+                            if (Number.isInteger(branchIndex) && branchIndex >= 0) {
+                                const ANNUAL_LABELS = generateAnnualLabels();
+                                window.ziweiChartHelpers.setAnnualCycleLabels(branchIndex, ANNUAL_LABELS);
                             }
                         }
                     }

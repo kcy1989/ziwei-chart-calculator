@@ -1,16 +1,31 @@
-'use strict';
-
 /**
- * Configuration module for Ziwei chart settings
- * Handles: settings panel generation, option display logic, and chart computation effects
+ * Configuration Module
+ * 
+ * Manages chart settings panel: display options, calculation preferences,
+ * and privacy controls. Handles setting persistence and real-time updates.
+ * 
+ * Dependencies:
+ * - assets/data/constants.js (ziweiConstants)
+ * - assets/js/data-adapter.js (ziweiAdapter)
  * 
  * Corresponding CSS: assets/display/css/config.css
+ * 
+ * Exports: window.ziweiConfig
  */
+
+'use strict';
+
 (function () {
+
+    // ============================================================================
+    // Module Constants
+    // ============================================================================
+
+    const constants = window.ziweiConstants;
     const SETTINGS_SELECTOR = '.ziwei-settings-panel';
     
-    // Heavenly stems for mutation calculations
-    const HEAVENLY_STEMS = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
+    // Heavenly stems from centralized constants
+    const HEAVENLY_STEMS = constants.STEM_NAMES;
     
     // Store original personal information for privacy mode toggle
     let originalPersonalInfo = {
@@ -223,9 +238,9 @@
             affectsChart: true,  // affects chart computation via adapter
             handler: 'applyZiHourChange'
         },
-        // 宮位名稱
+        // 宮位
     {
-        category: '宮位名稱',
+        category: '宮位',
         label: '事業宮',
         name: 'palaceNameCareer',
         options: [
@@ -237,7 +252,7 @@
         handler: 'applyPalaceNameChange'
     },
     {
-        category: '宮位名稱',
+        category: '宮位',
         label: '交友宮',
         name: 'palaceNameFriends',
         options: [
@@ -418,7 +433,6 @@
             formData = recoverFormDataFromCache();
         }
         if (!formData) {
-            console.warn(`[ziweiConfig] Cannot recalculate for ${settingName}: form data unavailable`);
             return;
         }
         
@@ -437,7 +451,7 @@
         // 5. Trigger recalculation via form submit event
         try {
             const container = document.querySelector('.ziwei-cal') || document;
-            container.dispatchEvent(new CustomEvent('ziwei-form-submit', { detail: { formData } }));
+            container.dispatchEvent(new CustomEvent('ziwei-form-submit', { bubbles: true, detail: { formData } }));
         } catch (e) {
             console.error(`[ziweiConfig] Failed to dispatch ziwei-form-submit for ${settingName}:`, e);
         }
@@ -451,6 +465,7 @@
      * @param {string} handlingValue - 'ziChange' or 'midnightChange'
      */
     function applyZiHourConversion(formData, handlingValue) {
+        console.log('[DEBUG] applyZiHourConversion called', { handlingValue, formData: { ...formData } });
         if (handlingValue === 'ziChange') {
             // Parse date/time from formData
             const birthdateStr = formData.birthdate || formData.date || null;
@@ -482,6 +497,8 @@
                 srcMinute = parseInt(formData.minute, 10) || 0;
             }
 
+            console.log('[DEBUG] Parsed values', { srcYear, srcMonth, srcDay, srcHour, srcMinute });
+
             if (Number.isFinite(srcYear) && Number.isFinite(srcMonth) && Number.isFinite(srcDay) && Number.isFinite(srcHour)) {
                 formData.hour = srcHour;
                 formData.minute = srcMinute || 0;
@@ -491,26 +508,19 @@
                 const baseHour = orig && typeof orig.hour !== 'undefined' ? parseInt(orig.hour, 10) : srcHour;
                 const baseMinute = orig && typeof orig.minute !== 'undefined' ? parseInt(orig.minute, 10) : (srcMinute || 0);
 
-                // Condition: 23:00-23:55 (zi-hour boundary)
-                if (baseHour === 23 && baseMinute >= 0 && baseMinute <= 55) {
-                    if (!formData._ziOriginal) {
-                        formData._ziOriginal = {
-                            birthdate: birthdateStr || null,
-                            year: formData.year || srcYear,
-                            month: formData.month || srcMonth,
-                            day: formData.day || srcDay,
-                            hour: formData.hour || srcHour,
-                            minute: formData.minute || srcMinute || 0
-                        };
-                        setAdapterStorageValue('_ziOriginal', Object.assign({}, formData._ziOriginal));
-                    }
+                console.log('[DEBUG] Base values', { baseHour, baseMinute });
 
-                    // Mark for lunar shift (adapter handles conversion)
-                    formData._ziChangeApplied = true;
-                    formData._ziLunarShiftDays = 1;
+                // Condition: Zi hour (23:00-23:59 or 00:00-00:59)
+                if (baseHour === 23 || baseHour === 0) {
+                    console.log('[DEBUG] Zi hour detected, shift will be applied in adapter if not already done');
+                } else {
+                    console.log('[DEBUG] Not Zi hour, no shift');
                 }
+            } else {
+                console.log('[DEBUG] Invalid parsed values');
             }
         } else if (handlingValue === 'midnightChange') {
+            console.log('[DEBUG] Restoring original date');
             // Restore original date
             const orig = formData._ziOriginal || getAdapterStorageValue('_ziOriginal') || null;
             if (orig) {
@@ -524,6 +534,8 @@
                 delete formData._ziOriginal;
                 removeAdapterStorageValue('_ziOriginal');
             }
+            // Reset shift flag
+            removeAdapterStorageValue('_ziShifted');
         }
     }
 
@@ -589,7 +601,7 @@
         // Preserve ziHourHandling from normalized.meta when available so recovered
         // form data will continue to respect the user's zi-hour setting.
         try {
-            var zih = (normalized.meta && normalized.meta.ziHourHandling) ? normalized.meta.ziHourHandling : null;
+            let zih = (normalized.meta && normalized.meta.ziHourHandling) ? normalized.meta.ziHourHandling : null;
             if (!zih) {
                 try {
                     if (window.ziweiAdapter && window.ziweiAdapter.settings && typeof window.ziweiAdapter.settings.get === 'function') {
@@ -601,7 +613,7 @@
             }
             if (zih) form.ziHourHandling = zih;
             // Also preserve leapMonthHandling when present
-            var lmh = (normalized.meta && normalized.meta.leapMonthHandling) ? normalized.meta.leapMonthHandling : null;
+            let lmh = (normalized.meta && normalized.meta.leapMonthHandling) ? normalized.meta.leapMonthHandling : null;
             if (lmh) form.leapMonthHandling = lmh;
         } catch (e) {
             // ignore storage errors
@@ -657,262 +669,679 @@
         });
     }
 
+    // ============================================================================
+    // Personal Info Privacy Constants
+    // ============================================================================
+    
+    const PRIVACY_MODES = {
+        SHOW: 'show',
+        HIDE_DATES: 'hideDates',
+        HIDE: 'hide'
+    };
+    
+    const PLACEHOLDER_TEXTS = {
+        HIDDEN_NAME: '有心人',
+        HIDDEN_GENDER: '沒有',
+        HIDDEN_GREGORIAN_DATE: '西曆：用戶不顯示出生日期',
+        HIDDEN_LUNAR_DATE: '農曆：用戶不顯示出生日期',
+        UNKNOWN_NAME: '無名氏',
+        UNKNOWN_GENDER: '未知',
+        MISSING_GREGORIAN: '西曆：資料缺失',
+        MISSING_LUNAR: '農曆：資料缺失'
+    };
+
+    // ============================================================================
+    // DOM Element Cache - Performance optimization
+    // ============================================================================
+    
+    let personalInfoElements = null;
+    
     /**
-     * Apply personal info visibility changes - Replace sensitive data with placeholders
-     * @param {string} infoValue Selected personal info visibility ('show' or 'hide')
+     * Cache DOM elements to avoid repeated queries
+     * @returns {Object|null} Cached DOM elements or null if not found
      */
-    function applyPersonalInfoChange(infoValue) {
-        const nameEl = document.querySelector('.ziwei-name');
-        const genderEl = document.querySelector('.ziwei-gender-classification');
-        const gregDateEl = document.querySelector('.ziwei-datetime:not(.ziwei-lunar)');
-        const lunarDateEl = document.querySelector('.ziwei-datetime.ziwei-lunar');
-
-        if (infoValue === 'hide') {
-            try {
-                const snap = buildPersonalInfoSnapshotFromAdapter();
-                if (!snap) {
-                    console.error('[ziweiConfig] Cannot mask personal info without adapter snapshot');
-                } else {
-                    originalPersonalInfo._snapshot = JSON.parse(JSON.stringify(snap));
-                    const meta = extractMetaFromSnapshot(snap);
-                    if (!hydrateOriginalPersonalInfoFromMeta(meta)) {
-                        console.error('[ziweiConfig] Snapshot meta missing while entering hide mode');
-                    }
-                }
-            } catch (snapshotErr) {
-                console.error('[ziweiConfig] Failed to cache adapter snapshot for hide mode', snapshotErr);
-            }
-
-            if (nameEl) nameEl.textContent = '有心人';
-            if (genderEl) genderEl.textContent = '沒有';
-            if (gregDateEl) gregDateEl.textContent = '西曆：用戶不顯示出生日期';
-            if (lunarDateEl) lunarDateEl.textContent = '農曆：用戶不顯示出生日期';
-        } else if (infoValue === 'hideDates') {
-            const snapshot = originalPersonalInfo._snapshot || buildPersonalInfoSnapshotFromAdapter();
-            const meta = extractMetaFromSnapshot(snapshot);
-            if (!meta) {
-                console.error('[ziweiConfig] Unable to restore personal info: adapter meta missing');
-            }
-            hydrateOriginalPersonalInfoFromMeta(meta);
-
-            if (nameEl) {
-                nameEl.textContent = meta?.name || originalPersonalInfo.name || '無名氏';
-            }
-            if (genderEl) {
-                const genderText = meta?.genderClassification || meta?.gender || originalPersonalInfo.gender || '';
-                genderEl.textContent = genderText || '未知';
-            }
-            if (gregDateEl) {
-                gregDateEl.textContent = '西曆：用戶不顯示出生日期';
-            }
-            if (lunarDateEl) {
-                lunarDateEl.textContent = '農曆：用戶不顯示出生日期';
-            }
-        } else if (infoValue === 'show') {
-            const snapshot = originalPersonalInfo._snapshot || buildPersonalInfoSnapshotFromAdapter();
-            const meta = extractMetaFromSnapshot(snapshot);
-            if (!meta) {
-                console.error('[ziweiConfig] Unable to restore personal info: adapter meta missing');
-            }
-            hydrateOriginalPersonalInfoFromMeta(meta);
-
-            if (nameEl) {
-                nameEl.textContent = meta?.name || originalPersonalInfo.name || '無名氏';
-            }
-            if (genderEl) {
-                const genderText = meta?.genderClassification || meta?.gender || originalPersonalInfo.gender || '';
-                genderEl.textContent = genderText || '未知';
-            }
-            if (gregDateEl) {
-                const solarText = meta ? getSolarTextFromMeta(meta) : null;
-                gregDateEl.textContent = solarText || originalPersonalInfo.gregorianDate || '西曆：資料缺失';
-            }
-            if (lunarDateEl) {
-                const lunarText = meta ? getLunarTextFromMeta(meta) : null;
-                lunarDateEl.textContent = lunarText || originalPersonalInfo.lunarDate || '農曆：資料缺失';
-            }
+    function getPersonalInfoElements() {
+        if (personalInfoElements && areElementsValid(personalInfoElements)) {
+            return personalInfoElements;
         }
-
-        currentPersonalInfoState = infoValue;
-        setAdapterSettingValue('personalInfo', currentPersonalInfoState);
+        
+        personalInfoElements = {
+            nameEl: document.querySelector('.ziwei-name'),
+            genderEl: document.querySelector('.ziwei-gender-classification'),
+            gregDateEl: document.querySelector('.ziwei-datetime:not(.ziwei-lunar)'),
+            lunarDateEl: document.querySelector('.ziwei-datetime.ziwei-lunar')
+        };
+        
+        return personalInfoElements;
+    }
+    
+    /**
+     * Check if cached DOM elements are still valid
+     * @param {Object} elements DOM elements to check
+     * @returns {boolean} True if elements are still valid
+     */
+    function areElementsValid(elements) {
+        return elements && 
+               elements.nameEl?.isConnected && 
+               elements.genderEl?.isConnected && 
+               elements.gregDateEl?.isConnected && 
+               elements.lunarDateEl?.isConnected;
     }
 
-    function applyStemInterpretationChange(interpretationValue, settingName) {
-        // Extract stem from setting name (e.g., 'stemInterpretation_甲' -> '甲')
-        const stemMatch = settingName.match(/^stemInterpretation_(.+)$/);
-        if (!stemMatch) {
-            console.error('[ziweiConfig] Invalid stem interpretation setting name:', settingName);
+    /**
+     * Safe DOM element setter with validation
+     * @param {HTMLElement} element DOM element
+     * @param {string} text Content to set
+     */
+    function safeSetElementText(element, text) {
+        if (element && element.isConnected && typeof element.textContent !== 'undefined') {
+            element.textContent = text;
+        }
+    }
+
+    /**
+     * Apply hide mode - Hide all personal information
+     * @param {Object} elements DOM elements
+     * @param {Object} meta Metadata from snapshot
+     */
+    function applyHideMode(elements, meta) {
+        // Cache snapshot for restoration capability
+        try {
+            const snapshot = buildPersonalInfoSnapshotFromAdapter();
+            if (!snapshot) {
+                console.warn('[ziweiConfig] Cannot cache personal info snapshot for hide mode');
+            } else {
+                originalPersonalInfo._snapshot = JSON.parse(JSON.stringify(snapshot));
+                if (meta && !hydrateOriginalPersonalInfoFromMeta(meta)) {
+                    console.warn('[ziweiConfig] Snapshot meta missing while entering hide mode');
+                }
+            }
+        } catch (snapshotErr) {
+            console.error('[ziweiConfig] Failed to cache adapter snapshot for hide mode:', snapshotErr);
+        }
+
+        // Apply placeholders for all personal info
+        safeSetElementText(elements.nameEl, PLACEHOLDER_TEXTS.HIDDEN_NAME);
+        safeSetElementText(elements.genderEl, PLACEHOLDER_TEXTS.HIDDEN_GENDER);
+        safeSetElementText(elements.gregDateEl, PLACEHOLDER_TEXTS.HIDDEN_GREGORIAN_DATE);
+        safeSetElementText(elements.lunarDateEl, PLACEHOLDER_TEXTS.HIDDEN_LUNAR_DATE);
+    }
+
+    /**
+     * Apply hide dates mode - Show name and gender, hide dates
+     * @param {Object} elements DOM elements
+     * @param {Object} meta Metadata from snapshot
+     */
+    function applyHideDatesMode(elements, meta) {
+        const snapshot = originalPersonalInfo._snapshot || buildPersonalInfoSnapshotFromAdapter();
+        const extractedMeta = meta || extractMetaFromSnapshot(snapshot);
+        
+        if (!extractedMeta) {
+            console.error('[ziweiConfig] Unable to restore personal info: adapter meta missing');
+            // Continue with default values
+        } else {
+            hydrateOriginalPersonalInfoFromMeta(extractedMeta);
+        }
+
+        // Show name and gender, hide dates
+        const nameText = extractedMeta?.name || originalPersonalInfo.name || PLACEHOLDER_TEXTS.UNKNOWN_NAME;
+        
+        // Priority order for gender text: genderClassification (Chinese format with 陰/陽) > gender > fallback
+        let genderText = PLACEHOLDER_TEXTS.UNKNOWN_GENDER;
+        if (extractedMeta?.genderClassification && 
+            typeof extractedMeta.genderClassification === 'string' && 
+            extractedMeta.genderClassification.trim()) {
+            genderText = extractedMeta.genderClassification.trim();
+        } else if (originalPersonalInfo.gender && 
+                   typeof originalPersonalInfo.gender === 'string' && 
+                   originalPersonalInfo.gender.trim()) {
+            genderText = originalPersonalInfo.gender.trim();
+        }
+
+        safeSetElementText(elements.nameEl, nameText);
+        safeSetElementText(elements.genderEl, genderText);
+        safeSetElementText(elements.gregDateEl, PLACEHOLDER_TEXTS.HIDDEN_GREGORIAN_DATE);
+        safeSetElementText(elements.lunarDateEl, PLACEHOLDER_TEXTS.HIDDEN_LUNAR_DATE);
+    }
+
+    /**
+     * Apply show mode - Display all personal information
+     * @param {Object} elements DOM elements
+     * @param {Object} meta Metadata from snapshot
+     */
+    function applyShowMode(elements, meta) {
+        const snapshot = originalPersonalInfo._snapshot || buildPersonalInfoSnapshotFromAdapter();
+        const extractedMeta = meta || extractMetaFromSnapshot(snapshot);
+        
+        if (!extractedMeta) {
+            console.error('[ziweiConfig] Unable to restore personal info: adapter meta missing');
+            // Continue with stored values
+        } else {
+            hydrateOriginalPersonalInfoFromMeta(extractedMeta);
+        }
+
+        // Display all personal information
+        const nameText = extractedMeta?.name || originalPersonalInfo.name || PLACEHOLDER_TEXTS.UNKNOWN_NAME;
+        
+        // Priority order for gender text: genderClassification (Chinese format with 陰/陽) > gender > fallback
+        let genderText = PLACEHOLDER_TEXTS.UNKNOWN_GENDER;
+        if (extractedMeta?.genderClassification && 
+            typeof extractedMeta.genderClassification === 'string' && 
+            extractedMeta.genderClassification.trim()) {
+            genderText = extractedMeta.genderClassification.trim();
+        } else if (originalPersonalInfo.gender && 
+                   typeof originalPersonalInfo.gender === 'string' && 
+                   originalPersonalInfo.gender.trim()) {
+            genderText = originalPersonalInfo.gender.trim();
+        }
+        
+        const solarText = extractedMeta ? getSolarTextFromMeta(extractedMeta) : null;
+        const lunarText = extractedMeta ? getLunarTextFromMeta(extractedMeta) : null;
+
+        safeSetElementText(elements.nameEl, nameText);
+        safeSetElementText(elements.genderEl, genderText);
+        safeSetElementText(elements.gregDateEl, solarText || originalPersonalInfo.gregorianDate || PLACEHOLDER_TEXTS.MISSING_GREGORIAN);
+        safeSetElementText(elements.lunarDateEl, lunarText || originalPersonalInfo.lunarDate || PLACEHOLDER_TEXTS.MISSING_LUNAR);
+    }
+
+    /**
+     * Validate privacy mode input
+     * @param {string} infoValue Privacy mode to validate
+     * @returns {boolean} True if valid privacy mode
+     */
+    function isValidPrivacyMode(infoValue) {
+        return Object.values(PRIVACY_MODES).includes(infoValue);
+    }
+
+    /**
+     * Apply personal info visibility changes - Replace sensitive data with placeholders
+     * Main dispatcher for privacy mode changes
+     * @param {string} infoValue Selected personal info visibility (PRIVACY_MODES.SHOW, PRIVACY_MODES.HIDE_DATES, or PRIVACY_MODES.HIDE)
+     */
+    function applyPersonalInfoChange(infoValue) {
+        // Input validation
+        if (!isValidPrivacyMode(infoValue)) {
+            console.error(`[ziweiConfig] Invalid privacy mode: ${infoValue}. Valid modes: ${Object.values(PRIVACY_MODES).join(', ')}`);
             return;
         }
-        const stem = stemMatch[1];
 
-        // Get current selections and update the specific stem
-        const currentSelections = window.getCurrentStemSelections ? window.getCurrentStemSelections() : {};
-        const newSelections = { ...currentSelections, [stem]: interpretationValue };
-
-        // Update mutation system selections
-        if (window.updateStemSelections) {
-            window.updateStemSelections(newSelections);
+        // Early return if no change needed
+        if (currentPersonalInfoState === infoValue) {
+            console.log(`[ziweiConfig] Personal info mode unchanged: ${infoValue}`);
+            return;
         }
 
-        // Store in adapter settings for persistence
-        setAdapterSettingValue(settingName, interpretationValue);
+        // Get cached DOM elements
+        const elements = getPersonalInfoElements();
+        
+        // Validate that essential DOM elements exist
+        if (!elements.nameEl || !elements.genderEl || !elements.gregDateEl || !elements.lunarDateEl) {
+            console.warn('[ziweiConfig] Personal info DOM elements not found. Chart may not be rendered yet.');
+            // Continue anyway - elements might appear later
+        }
 
-        // Instead of recomputing the entire chart, just update the mutation marks
-        // This prevents the flashing issue when switching mutation settings
-
+        // Get metadata snapshot for processing
+        let meta = null;
         try {
-            // Clear all existing mutations
-            if (window.ziweiChartHelpers) {
-                // Clear birth-year mutations (生年四化)
-                if (typeof window.ziweiChartHelpers.clearMutationsByRole === 'function') {
-                    window.ziweiChartHelpers.clearMutationsByRole('birth-year');
-                }
-                // Clear major-cycle mutations (大限四化)
-                if (typeof window.ziweiChartHelpers.clearMajorCycleMutations === 'function') {
-                    window.ziweiChartHelpers.clearMajorCycleMutations();
-                }
-                // Clear annual-cycle mutations (流年四化)
-                if (typeof window.ziweiChartHelpers.clearAnnualCycleMutations === 'function') {
-                    window.ziweiChartHelpers.clearAnnualCycleMutations();
-                }
+            const snapshot = originalPersonalInfo._snapshot || buildPersonalInfoSnapshotFromAdapter();
+            if (snapshot) {
+                meta = extractMetaFromSnapshot(snapshot);
             }
+        } catch (metaErr) {
+            console.error('[ziweiConfig] Failed to extract metadata for personal info change:', metaErr);
+            // Continue with null meta - functions should handle this gracefully
+        }
 
-            // Reapply birth-year mutations (always present) - recalculate with current settings
-            // This ensures mutations always reflect the latest user selections
+        // Dispatch to appropriate mode handler
+        try {
+            switch (infoValue) {
+                case PRIVACY_MODES.HIDE:
+                    applyHideMode(elements, meta);
+                    break;
+                case PRIVACY_MODES.HIDE_DATES:
+                    applyHideDatesMode(elements, meta);
+                    break;
+                case PRIVACY_MODES.SHOW:
+                    applyShowMode(elements, meta);
+                    break;
+                default:
+                    console.error(`[ziweiConfig] Unhandled privacy mode: ${infoValue}`);
+                    return;
+            }
+        } catch (modeErr) {
+            console.error(`[ziweiConfig] Failed to apply privacy mode '${infoValue}':`, modeErr);
+            return;
+        }
+
+        // Update state and persist
+        currentPersonalInfoState = infoValue;
+        setAdapterSettingValue('personalInfo', currentPersonalInfoState);
+        
+        console.log(`[ziweiConfig] Personal info mode updated to: ${infoValue}`);
+    }
+
+    // ============================================================================
+    // Stem Interpretation Constants and Helpers
+    // ============================================================================
+    
+    /**
+     * Mutation types for clear categorization
+     */
+    const MUTATION_TYPES = {
+        BIRTH_YEAR: 'birth-year',
+        MAJOR_CYCLE: 'major-cycle', 
+        ANNUAL_CYCLE: 'annual-cycle'
+    };
+    
+    /**
+     * CSS class constants for better maintainability
+     */
+    const CSS_CLASSES = {
+        STAR_MUTATION_GROUP: '.ziwei-star-mutation-group',
+        PRIMARY_STAR: '.ziwei-primary-star',
+        SECONDARY_STAR: '.ziwei-secondary-star',
+        STAR_MUTATION_BOX: '.ziwei-star-mutation-box',
+        MUTATIONS_WRAPPER: '.ziwei-mutations-wrapper',
+        MUTATION_BIRTH: '.ziwei-mutation-birth',
+        MUTATION_MAJOR: '.ziwei-mutation-major',
+        MUTATION_ANNUAL: '.ziwei-mutation-annual',
+        WITH_MUTATION: 'ziwei-with-mutation',
+        STAR_WITH_MUTATION: 'ziwei-star-with-mutation',
+        STAR_NO_MUTATION: 'ziwei-star-no-mutation',
+        MAJOR_CYCLE_BUTTON: '.ziwei-major-cycle-button',
+        ANNUAL_CYCLE_BUTTON: '.ziwei-annual-cycle-button',
+        CYCLE_BUTTON_ACTIVE: 'ziwei-cycle-button-active',
+        ANNUAL_STEM_BRANCH: '.ziwei-annual-stem-branch'
+    };
+    
+    /**
+     * Chinese character validation pattern
+     */
+    const CHINESE_CHAR_PATTERN = /[\u4e00-\u9fff]/;
+    
+    /**
+     * Extract stem character from setting name
+     * @param {string} settingName - Setting name in format 'stemInterpretation_<stem>'
+     * @returns {string|null} - Stem character or null if invalid
+     */
+    function extractStemFromSetting(settingName) {
+        if (!settingName || typeof settingName !== 'string') {
+            console.error('[ziweiConfig] Invalid setting name provided:', settingName);
+            return null;
+        }
+        
+        const stemMatch = settingName.match(/^stemInterpretation_(.+)$/);
+        if (!stemMatch) {
+            console.error('[ziweiConfig] Invalid stem interpretation setting name format:', settingName);
+            return null;
+        }
+        
+        const stem = stemMatch[1];
+        if (!stem || stem.length === 0) {
+            console.error('[ziweiConfig] Empty stem extracted from setting:', settingName);
+            return null;
+        }
+        
+        return stem;
+    }
+    
+    /**
+     * Validate interpretation value
+     * @param {string} value - Interpretation value to validate
+     * @returns {boolean} - True if valid
+     */
+    function isValidInterpretationValue(value) {
+        return value && typeof value === 'string' && value.trim().length > 0;
+    }
+    
+    /**
+     * Update mutation system selections
+     * @param {string} stem - Stem character
+     * @param {string} interpretationValue - New interpretation value
+     */
+    function updateMutationSelections(stem, interpretationValue) {
+        try {
+            const currentSelections = window.getCurrentStemSelections ? window.getCurrentStemSelections() : {};
+            const newSelections = { ...currentSelections, [stem]: interpretationValue };
+            
+            if (window.updateStemSelections) {
+                window.updateStemSelections(newSelections);
+            }
+        } catch (error) {
+            console.error('[ziweiConfig] Failed to update stem selections:', error);
+        }
+    }
+    
+    /**
+     * Clear existing mutations of specific type
+     * @param {string} mutationType - Type of mutation to clear
+     */
+    function clearMutationsByType(mutationType) {
+        try {
+            if (!window.ziweiChartHelpers) {
+                return;
+            }
+            
+            switch (mutationType) {
+                case MUTATION_TYPES.BIRTH_YEAR:
+                    if (typeof window.ziweiChartHelpers.clearMutationsByRole === 'function') {
+                        window.ziweiChartHelpers.clearMutationsByRole(MUTATION_TYPES.BIRTH_YEAR);
+                    }
+                    break;
+                case MUTATION_TYPES.MAJOR_CYCLE:
+                    if (typeof window.ziweiChartHelpers.clearMajorCycleMutations === 'function') {
+                        window.ziweiChartHelpers.clearMajorCycleMutations();
+                    }
+                    break;
+                case MUTATION_TYPES.ANNUAL_CYCLE:
+                    if (typeof window.ziweiChartHelpers.clearAnnualCycleMutations === 'function') {
+                        window.ziweiChartHelpers.clearAnnualCycleMutations();
+                    }
+                    break;
+                default:
+                    console.warn('[ziweiConfig] Unknown mutation type to clear:', mutationType);
+            }
+        } catch (error) {
+            console.error(`[ziweiConfig] Failed to clear ${mutationType} mutations:`, error);
+        }
+    }
+    
+    /**
+     * Get current chart data safely
+     * @returns {Object|null} - Chart data or null if unavailable
+     */
+    function getCurrentChartData() {
+        try {
             const adapter = window.ziweiAdapter;
             if (adapter && adapter.getCurrentChart) {
-                const chartData = adapter.getCurrentChart();
-                if (chartData && chartData.indices && chartData.indices.yearStemIndex !== undefined) {
-                    // Always recalculate birth year mutations with current settings
-                    // This ensures they reflect the latest user selections
-                    const mutationsModule = adapter.getModule ? adapter.getModule('mutations') : null;
-                    if (mutationsModule && typeof mutationsModule.calculateBirthYearMutations === 'function') {
-                        const currentBirthMutations = mutationsModule.calculateBirthYearMutations(chartData.indices.yearStemIndex);
-
-                        if (currentBirthMutations && currentBirthMutations.byStar && Object.keys(currentBirthMutations.byStar).length > 0) {
-                            // Apply the recalculated birth year mutations to existing elements
-                            const starGroups = document.querySelectorAll('.ziwei-star-mutation-group');
-                            let appliedCount = 0;
-                            starGroups.forEach((groupEl) => {
-                                const starName = groupEl.querySelector('.ziwei-primary-star, .ziwei-secondary-star')?.textContent;
-                                if (starName && currentBirthMutations.byStar[starName]) {
-                                    const mutationType = currentBirthMutations.byStar[starName];
-                                    
-                                    // Ensure mutations wrapper exists (it may have been removed by clearMutationsByRole)
-                                    let wrapper = groupEl.querySelector('.ziwei-mutations-wrapper');
-                                    if (!wrapper) {
-                                        const starMutationBox = groupEl.querySelector('.ziwei-star-mutation-box');
-                                        if (starMutationBox) {
-                                            wrapper = document.createElement('div');
-                                            wrapper.className = 'ziwei-mutations-wrapper';
-                                            
-                                            // Create all three mutation slots
-                                            const birthSlot = document.createElement('span');
-                                            birthSlot.className = 'ziwei-mutation ziwei-mutation-birth';
-                                            wrapper.appendChild(birthSlot);
-                                            
-                                            const majorSlot = document.createElement('span');
-                                            majorSlot.className = 'ziwei-mutation ziwei-mutation-major';
-                                            majorSlot.style.visibility = 'hidden';
-                                            wrapper.appendChild(majorSlot);
-                                            
-                                            const annualSlot = document.createElement('span');
-                                            annualSlot.className = 'ziwei-mutation ziwei-mutation-annual';
-                                            annualSlot.style.visibility = 'hidden';
-                                            wrapper.appendChild(annualSlot);
-                                            
-                                            starMutationBox.appendChild(wrapper);
-                                        }
-                                    }
-                                    
-                                    if (wrapper) {
-                                        let birthMutationEl = wrapper.querySelector('.ziwei-mutation-birth');
-                                        if (!birthMutationEl) {
-                                            birthMutationEl = document.createElement('span');
-                                            birthMutationEl.className = 'ziwei-mutation ziwei-mutation-birth';
-                                            wrapper.insertBefore(birthMutationEl, wrapper.firstChild);
-                                        }
-                                        
-                                        if (birthMutationEl) {
-                                            birthMutationEl.textContent = mutationType;
-                                            birthMutationEl.style.visibility = 'visible';
-                                            birthMutationEl.dataset.mutationRole = 'birth-year';
-
-                                            const starMutationBox = groupEl.querySelector('.ziwei-star-mutation-box');
-                                            if (starMutationBox) {
-                                                starMutationBox.classList.add('ziwei-with-mutation');
-                                            }
-                                            groupEl.classList.add('ziwei-star-with-mutation');
-                                            groupEl.classList.remove('ziwei-star-no-mutation');
-                                            appliedCount++;
-                                        }
-                                    } else {
-                                        console.warn(`[ziweiConfig] Could not create mutations wrapper for "${starName}"`);
-                                    }
-                                } else {
-                                    // If this star doesn't have a birth mutation, hide the birth mutation element
-                                    const wrapper = groupEl.querySelector('.ziwei-mutations-wrapper');
-                                    if (wrapper) {
-                                        const birthMutationEl = wrapper.querySelector('.ziwei-mutation-birth');
-                                        if (birthMutationEl) {
-                                            birthMutationEl.textContent = '';
-                                            birthMutationEl.style.visibility = 'hidden';
-                                        }
-                                    }
-                                }
-                            });
-                            console.log(`[ziweiConfig] Applied ${appliedCount} birth year mutations`);
-                        } else {
-                            console.warn('[ziweiConfig] No birth year mutations calculated or empty result');
-                        }
-                    } else {
-                        console.warn('[ziweiConfig] Mutations module not available');
-                    }
+                return adapter.getCurrentChart();
+            }
+        } catch (error) {
+            console.error('[ziweiConfig] Failed to get current chart data:', error);
+        }
+        return null;
+    }
+    
+    /**
+     * Calculate birth year mutations
+     * @param {number} yearStemIndex - Year stem index
+     * @returns {Object|null} - Birth mutations or null if calculation fails
+     */
+    function calculateBirthYearMutations(yearStemIndex) {
+        try {
+            const adapter = window.ziweiAdapter;
+            if (!adapter || !adapter.getModule) {
+                return null;
+            }
+            
+            const mutationsModule = adapter.getModule('mutations');
+            if (!mutationsModule || typeof mutationsModule.calculateBirthYearMutations !== 'function') {
+                return null;
+            }
+            
+            return mutationsModule.calculateBirthYearMutations(yearStemIndex);
+        } catch (error) {
+            console.error('[ziweiConfig] Failed to calculate birth year mutations:', error);
+            return null;
+        }
+    }
+    
+    /**
+     * Create mutations wrapper element with all mutation slots
+     * @param {HTMLElement} starMutationBox - Parent star mutation box element
+     * @returns {HTMLElement|null} - Created wrapper element or null if failed
+     */
+    function createMutationsWrapper(starMutationBox) {
+        if (!starMutationBox) {
+            return null;
+        }
+        
+        try {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'ziwei-mutations-wrapper';
+            
+            // Create birth mutation slot
+            const birthSlot = document.createElement('span');
+            birthSlot.className = `ziwei-mutation ${CSS_CLASSES.MUTATION_BIRTH.substring(1)}`;
+            wrapper.appendChild(birthSlot);
+            
+            // Create major mutation slot
+            const majorSlot = document.createElement('span');
+            majorSlot.className = `ziwei-mutation ${CSS_CLASSES.MUTATION_MAJOR.substring(1)}`;
+            majorSlot.style.visibility = 'hidden';
+            wrapper.appendChild(majorSlot);
+            
+            // Create annual mutation slot  
+            const annualSlot = document.createElement('span');
+            annualSlot.className = `ziwei-mutation ${CSS_CLASSES.MUTATION_ANNUAL.substring(1)}`;
+            annualSlot.style.visibility = 'hidden';
+            wrapper.appendChild(annualSlot);
+            
+            starMutationBox.appendChild(wrapper);
+            return wrapper;
+        } catch (error) {
+            console.error('[ziweiConfig] Failed to create mutations wrapper:', error);
+            return null;
+        }
+    }
+    
+    /**
+     * Update birth mutation for a specific star
+     * @param {HTMLElement} groupEl - Star group element
+     * @param {string} mutationType - Mutation type to apply
+     */
+    function updateBirthMutationForStar(groupEl, mutationType) {
+        try {
+            let wrapper = groupEl.querySelector(CSS_CLASSES.MUTATIONS_WRAPPER);
+            
+            // Create wrapper if it doesn't exist
+            if (!wrapper) {
+                const starMutationBox = groupEl.querySelector(CSS_CLASSES.STAR_MUTATION_BOX);
+                wrapper = createMutationsWrapper(starMutationBox);
+            }
+            
+            if (!wrapper) {
+                return;
+            }
+            
+            // Get or create birth mutation element
+            let birthMutationEl = wrapper.querySelector(CSS_CLASSES.MUTATION_BIRTH);
+            if (!birthMutationEl) {
+                birthMutationEl = document.createElement('span');
+                birthMutationEl.className = `ziwei-mutation ${CSS_CLASSES.MUTATION_BIRTH.substring(1)}`;
+                wrapper.insertBefore(birthMutationEl, wrapper.firstChild);
+            }
+            
+            // Apply mutation
+            birthMutationEl.textContent = mutationType;
+            birthMutationEl.style.visibility = 'visible';
+            birthMutationEl.dataset.mutationRole = MUTATION_TYPES.BIRTH_YEAR;
+            
+            // Update star group classes
+            const starMutationBox = groupEl.querySelector(CSS_CLASSES.STAR_MUTATION_BOX);
+            if (starMutationBox) {
+                starMutationBox.classList.add(CSS_CLASSES.WITH_MUTATION);
+            }
+            groupEl.classList.add(CSS_CLASSES.STAR_WITH_MUTATION);
+            groupEl.classList.remove(CSS_CLASSES.STAR_NO_MUTATION);
+            
+        } catch (error) {
+            console.error('[ziweiConfig] Failed to update birth mutation for star:', error);
+        }
+    }
+    
+    /**
+     * Hide birth mutation for a star that doesn't have one
+     * @param {HTMLElement} groupEl - Star group element
+     */
+    function hideBirthMutationForStar(groupEl) {
+        try {
+            const wrapper = groupEl.querySelector(CSS_CLASSES.MUTATIONS_WRAPPER);
+            if (wrapper) {
+                const birthMutationEl = wrapper.querySelector(CSS_CLASSES.MUTATION_BIRTH);
+                if (birthMutationEl) {
+                    birthMutationEl.textContent = '';
+                    birthMutationEl.style.visibility = 'hidden';
+                }
+            }
+        } catch (error) {
+            console.error('[ziweiConfig] Failed to hide birth mutation for star:', error);
+        }
+    }
+    
+    /**
+     * Apply birth year mutations to all stars
+     * @param {Object} birthMutations - Calculated birth mutations by star
+     */
+    function applyBirthYearMutations(birthMutations) {
+        if (!birthMutations || !birthMutations.byStar || Object.keys(birthMutations.byStar).length === 0) {
+            console.log('[ziweiConfig] No birth mutations to apply');
+            return;
+        }
+        
+        try {
+            const starGroups = document.querySelectorAll(CSS_CLASSES.STAR_MUTATION_GROUP);
+            let appliedCount = 0;
+            
+            starGroups.forEach((groupEl) => {
+                const starName = groupEl.querySelector(`${CSS_CLASSES.PRIMARY_STAR}, ${CSS_CLASSES.SECONDARY_STAR}`)?.textContent;
+                
+                if (starName && birthMutations.byStar[starName]) {
+                    const mutationType = birthMutations.byStar[starName];
+                    updateBirthMutationForStar(groupEl, mutationType);
+                    appliedCount++;
                 } else {
-                    console.warn('[ziweiConfig] Chart data or year stem index not available');
+                    hideBirthMutationForStar(groupEl);
                 }
-            } else {
-                console.warn('[ziweiConfig] Adapter not available');
+            });
+            
+            console.log(`[ziweiConfig] Applied birth year mutations to ${appliedCount} stars`);
+        } catch (error) {
+            console.error('[ziweiConfig] Failed to apply birth year mutations:', error);
+        }
+    }
+    
+    /**
+     * Apply major cycle mutations if active
+     */
+    function applyMajorCycleMutations() {
+        try {
+            const activeMajorButton = document.querySelector(`${CSS_CLASSES.MAJOR_CYCLE_BUTTON}.${CSS_CLASSES.CYCLE_BUTTON_ACTIVE}`);
+            
+            if (!activeMajorButton || !window.ziweiChartHelpers || typeof window.ziweiChartHelpers.applyMajorCycleMutations !== 'function') {
+                return;
             }
-
-            // Reapply major-cycle mutations if a major cycle is currently selected
-            const activeMajorButton = document.querySelector('.ziwei-major-cycle-button.ziwei-cycle-button-active');
-            if (activeMajorButton && window.ziweiChartHelpers && typeof window.ziweiChartHelpers.applyMajorCycleMutations === 'function') {
-                // Get the stem from the active major cycle palace
-                const palaceData = activeMajorButton.dataset.palaceIndex;
-                if (palaceData) {
-                    const adapter = window.ziweiAdapter;
-                    if (adapter && adapter.getCurrentChart) {
-                        const chartData = adapter.getCurrentChart();
-                        if (chartData && chartData.derived && chartData.derived.palaces) {
-                            const palaceIndex = parseInt(palaceData, 10);
-                            const palace = chartData.derived.palaces[palaceIndex];
-                            if (palace && palace.stem) {
-                                window.ziweiChartHelpers.applyMajorCycleMutations(palace.stem);
-                            }
-                        }
-                    }
+            
+            const palaceData = activeMajorButton.dataset.palaceIndex;
+            if (!palaceData) {
+                return;
+            }
+            
+            const chartData = getCurrentChartData();
+            if (!chartData || !chartData.derived || !chartData.derived.palaces) {
+                return;
+            }
+            
+            const palaceIndex = parseInt(palaceData, 10);
+            const palace = chartData.derived.palaces[palaceIndex];
+            
+            if (palace && palace.stem) {
+                window.ziweiChartHelpers.applyMajorCycleMutations(palace.stem);
+                console.log(`[ziweiConfig] Applied major cycle mutations for palace ${palaceIndex}, stem: ${palace.stem}`);
+            }
+        } catch (error) {
+            console.error('[ziweiConfig] Failed to apply major cycle mutations:', error);
+        }
+    }
+    
+    /**
+     * Apply annual cycle mutations if active
+     */
+    function applyAnnualCycleMutations() {
+        try {
+            const activeAnnualButton = document.querySelector(`${CSS_CLASSES.ANNUAL_CYCLE_BUTTON}.${CSS_CLASSES.CYCLE_BUTTON_ACTIVE}`);
+            
+            if (!activeAnnualButton || !window.ziweiChartHelpers || typeof window.ziweiChartHelpers.applyAnnualCycleMutations !== 'function') {
+                return;
+            }
+            
+            const stemBranchSpan = activeAnnualButton.querySelector(CSS_CLASSES.ANNUAL_STEM_BRANCH);
+            if (!stemBranchSpan || !stemBranchSpan.textContent) {
+                return;
+            }
+            
+            const stemChar = stemBranchSpan.textContent.charAt(0);
+            if (!stemChar || !CHINESE_CHAR_PATTERN.test(stemChar)) {
+                return;
+            }
+            
+            window.ziweiChartHelpers.applyAnnualCycleMutations(stemChar);
+            console.log(`[ziweiConfig] Applied annual cycle mutations for stem: ${stemChar}`);
+        } catch (error) {
+            console.error('[ziweiConfig] Failed to apply annual cycle mutations:', error);
+        }
+    }
+    
+    /**
+     * Main function: Apply a change to the stem interpretation setting and update chart mutations
+     * 
+     * This function extracts the stem from the setting name, updates current stem selections,
+     * persists the change, and selectively updates chart mutations without full chart recomputation
+     * to avoid visual flashing. It handles birth-year, major-cycle, and annual-cycle mutations.
+     * 
+     * @param {string} interpretationValue - New interpretation value for the stem
+     * @param {string} settingName - Setting name in format 'stemInterpretation_<stem>'
+     */
+    function applyStemInterpretationChange(interpretationValue, settingName) {
+        // Input validation
+        if (!isValidInterpretationValue(interpretationValue)) {
+            console.error('[ziweiConfig] Invalid interpretation value:', interpretationValue);
+            return;
+        }
+        
+        const stem = extractStemFromSetting(settingName);
+        if (!stem) {
+            return; // Error already logged in extractStemFromSetting
+        }
+        
+        console.log(`[ziweiConfig] Applying stem interpretation change: ${stem} -> ${interpretationValue}`);
+        
+        try {
+            // Update mutation system selections
+            updateMutationSelections(stem, interpretationValue);
+            
+            // Store in adapter settings for persistence
+            setAdapterSettingValue(settingName, interpretationValue);
+            
+            // Clear all existing mutations
+            Object.values(MUTATION_TYPES).forEach(clearMutationsByType);
+            
+            // Reapply birth-year mutations (always present)
+            const chartData = getCurrentChartData();
+            if (chartData && chartData.indices && chartData.indices.yearStemIndex !== undefined) {
+                const birthMutations = calculateBirthYearMutations(chartData.indices.yearStemIndex);
+                if (birthMutations) {
+                    applyBirthYearMutations(birthMutations);
                 }
             }
-
-            // Reapply annual-cycle mutations if an annual cycle is currently selected
-            const activeAnnualButton = document.querySelector('.ziwei-annual-cycle-button.ziwei-cycle-button-active');
-            if (activeAnnualButton && window.ziweiChartHelpers && typeof window.ziweiChartHelpers.applyAnnualCycleMutations === 'function') {
-                // Get the stem from the active annual cycle button's stem-branch text
-                const stemBranchSpan = activeAnnualButton.querySelector('.ziwei-annual-stem-branch');
-                let stemChar = null;
-                if (stemBranchSpan && stemBranchSpan.textContent) {
-                    stemChar = stemBranchSpan.textContent.charAt(0);
-                }
-                if (stemChar && stemChar.match(/[\u4e00-\u9fff]/)) { // Check if it's a Chinese character
-                    window.ziweiChartHelpers.applyAnnualCycleMutations(stemChar);
-                }
-            }
-
-        } catch (e) {
-            console.error('[ziweiConfig] Failed to update mutations:', e);
-            console.error('[ziweiConfig] This is a critical error - mutations cannot be updated');
+            
+            // Reapply major-cycle mutations if active
+            applyMajorCycleMutations();
+            
+            // Reapply annual-cycle mutations if active
+            applyAnnualCycleMutations();
+            
+            // Dispatch event to notify interpretation panel of mutation changes
+            dispatchSettingChangeEvent(settingName, interpretationValue, {
+                eventName: 'ziwei-mutation-changed'
+            });
+            
+            console.log(`[ziweiConfig] Successfully updated mutations for stem ${stem} interpretation: ${interpretationValue}`);
+            
+        } catch (error) {
+            console.error('[ziweiConfig] Critical error updating mutations for stem interpretation change:', error);
+            console.error('[ziweiConfig] Stem:', stem, 'Value:', interpretationValue);
+            console.error('[ziweiConfig] This is a critical error - mutations cannot be properly updated');
         }
     }
 
@@ -924,7 +1353,6 @@
     function applySetting(settingName, value) {
         const setting = getSetting(settingName);
         if (!setting) {
-            console.warn('[ziweiConfig] Setting not found:', settingName);
             return;
         }
 
@@ -998,8 +1426,8 @@
             select.value = storedValue;
         } else {
             // Use setting defaultValue as fallback to ensure proper visible text
-            var settingCfg = getSetting(name);
-            var defaultVal = settingCfg && settingCfg.defaultValue ? settingCfg.defaultValue : null;
+            const settingCfg = getSetting(name);
+            const defaultVal = settingCfg && settingCfg.defaultValue ? settingCfg.defaultValue : null;
             if (defaultVal) {
                 select.value = defaultVal;
             }
@@ -1221,8 +1649,18 @@
                 nameEl.textContent = meta?.name || originalPersonalInfo.name || '無名氏';
             }
             if (genderEl) {
-                const genderText = meta?.genderClassification || meta?.gender || originalPersonalInfo.gender || '';
-                genderEl.textContent = genderText || '未知';
+                // Priority order for gender text: genderClassification (Chinese format with 陰/陽) > gender > fallback
+                let genderText = PLACEHOLDER_TEXTS.UNKNOWN_GENDER;
+                if (meta?.genderClassification && 
+                    typeof meta.genderClassification === 'string' && 
+                    meta.genderClassification.trim()) {
+                    genderText = meta.genderClassification.trim();
+                } else if (originalPersonalInfo.gender && 
+                           typeof originalPersonalInfo.gender === 'string' && 
+                           originalPersonalInfo.gender.trim()) {
+                    genderText = originalPersonalInfo.gender.trim();
+                }
+                genderEl.textContent = genderText;
             }
             if (gregDateEl) {
                 gregDateEl.textContent = '西曆：用戶不顯示出生日期';
@@ -1261,9 +1699,9 @@
         const categoryLayouts = {
             '一般設定': 1,
             '日期處理': 2,
+            '宮位': 2,
             '安星規則': 3,
-            '四化選擇': 3,
-            '宮位名稱': 2
+            '四化選擇': 3
         };
 
         // Create sections for each category
@@ -1375,7 +1813,7 @@
 
                 // Persist chart context into adapter storage (adapter is canonical store)
                 try {
-                    var __a = window.ziweiAdapter;
+                    const __a = window.ziweiAdapter;
                     if (__a && __a.storage && typeof __a.storage.set === 'function') {
                         if (result.normalizedInput) __a.storage.set('normalizedInput', result.normalizedInput);
                         if (result.adapterOutput && result.adapterOutput.raw) __a.storage.set('raw', result.adapterOutput.raw);
@@ -1412,30 +1850,166 @@
         }
     }
 
+    // ============================================================================
+    // Session-Only Settings Management Constants
+    // ============================================================================
+    
+    const SESSION_SETTINGS_CONFIG = {
+        DEBUG_MODE_KEY: 'isDebug',
+        LOG_PREFIX: '[ziweiConfig]',
+        CLEANUP_EVENTS: ['beforeunload', 'pagehide', 'visibilitychange'],
+        ADAPTER_PROPERTY: '_settings'
+    };
+
+    /**
+     * Check if debug mode is enabled for logging
+     * @returns {boolean} True if debug mode is enabled
+     */
+    function isDebugModeEnabled() {
+        try {
+            return Boolean(
+                window.ziweiCalData?.env?.[SESSION_SETTINGS_CONFIG.DEBUG_MODE_KEY]
+            );
+        } catch (error) {
+            // Fail silently in non-debug mode to avoid console spam
+            return false;
+        }
+    }
+
+    /**
+     * Safely log debug messages only when debug mode is enabled
+     * @param {string} message - Log message
+     * @param {Object} [data] - Optional data to log
+     */
+    function logDebugMessage(message, data = null) {
+        if (!isDebugModeEnabled()) {
+            return;
+        }
+        
+        try {
+            if (data !== null) {
+                console.log(`${SESSION_SETTINGS_CONFIG.LOG_PREFIX} ${message}`, data);
+            } else {
+                console.log(`${SESSION_SETTINGS_CONFIG.LOG_PREFIX} ${message}`);
+            }
+        } catch (error) {
+            // Ensure logging errors don't break the cleanup process
+            console.warn(`${SESSION_SETTINGS_CONFIG.LOG_PREFIX} Failed to log message:`, error);
+        }
+    }
+
+    /**
+     * Verify session-only settings behavior
+     * Validates that settings are stored in-memory and not persisted
+     */
+    function verifySessionOnlySettings() {
+        try {
+            const adapter = window.ziweiAdapter;
+            
+            // Check if adapter exists and has the expected settings property
+            if (!adapter || !adapter[SESSION_SETTINGS_CONFIG.ADAPTER_PROPERTY]) {
+                logDebugMessage('T045: No adapter or settings found - session-only behavior maintained');
+                return true;
+            }
+
+            // Verify settings are in-memory only (not persisted to storage)
+            // The adapter._settings should be a plain object, not a Storage instance
+            const settings = adapter[SESSION_SETTINGS_CONFIG.ADAPTER_PROPERTY];
+            const isMemoryOnly = !(settings instanceof Storage);
+            
+            if (isMemoryOnly) {
+                logDebugMessage('T045: Verified - settings are session-only and will reset on page reload');
+            } else {
+                console.warn(
+                    `${SESSION_SETTINGS_CONFIG.LOG_PREFIX} T045: Warning - settings may be persisted (not session-only)`,
+                    { settingsType: typeof settings, isStorageInstance: settings instanceof Storage }
+                );
+            }
+            
+            return isMemoryOnly;
+        } catch (error) {
+            // Log error in debug mode, fail gracefully otherwise
+            console.warn(`${SESSION_SETTINGS_CONFIG.LOG_PREFIX} T045: Error verifying session settings:`, error);
+            return true; // Assume session-only behavior to avoid blocking
+        }
+    }
+
+    /**
+     * Handle page unload events safely
+     * Ensures session-only settings cleanup without throwing errors
+     */
+    function handlePageUnload() {
+        try {
+            // Verify session-only behavior before page unload
+            const isSessionOnly = verifySessionOnlySettings();
+            
+            if (isSessionOnly) {
+                logDebugMessage('T045: Page unload - session-only settings will reset on reload');
+            }
+            
+            // Additional cleanup can be added here if needed in the future
+            // Currently settings are naturally cleared by page reload/close
+            
+        } catch (error) {
+            // Ensure unload handler never throws errors that could block page unload
+            console.warn(`${SESSION_SETTINGS_CONFIG.LOG_PREFIX} T045: Error during page unload handling:`, error);
+        }
+    }
+
+    /**
+     * Set up page unload handlers for session-only settings
+     * Registers multiple event handlers to catch different types of page termination
+     */
+    function setupUnloadHandlers() {
+        try {
+            // Add handlers for different unload scenarios
+            SESSION_SETTINGS_CONFIG.CLEANUP_EVENTS.forEach(eventType => {
+                window.addEventListener(eventType, handlePageUnload, { 
+                    passive: true,  // Performance optimization for non-blocking events
+                    once: false     // Allow multiple calls if needed
+                });
+            });
+
+            logDebugMessage('T045: Session-only settings unload handlers initialized');
+            
+        } catch (error) {
+            console.error(`${SESSION_SETTINGS_CONFIG.LOG_PREFIX} T045: Failed to setup unload handlers:`, error);
+            // Don't throw - let initialization continue even if handlers fail
+        }
+    }
+
     /**
      * T045: Ensure all settings are session-only (reset on page reload).
-     * Settings are stored in adapter._settings (in-memory) and NOT persisted to
-     * localStorage/sessionStorage. This function ensures settings are reset when
-     * the page reloads or browser closes per FR-011a (privacy-first policy).
      * 
-     * This is called during initialization to set up the beforeunload handler.
+     * IMPROVED VERSION: This function ensures settings are reset when the page
+     * reloads or browser closes per FR-011a (privacy-first policy). Settings are
+     * stored in adapter._settings (in-memory) and NOT persisted to any browser storage.
+     * 
+     * Key improvements:
+     * - Comprehensive error handling
+     * - Multiple unload event coverage
+     * - Session-only behavior verification
+     * - Performance optimizations
+     * - Memory leak prevention
+     * 
+     * This is called during initialization to set up the cleanup handlers.
      */
     function initializeSessionOnlySettings() {
-        // Settings are in-memory only per adapter design (see data-adapter.js)
-        // adapter._settings is NOT persisted to any browser storage
-        // Adding beforeunload handler as defensive measure to explicitly clear settings
-        window.addEventListener('beforeunload', function() {
-            // Note: Settings will be cleared naturally when page reloads
-            // This is defensive verification to ensure session-only behavior
-            const adapter = window.ziweiAdapter;
-            if (adapter && adapter._settings) {
-                // Settings are in-memory; will be garbage collected on page reload
-                // No explicit cleanup needed as adapter._settings is not persisted
-                if (window.ziweiCalData && window.ziweiCalData.env && window.ziweiCalData.env.isDebug) {
-                    console.log('[ziweiConfig] T045: Page unload - settings will reset on reload');
-                }
-            }
-        });
+        setupUnloadHandlers();
+    }
+
+    /**
+     * Cleanup function to remove unload handlers (useful for testing or module removal)
+     */
+    function cleanupSessionOnlySettings() {
+        try {
+            SESSION_SETTINGS_CONFIG.CLEANUP_EVENTS.forEach(eventType => {
+                window.removeEventListener(eventType, handlePageUnload);
+            });
+            logDebugMessage('T045: Session-only settings cleanup completed');
+        } catch (error) {
+            console.warn(`${SESSION_SETTINGS_CONFIG.LOG_PREFIX} T045: Error during cleanup:`, error);
+        }
     }
 
     /**
@@ -1446,7 +2020,6 @@
         try {
             const adapter = getAdapterInstance();
             if (!adapter || !adapter.settings || typeof adapter.settings.get !== 'function') {
-                console.warn('[ziweiConfig] Adapter not available for stem selection initialization');
                 return;
             }
 
@@ -1464,7 +2037,6 @@
             // If we have any selections, update the mutation system
             if (Object.keys(selections).length > 0 && window.updateStemSelections) {
                 window.updateStemSelections(selections);
-                console.log('[ziweiConfig] Initialized stem selections from adapter settings:', selections);
             }
         } catch (e) {
             console.error('[ziweiConfig] Failed to initialize stem selections:', e);

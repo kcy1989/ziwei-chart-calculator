@@ -1,22 +1,33 @@
 /**
- * Share and Export System Module
- * Features: PNG/PDF download, social sharing
- * Version: 1.2 (Fix Integration with Control.js)
- *
- * Public API:
- * - window.ziweiShare.downloadPNG()
- * - window.ziweiShare.downloadPDF()
- * - window.ziweiShare.share()
- * - window.ziweiShare.init()
+ * Share and Export Module
+ * 
+ * Provides chart export functionality: PNG/PDF/JSON download and share link generation.
+ * Lazy-loaded when user clicks share button.
+ * 
+ * Features:
+ * - PNG export via dom-to-image
+ * - PDF export via jsPDF
+ * - JSON export and clipboard copy
+ * - Share link generation for easy sharing
+ * - Privacy-aware export (respects hidden personal info)
+ * 
+ * Dependencies:
+ * - dom-to-image (external library)
+ * - jsPDF (external library)
+ * 
+ * Corresponding CSS: assets/display/css/share.css
+ * 
+ * Exports: window.ziweiShare
  */
 
 (function () {
   "use strict";
 
-// ==================
-// Private Configuration
-// ==================  
-const MODULE_NAME = "ziwei-share";
+  // ============================================================================
+  // Private Configuration
+  // ============================================================================
+
+  const MODULE_NAME = "ziwei-share";
   const CAPTURE_TARGET_SELECTORS = [
     ".ziwei-chart-container",
     ".ziwei-4x4-grid"
@@ -27,11 +38,11 @@ const MODULE_NAME = "ziwei-share";
   let isMenuOpen = false;
   let loader;
 
-// ==================
-// Browser Support Detection
-// ==================  
+  // ============================================================================
+  // Browser Support Detection
+  // ============================================================================
 
-function checkBrowserSupport() {
+  function checkBrowserSupport() {
     const ua = navigator.userAgent;
     const isIE11 = ua.includes("Trident") && ua.includes("11.0");
 
@@ -46,10 +57,11 @@ function checkBrowserSupport() {
     return browserSupport;
   }
 
-// ==================
-// File Naming
-// ==================  
-function getFileName(format, name, date) {
+  // ============================================================================
+  // File Naming
+  // ============================================================================
+
+  function getFileName(format, name, date) {
     if (typeof format !== "string") {
       throw new Error("getFileName: format 參數必須是字符串 (png|pdf|json)");
     }
@@ -77,12 +89,14 @@ function getFileName(format, name, date) {
     }
     return cleanName + (birthStr ? "_" + birthStr : "") + "." + format;
   }
-// ==================
-// PNG Download Implementation
-// ==================
-/**
- * Mark DOM during export to allow CSS adjustments
- */
+
+  // ============================================================================
+  // PNG Download Implementation
+  // ============================================================================
+
+  /**
+   * Mark DOM during export to allow CSS adjustments
+   */
   function prepareForExport(node) {
     const className = "ziwei-exporting";
     const targets = [document.documentElement, document.body, node].filter(
@@ -219,10 +233,11 @@ function getFileName(format, name, date) {
     }
   }
 
-// ==================
-// PDF & Share Implementation (Placeholders)
-// ==================  
-async function downloadPDF() {
+  // ============================================================================
+  // PDF & Share Implementation
+  // ============================================================================
+
+  async function downloadPDF() {
       let target = null;
       for (const selector of CAPTURE_TARGET_SELECTORS) {
           const el = document.querySelector(selector);
@@ -331,12 +346,12 @@ async function downloadPDF() {
       }
   }
 
-// ==================
-// JSON Download Implementation
-// ==================
+  // ============================================================================
+  // JSON Download Implementation
+  // ============================================================================
 
-/**
- * Get stem-branch combination for palace index
+  /**
+   * Get stem-branch combination for palace index
  * @param {number} palaceIndex Palace index (0-11)
  * @returns {string} Stem-branch combination (e.g., "甲子")
  */
@@ -359,8 +374,8 @@ function getPalaceStemBranch(palaceIndex) {
  */
 function getPalaceName(palaceIndex) {
   const palaceNames = window.ziweiPalaceNames?.getPalaceNames?.() || [
-    '命宮', '父母', '福德', '田宅', '事業', '交友',
-    '遷移', '疾厄', '財帛', '子女', '夫妻', '兄弟'
+    '命宮', '父母宮', '福德宮', '田宅宮', '事業宮', '交友宮',
+    '遷移宮', '疾厄宮', '財帛宮', '子女宮', '夫妻宮', '兄弟宮'
   ];
   return palaceNames[palaceIndex] || '';
 }
@@ -487,7 +502,6 @@ function buildExportJSON() {
   
   // Get the same data source as chart.js - adapter.storage.get('adapterOutput')
   const chart = adapter.storage?.get('adapterOutput') ||
-                adapter.output?.getLastOutput() ||
                 adapter.getCurrentChart();
   
   if (!chart) {
@@ -495,9 +509,10 @@ function buildExportJSON() {
   }
   
   // Use ziweiConstants for all constants (same as chart.js)
-  const constants = window.ziweiConstants || {};
-  const BRANCH_NAMES = constants.BRANCH_NAMES || ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
-  const STEM_NAMES = constants.STEM_NAMES || ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
+  const constants = window.ziweiConstants;
+  const BRANCH_NAMES = constants.BRANCH_NAMES;
+  const STEM_NAMES = constants.STEM_NAMES;
+  const NUMERIC = constants.NUMERIC;
   
   // Get modules from adapter (same as chart.js)
   const basicModule = adapter.getModule('basic');
@@ -508,8 +523,8 @@ function buildExportJSON() {
   const showBrightness = settings?.get('starBrightness') === 'shuoshu';
   
   // === Dynamic palace name sequence based on user settings (same as cycles.js/chart.js) ===
-  let palaceSequenceRaw = palaceNamesModule?.getPalaceNames?.('standard') || 
-    ['命宮', '父母', '福德', '田宅', '事業', '交友', '遷移', '疾厄', '財帛', '子女', '夫妻', '兄弟'];
+  let palaceSequenceRaw = palaceNamesModule?.getPalaceNames?.('standard') ||
+    ['命宮', '父母宮', '福德宮', '田宅宮', '事業宮', '交友宮', '遷移宮', '疾厄宮', '財帛宮', '子女宮', '夫妻宮', '兄弟宮'];
   
   // Apply user palace name preferences (career/friends palaces)
   const careerSetting = settings?.get('palaceNameCareer') || 'career';
@@ -548,7 +563,7 @@ function buildExportJSON() {
   
   // Compute mingIndex by finding the Ming Palace (same logic as chart.js)
   let mingIndex = -1;
-  for (let j = 0; j < 12; j++) {
+  for (let j = 0; j < NUMERIC.PALACES_COUNT; j++) {
     const palace = palaces[j];
     if (palace && palace.isMing) {
       mingIndex = j;
@@ -717,14 +732,14 @@ function buildExportJSON() {
     '喜': '天喜'
   };
   
-  // === Build 宮位資料 for all 12 palaces ===
-  for (let i = 0; i < 12; i++) {
+  // === Build 宮位資料 for all palaces ===
+  for (let i = 0; i < NUMERIC.PALACES_COUNT; i++) {
     const palace = palaces[i] || {};
     const branchName = BRANCH_NAMES[i];
     const stemBranch = (palace.stem || '') + (palace.branchZhi || BRANCH_NAMES[i]);
     
     // Palace name from sequence (based on position relative to Ming Palace)
-    const seqIndex = (i - mingIndex + 12) % 12;
+    const seqIndex = (i - mingIndex + NUMERIC.PALACES_COUNT) % NUMERIC.PALACES_COUNT;
     const baseNameRaw = palaceSequenceRaw[seqIndex] || '';
     const baseName = addGongSuffix(baseNameRaw);
     
@@ -871,7 +886,7 @@ function buildExportJSON() {
     
     // Build palace data object
     const palaceData = {
-      "宮位名稱": palaceNames,
+      "宮位": palaceNames,
       "天干地支": stemBranch,
       "星曜": {
         "主星": zhuStars,
@@ -949,310 +964,137 @@ async function copyJSON() {
     
     await navigator.clipboard.writeText(jsonString);
     
-    // Show brief success feedback
-    const originalText = event?.target?.textContent || '';
-    if (event?.target) {
-      event.target.textContent = '已複製!';
-      setTimeout(() => {
-        event.target.textContent = originalText || '複製 JSON';
-      }, 1500);
-    } else {
-      alert('JSON 已複製到剪貼簿');
-    }
+    // Show toast feedback (same style as share link)
+    showShareLinkFeedback('已複製 JSON！');
     
   } catch (err) {
     console.error("JSON Copy Error:", err);
-    alert("複製失敗: " + (err.message || "未知錯誤"));
+    showShareLinkFeedback('複製失敗：' + (err.message || '未知錯誤'));
   }
 }
 
-// ==================
-// Social Media Sharing Implementation
-// ==================
+  // ============================================================================
+  // Share Link Generation
+  // ============================================================================
 
-/**
- * Check if device is mobile
- */
-function isMobileDevice() {
-  return /iPhone|iPad|Android|Mobile/i.test(navigator.userAgent);
-}
-
-/**
- * Generate PNG image with predefined text overlay for social sharing
- */
-async function generateSocialShareImage(userName) {
-  let target = null;
-  for (const selector of CAPTURE_TARGET_SELECTORS) {
-    const el = document.querySelector(selector);
-    if (el) {
-      target = el;
-      break;
-    }
-  }
-
-  if (!target) {
-    throw new Error("找不到命盤元素，無法生成分享圖片");
-  }
-
-  if (!window.domtoimage) {
-    throw new Error("截圖組件尚未加載");
-  }
-
-  const cleanupExport = prepareForExport(target);
-  
-  try {
-    const rect = target.getBoundingClientRect();
-    const scale = EXPORT_SCALE;
-    const width = Math.round(rect.width * scale);
-    const height = Math.round(rect.height * scale);
-
-    // Generate base chart image
-    const chartDataUrl = await window.domtoimage.toPng(target, {
-      bgcolor: "#ffffff",
-      width: width,
-      height: height,
-      style: {
-        transform: `scale(${scale})`,
-        transformOrigin: "top left",
-        left: "0",
-        top: "0",
-        margin: "0"
+  /**
+   * Generate a shareable URL with chart parameters
+   * Copies link to clipboard and shows feedback
+   */
+  async function generateShareLink() {
+    try {
+      // Get current chart data from adapter
+      const adapter = window.ziweiAdapter;
+      if (!adapter) {
+        throw new Error('圖表資料尚未載入');
       }
-    });
 
-    // Create canvas to add text overlay
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height + 60; // Extra space for text
-    const ctx = canvas.getContext('2d');
+      const chart = adapter.getCurrentChart?.() || adapter.storage?.get?.('adapterOutput');
+      if (!chart || !chart.meta) {
+        throw new Error('請先生成命盤再分享');
+      }
 
-    // Draw white background
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const meta = chart.meta;
+      const numeric = meta.birthdateSolarNumeric;
 
-    // Draw chart image
-    const img = new Image();
-    await new Promise((resolve, reject) => {
-      img.onload = () => {
-        ctx.drawImage(img, 0, 0, width, height);
-        resolve();
-      };
-      img.onerror = reject;
-      img.src = chartDataUrl;
-    });
+      if (!numeric || !numeric.year || !numeric.month || !numeric.day) {
+        throw new Error('無法取得出生資料');
+      }
 
-    // Add predefined text
-    ctx.fillStyle = '#333333';
-    ctx.font = '16px -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", "微軟正黑體", Arial, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    
-    const text = `我在晉賢紫微斗數 (little-yin.com) 生成了${userName}的紫微斗數命盤`;
-    const maxWidth = width - 40;
-    
-    // Word wrap for Chinese text
-    const words = text.split('');
-    let line = '';
-    let y = height + 20;
-    
-    for (let i = 0; i < words.length; i++) {
-      const testLine = line + words[i];
-      const metrics = ctx.measureText(testLine);
-      const testWidth = metrics.width;
+      // Build URL parameters
+      // Use bd_ prefix to avoid WordPress reserved parameters (year, month, day)
+      const params = new URLSearchParams();
       
-      if (testWidth > maxWidth && i > 0) {
-        ctx.fillText(line, width / 2, y);
-        line = words[i];
-        y += 25;
-        if (y > canvas.height - 10) break; // Prevent text overflow
-      } else {
-        line = testLine;
+      // Required parameters (shortened keys for compact URL)
+      params.set('bd_g', meta.gender || 'M');
+      params.set('bd_y', String(numeric.year));
+      params.set('bd_m', String(numeric.month));
+      params.set('bd_d', String(numeric.day));
+      params.set('bd_h', String(numeric.hour ?? 0));
+      params.set('bd_i', String(numeric.minute ?? 0));
+
+      // Optional parameters
+      if (meta.name && meta.name !== '無名氏') {
+        params.set('bd_n', meta.name);
       }
+      if (meta.birthplace) {
+        params.set('bd_p', meta.birthplace);
+      }
+
+      // Settings (optional)
+      const ziHourHandling = adapter.settings?.get?.('ziHourHandling');
+      if (ziHourHandling && ziHourHandling !== 'midnightChange') {
+        params.set('ziHourHandling', ziHourHandling);
+      }
+
+      const leapMonthHandling = adapter.settings?.get?.('leapMonthHandling');
+      if (leapMonthHandling && leapMonthHandling !== 'mid') {
+        params.set('leapMonthHandling', leapMonthHandling);
+      }
+
+      // Build full URL
+      const baseUrl = window.location.origin + window.location.pathname;
+      const shareUrl = baseUrl + '?' + params.toString();
+
+      // Copy to clipboard
+      await navigator.clipboard.writeText(shareUrl);
+
+      // Show success feedback
+      showShareLinkFeedback('已複製分享連結！');
+
+    } catch (error) {
+      console.error('[ziwei-share] Generate share link error:', error);
+      alert('生成分享連結失敗：' + (error.message || '未知錯誤'));
     }
-    ctx.fillText(line, width / 2, y);
-
-    // Convert to blob
-    return new Promise((resolve, reject) => {
-      canvas.toBlob((blob) => {
-        if (blob) {
-          resolve(blob);
-        } else {
-          reject(new Error("圖片生成失敗"));
-        }
-      }, 'image/png');
-    });
-
-  } finally {
-    cleanupExport();
-  }
-}
-
-/**
- * Share to social media platforms
- */
-async function shareToSocialMedia(platform) {
-  if (!isMobileDevice()) {
-    alert("社交分享功能僅支援行動裝置");
-    return;
   }
 
-  showLoadingState("正在生成分享圖片...");
-
-  try {
-    // Get chart info for personalization
-    const chart = window.ziweiAdapter?.getCurrentChart();
-    const userName = chart && chart.meta ? chart.meta.name : '';
-    
-    // Generate image with text overlay
-    const imageBlob = await generateSocialShareImage(userName);
-    
-    // Create image URL for sharing
-    const imageUrl = URL.createObjectURL(imageBlob);
-    
-    // Sharing text
-    const personalizedText = `我在晉賢紫微斗數 (little-yin.com) 生成了${userName}的紫微斗數命盤`;
-    
-    // Platform-specific URLs
-    const shareUrls = {
-      whatsapp: `https://wa.me/?text=${encodeURIComponent(personalizedText + '%0A' + imageUrl)}`,
-      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(imageUrl)}&quote=${encodeURIComponent(personalizedText)}`,
-      threads: `https://www.threads.net/intent/post?text=${encodeURIComponent(personalizedText)}&url=${encodeURIComponent(imageUrl)}`,
-      telegram: `https://t.me/share/url?url=${encodeURIComponent(imageUrl)}&text=${encodeURIComponent(personalizedText)}`
-    };
-
-    // Open social media platform
-    if (shareUrls[platform]) {
-      window.open(shareUrls[platform], '_blank', 'width=600,height=400');
+  /**
+   * Show temporary feedback toast for share link or copy actions
+   * @param {string} message - Message to display in toast
+   */
+  function showShareLinkFeedback(message) {
+    // Remove existing toast if any
+    const existingToast = document.querySelector('.ziwei-share-toast');
+    if (existingToast) {
+      existingToast.remove();
     }
 
-    // Clean up
+    // Create toast element (styles defined in share.css)
+    const toast = document.createElement('div');
+    toast.className = 'ziwei-share-toast';
+    toast.textContent = message;
+
+    document.body.appendChild(toast);
+
+    // Auto-remove after 2 seconds with fade out animation
     setTimeout(() => {
-      URL.revokeObjectURL(imageUrl);
-    }, 1000);
-
-  } catch (error) {
-    console.error("Social sharing error:", error);
-    alert("分享圖片生成失敗: " + (error.message || "未知錯誤"));
-  } finally {
-    hideLoadingState();
-  }
-}
-
-/**
- * Share chart function (wrapper for social sharing)
- * This function should have been defined but was missing
- */
-async function shareChart() {
-  
-  if (!isMobileDevice()) {
-    alert("社交分享功能僅支援行動裝置");
-    return;
-  }
-
-  try {
-    showLoadingState("正在生成分享圖片...");
-    
-    // Get chart info for personalization
-    const chart = window.ziweiAdapter?.getCurrentChart();
-    const userName = chart && chart.meta ? chart.meta.name : '';
-    
-    // Generate image with text overlay
-    const imageBlob = await generateSocialShareImage(userName);
-    
-    // Create image URL for sharing
-    const imageUrl = URL.createObjectURL(imageBlob);
-    
-    // Sharing text
-    const personalizedText = `我在晉賢紫微斗數 (little-yin.com) 生成了${userName}的紫微斗數命盤`;
-    
-    // Try to use Web Share API if available
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `${userName}的紫微斗數命盤`,
-          text: personalizedText,
-          url: imageUrl
-        });
-      } catch (shareError) {
-        // User cancelled or sharing failed, fallback to opening in new tab
-        const newWindow = window.open(imageUrl, '_blank');
-        if (newWindow) {
-          newWindow.document.write(`
-            <html>
-              <head><title>${userName}的紫微斗數命盤</title></head>
-              <body style="margin:0; display:flex; justify-content:center; align-items:center; min-height:100vh; background:#f0f0f0;">
-                <img src="${imageUrl}" style="max-width:100%; max-height:100%; box-shadow:0 4px 8px rgba(0,0,0,0.1);">
-              </body>
-            </html>
-          `);
-        }
-      }
-    } else {
-      // Fallback to opening in new tab
-      const newWindow = window.open(imageUrl, '_blank');
-      if (newWindow) {
-        newWindow.document.write(`
-          <html>
-            <head><title>${userName}的紫微斗數命盤</title></head>
-            <body style="margin:0; display:flex; justify-content:center; align-items:center; min-height:100vh; background:#f0f0f0;">
-              <img src="${imageUrl}" style="max-width:100%; max-height:100%; box-shadow:0 4px 8px rgba(0,0,0,0.1);">
-            </body>
-          </html>
-        `);
-      }
-    }
-
-    // Clean up
-    setTimeout(() => {
-      URL.revokeObjectURL(imageUrl);
+      toast.classList.add('fade-out');
+      setTimeout(() => toast.remove(), 300);
     }, 2000);
-
-  } catch (error) {
-    console.error("Social sharing error:", error);
-    alert("分享圖片生成失敗: " + (error.message || "未知錯誤"));
-  } finally {
-    hideLoadingState();
   }
-}
 
-// ==================
-// UI Logic
-// ==================
-/**
- * Inject menu HTML into existing button
- */
+  // ============================================================================
+  // UI Logic
+  // ============================================================================
+
+  /**
+   * Inject menu HTML into existing button
+   */
   function injectMenu(btn) {
     if (btn.querySelector('.ziwei-share-menu')) return; // 已注入
 
     const menu = document.createElement('div');
     menu.className = 'ziwei-share-menu';
     
-    // Build menu HTML with social media options
-    let menuHTML = [
-      '<button class="ziwei-share-option" data-action="download-png">📥 下載 PNG</button>',
-      '<button class="ziwei-share-option" data-action="download-pdf">📄 下載 PDF</button>',
-      '<button class="ziwei-share-option" data-action="download-json">📄 下載 JSON</button>',
-      '<button class="ziwei-share-option" data-action="copy-json">📋 複製 JSON</button>',
-      '<div class="ziwei-share-divider"></div>',
+    // Build menu HTML
+    // Use data-title and aria-label to avoid triggering the browser-native tooltip
+    const menuHTML = [
+      '<button class="ziwei-share-option" data-action="download-png" data-title="用於分享或列印" aria-label="下載 PNG">🖼️ 下載 PNG</button>',
+      '<button class="ziwei-share-option" data-action="download-pdf" data-title="適合左邊釘裝列印" aria-label="下載 PDF">📕 下載 PDF</button>',
+      '<button class="ziwei-share-option" data-action="download-json" data-title="AI 讀取 JSON 檔案更好" aria-label="下載 JSON">📄 下載 JSON</button>',
+      '<button class="ziwei-share-option" data-action="copy-json" data-title="AI 讀取 JSON 檔案更好" aria-label="複製 JSON">📋 複製 JSON</button>',
+      '<button class="ziwei-share-option" data-action="generate-share-link" data-title="點擊連結可直接開啟此命盤" aria-label="命盤連結">🔗 命盤連結</button>',
     ].join("");
-
-    // Add social media options if mobile device
-    if (isMobileDevice()) {
-      menuHTML += [
-        '<button class="ziwei-share-option ziwei-social-option" data-platform="whatsapp">💬 WhatsApp</button>',
-        '<button class="ziwei-share-option ziwei-social-option" data-platform="facebook">📘 Facebook</button>',
-        '<button class="ziwei-share-option ziwei-social-option" data-platform="threads">🧵 Threads</button>',
-        '<button class="ziwei-share-option ziwei-social-option" data-platform="telegram">📱 Telegram</button>',
-      ].join("");
-    } else {
-      // Show disabled social options on desktop with tooltip
-      menuHTML += [
-        '<button class="ziwei-share-option ziwei-social-option disabled" data-platform="whatsapp" title="社交分享僅支援行動裝置">💬 WhatsApp</button>',
-        '<button class="ziwei-share-option ziwei-social-option disabled" data-platform="facebook" title="社交分享僅支援行動裝置">📘 Facebook</button>',
-        '<button class="ziwei-share-option ziwei-social-option disabled" data-platform="threads" title="社交分享僅支援行動裝置">🧵 Threads</button>',
-        '<button class="ziwei-share-option ziwei-social-option disabled" data-platform="telegram" title="社交分享僅支援行動裝置">📱 Telegram</button>',
-      ].join("");
-    }
 
     menu.innerHTML = menuHTML;
     btn.appendChild(menu);
@@ -1283,7 +1125,7 @@ async function shareChart() {
     btn = document.createElement('button');
     btn.className = 'ziwei-share-btn';
     btn.setAttribute('aria-label', '分享與下載');
-    btn.innerHTML = `<span class="icon">📤</span><span class="text">分享</span>`;
+    btn.innerHTML = `<span class="icon">🔄</span><span class="text">分享</span>`;
     
     const settingsBtn = controlBar.querySelector('.ziwei-settings-toggle');
     if (settingsBtn) {
@@ -1316,13 +1158,36 @@ function toggleMenu() {
 }
 
   function setupEventListeners() {
+    // 處理工具提示定位
+    document.addEventListener('mouseover', function(e) {
+      const option = e.target.closest('.ziwei-share-option[data-title]');
+      if (option) {
+        const rect = option.getBoundingClientRect();
+        const tooltipTop = rect.top + (rect.height / 2); // 垂直居中對齊選項
+        const tooltipLeft = rect.right + 10; // 選項右邊 10px
+
+        // 使用 CSS 變數來設置位置
+        option.style.setProperty('--tooltip-top', tooltipTop + 'px');
+        option.style.setProperty('--tooltip-left', tooltipLeft + 'px');
+      }
+    });
+
+    document.addEventListener('mouseout', function(e) {
+      const option = e.target.closest('.ziwei-share-option[data-title]');
+      if (option) {
+        // 清除 CSS 變數
+        option.style.removeProperty('--tooltip-top');
+        option.style.removeProperty('--tooltip-left');
+      }
+    });
+
     // 使用事件委派處理點擊
     document.addEventListener('click', function(e) {
       const target = e.target;
-      
+
       // 1. 點擊分享按鈕 -> 切換菜單
       const shareBtn = target.closest('.ziwei-share-btn');
-      
+
       if (shareBtn) {
         // 如果點擊的是按鈕本身（不是菜單內部），則切換菜單
         if (!target.closest('.ziwei-share-menu')) {
@@ -1337,13 +1202,12 @@ function toggleMenu() {
       if (option && !option.classList.contains('disabled')) {
         const action = option.getAttribute('data-action');
         const platform = option.getAttribute('data-platform');
-        
+
         if (action === 'download-png') downloadPNG();
         else if (action === 'download-pdf') downloadPDF();
         else if (action === 'download-json') downloadJSON();
         else if (action === 'copy-json') copyJSON();
-        else if (action === 'share') shareChart();
-        else if (platform) shareToSocialMedia(platform);
+        else if (action === 'generate-share-link') generateShareLink();
 
         // 關閉菜單
         document.querySelectorAll('.ziwei-share-menu').forEach(m => m.classList.remove('open'));
@@ -1357,14 +1221,16 @@ function toggleMenu() {
         isMenuOpen = false;
       }
     });
+
   }
 
-// ==================
-// Utility Functions (T026, T027, T028)
-// ==================  /**
-/**
- * Show loading state (T026)
- */
+  // ============================================================================
+  // Utility Functions
+  // ============================================================================
+
+  /**
+   * Show loading state
+   */
   function showLoadingState(message) {
     message = message || "處理中...";
 
@@ -1388,11 +1254,11 @@ function toggleMenu() {
     }
   }
 
-// ==================
-// Initialization
-// ==================  
+  // ============================================================================
+  // Initialization
+  // ============================================================================
 
-function init() {
+  function init() {
     checkBrowserSupport();
     
     // 嘗試找到現有按鈕並注入菜單
@@ -1422,7 +1288,7 @@ function init() {
     downloadPDF: downloadPDF,
     downloadJSON: downloadJSON,
     copyJSON: copyJSON,
-    share: shareChart,
+    generateShareLink: generateShareLink,
     init: init,
     _toggleMenu: toggleMenu // 供 control.js 調用
   };

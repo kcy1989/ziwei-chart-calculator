@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Star Brightness Database - Multiple Schools Support
  * 
@@ -11,28 +9,28 @@
  * - Currently supported: 斗數全書 (Doushu Quanquan - Complete Scripture)
  * - Future support: 大地派 (Dadi School), 台灣派 (Taiwan School), etc.
  * 
- * Dependencies: None
- * Exports: window.BrightnessDatabase (main interface)
- *          window.BrightnessShuoshu (斗數全書 table)
+ * Dependencies: window.ziweiConstants
+ * 
+ * Exports:
+ * - window.BrightnessDatabase (main interface)
+ * - window.BrightnessShuoshu (斗數全書 table)
  */
 
+'use strict';
+
 (function() {
+
     // ============================================================================
-    // Earthly Branches Reference
+    // Earthly Branches Reference (from centralized constants)
     // ============================================================================
-    const BRANCHES = (window.ziweiConstants && window.ziweiConstants.BRANCH_NAMES) ||
-                     ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+
+    const BRANCHES = window.ziweiConstants.BRANCH_NAMES;
     
     // ============================================================================
-    // Brightness Lookup Tables
-    // Format: starName: [brightness at branch 0, brightness at branch 1, ..., brightness at branch 11]
+    // Doushu Quanquan (Complete Scripture) Brightness Table
+    // Format: starName: [brightness at branch 0, ..., brightness at branch 11]
     // Order: Follows primary.js → secondary.js calculation sequence
     // ============================================================================
-    
-    // ========================================================================
-    // Doushu Quanquan (Complete Scripture)
-    // Brightness table based on methods documented in "紫微斗數全書"
-    // ========================================================================
     const brightnessTableShuoshu = {
         // ========================================================================
         // Ziwei System Main Stars

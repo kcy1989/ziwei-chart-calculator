@@ -1,27 +1,33 @@
-
-'use strict'; 
-
-/**
- * Global handleSubmitForm for onclick - defined before functions
- */
-window.handleSubmitForm = function(event) {
-  console.log('[global] onclick handleSubmitForm called');
-  if (typeof handleSubmit === 'function') {
-    handleSubmit(event);
-  } else {
-    console.error('[global] handleSubmit not ready');
-  }
-};
-
 /**
  * Form Input and Validation Module
  * 
+ * Handles birth data input form: field validation, calendar type switching,
+ * date/time selection, and form submission to API.
+ * 
+ * Dependencies:
+ * - assets/data/constants.js (ziweiConstants)
+ * 
  * Corresponding CSS: assets/display/css/form.css
- */// ============================================================================
+ * 
+ * Exports: window.ziweiForm
+ */
+
+(function() {
+'use strict';
+
+// Prevent multiple loads
+if (window.ziweiFormLoaded) {
+    return;
+}
+window.ziweiFormLoaded = true;
+
+// Initialize constants early to avoid reference errors
+let constants = window.ziweiConstants;
+const DEBUG_FORM = constants?.DEBUG?.FORM || false;
+
+// ============================================================================
 // Module State & Constants
 // ============================================================================
-
-const DEBUG_FORM = true; // Force debug for troubleshooting
 
 const state = {
     isInitialized: false,
@@ -33,25 +39,13 @@ const state = {
     lastValues: null,
     listeners: [],
     debounceTimers: new Map(),
-    savedFormClone: null // For back button functionality
+    savedFormClone: null
 };
 
 // ============================================================================
-// DOM Cache - Static Elements (cached on initialization)
+// DOM Cache
 // ============================================================================
 
-const DOM = Object.freeze({
-    form: () => state.form || document.getElementById('ziwei-cal-form'),
-    yearSelect: () => state.yearSelect,
-    monthSelect: () => state.monthSelect,
-    daySelect: () => state.daySelect,
-    hourSelect: () => state.hourSelect,
-    minuteSelect: () => state.minuteSelect,
-    formContainer: () => state.formContainer,
-    genderGroup: () => state.genderGroup
-});
-
-// Initialize DOM cache references
 let _domCache = {
     yearSelect: null,
     monthSelect: null,
@@ -67,19 +61,297 @@ let _domCache = {
 // ============================================================================
 
 function log(...args) {
-    console.log('[ziwei-form]', ...args);
+    if (DEBUG_FORM) {
+        console.log('[ziwei-form]', ...args);
+    }
 }
 
 function warn(...args) {
-    console.warn('[ziwei-form]', ...args);
+    if (DEBUG_FORM) {
+        console.warn('[ziwei-form]', ...args);
+    }
 }
 
 function err(...args) {
     console.error('[ziwei-form]', ...args);
 }
 
-console.log('[form.js] Script loaded');
-console.log('[form.js] ziweiCalData:', !!window.ziweiCalData);
+// ============================================================================
+// Share Link URL Parameter Handling
+// ============================================================================
+
+/**
+ * Parse share link URL parameters
+ * @returns {Object|null} Parsed parameters or null if invalid/missing
+ */
+function parseShareLinkParameters() {
+    const searchParams = window.location.search;
+    if (!searchParams || searchParams.length < 2) {
+        return null;
+    }
+
+    try {
+        const params = new URLSearchParams(searchParams);
+        
+        // Check for required parameters
+        // Parameters use bd_ prefix to avoid WordPress reserved parameters
+        // Shortened keys: bd_g=gender, bd_y=year, bd_m=month, bd_d=day, bd_h=hour, bd_i=minute
+        const gender = params.get('bd_g');
+        const year = params.get('bd_y');
+        const month = params.get('bd_m');
+        const day = params.get('bd_d');
+        const hour = params.get('bd_h');
+        const minute = params.get('bd_i');
+
+        // Validate required fields exist
+        if (!gender || !year || !month || !day || hour === null || minute === null) {
+            log('Share link missing required parameters');
+            return null;
+        }
+
+        // Parse and validate numeric values
+        const yearNum = parseInt(year, 10);
+        const monthNum = parseInt(month, 10);
+        const dayNum = parseInt(day, 10);
+        const hourNum = parseInt(hour, 10);
+        const minuteNum = parseInt(minute, 10);
+
+        // Validate ranges
+        if (yearNum < 800 || yearNum > 2200) {
+            warn('Invalid year in share link:', yearNum);
+            return null;
+        }
+        if (monthNum < 1 || monthNum > 12) {
+            warn('Invalid month in share link:', monthNum);
+            return null;
+        }
+        if (dayNum < 1 || dayNum > 31) {
+            warn('Invalid day in share link:', dayNum);
+            return null;
+        }
+        if (hourNum < 0 || hourNum > 23) {
+            warn('Invalid hour in share link:', hourNum);
+            return null;
+        }
+        if (minuteNum < 0 || minuteNum > 59) {
+            warn('Invalid minute in share link:', minuteNum);
+            return null;
+        }
+
+        // Validate gender
+        const normalizedGender = gender.toUpperCase();
+        if (normalizedGender !== 'M' && normalizedGender !== 'F') {
+            warn('Invalid gender in share link:', gender);
+            return null;
+        }
+
+        // Build result object
+        const result = {
+            gender: normalizedGender,
+            year: yearNum,
+            month: monthNum,
+            day: dayNum,
+            hour: hourNum,
+            minute: minuteNum
+        };
+
+        // Optional parameters (bd_n=name, bd_p=place)
+        const name = params.get('bd_n');
+        if (name) {
+            result.bd_name = decodeURIComponent(name).trim();
+        }
+
+        const birthplace = params.get('bd_p');
+        if (birthplace) {
+            result.bd_place = decodeURIComponent(birthplace).trim();
+        }
+
+        // Settings
+        const ziHourHandling = params.get('ziHourHandling');
+        if (ziHourHandling === 'ziChange' || ziHourHandling === 'midnightChange') {
+            result.ziHourHandling = ziHourHandling;
+        }
+
+        const leapMonthHandling = params.get('leapMonthHandling');
+        if (leapMonthHandling === 'mid' || leapMonthHandling === 'current' || leapMonthHandling === 'next') {
+            result.leapMonthHandling = leapMonthHandling;
+        }
+
+        log('Parsed share link parameters:', result);
+        return result;
+
+    } catch (error) {
+        err('Error parsing share link parameters:', error);
+        return null;
+    }
+}
+
+/**
+ * Pre-fill form fields from share link parameters
+ * @param {Object} params Parsed share link parameters
+ */
+function prefillFromShareLink(params) {
+    if (!params) return;
+
+    log('Pre-filling form from share link...');
+
+    // Pre-fill gender
+    if (params.gender) {
+        const genderRadio = document.getElementById(params.gender === 'M' ? 'ziwei-male' : 'ziwei-female');
+        if (genderRadio) {
+            genderRadio.checked = true;
+        }
+    }
+
+    // Pre-fill date/time using cached DOM elements
+    if (_domCache.yearSelect && params.year) {
+        _domCache.yearSelect.value = String(params.year);
+    }
+    if (_domCache.monthSelect && params.month) {
+        _domCache.monthSelect.value = String(params.month);
+    }
+    if (_domCache.daySelect && params.day) {
+        _domCache.daySelect.value = String(params.day);
+    }
+    if (_domCache.hourSelect && params.hour !== undefined) {
+        _domCache.hourSelect.value = String(params.hour);
+    }
+    if (_domCache.minuteSelect && params.minute !== undefined) {
+        // Round to nearest 5-minute interval for select compatibility
+        const roundedMinute = Math.floor(params.minute / 5) * 5;
+        _domCache.minuteSelect.value = String(roundedMinute);
+    }
+
+    // Pre-fill optional text fields
+    if (params.bd_name) {
+        const nameInput = document.getElementById('ziwei-name');
+        if (nameInput) {
+            nameInput.value = params.bd_name;
+        }
+    }
+    if (params.bd_place) {
+        const birthplaceInput = document.getElementById('ziwei-birthplace');
+        if (birthplaceInput) {
+            birthplaceInput.value = params.bd_place;
+        }
+    }
+
+    // Apply settings to adapter if available
+    if (window.ziweiAdapter && window.ziweiAdapter.settings) {
+        if (params.ziHourHandling) {
+            window.ziweiAdapter.settings.set('ziHourHandling', params.ziHourHandling);
+        }
+        if (params.leapMonthHandling) {
+            window.ziweiAdapter.settings.set('leapMonthHandling', params.leapMonthHandling);
+        }
+    }
+
+    log('Form pre-filled from share link');
+}
+
+/**
+ * Check for share link parameters and auto-submit if valid
+ */
+function checkAndProcessShareLink() {
+    const params = parseShareLinkParameters();
+    if (!params) {
+        return;
+    }
+
+    log('Valid share link detected, processing...');
+
+    // Ensure form and DOM cache are ready
+    if (!state.form || !_domCache.yearSelect) {
+        warn('Form not ready for share link processing, retrying...');
+        setTimeout(() => checkAndProcessShareLink(), 100);
+        return;
+    }
+
+    // Pre-fill form fields
+    prefillFromShareLink(params);
+
+    // Show indicator that we're loading from share link
+    showShareLinkIndicator();
+
+    // Clear URL parameters to prevent re-submission on refresh
+    // Use replaceState to avoid adding to browser history
+    try {
+        const cleanUrl = window.location.origin + window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+    } catch (e) {
+        log('Could not clear URL parameters:', e);
+    }
+
+    // Auto-submit after a short delay to ensure form is ready
+    setTimeout(() => {
+        log('Auto-submitting form from share link...');
+        // Create a synthetic event for handleSubmit
+        const syntheticEvent = {
+            preventDefault: () => {},
+            target: state.form
+        };
+        handleSubmit(syntheticEvent);
+    }, 300);
+}
+
+/**
+ * Show indicator that chart is being loaded from a share link
+ */
+function showShareLinkIndicator() {
+    const formContainer = _domCache.formContainer || document.querySelector('.ziwei-cal');
+    if (!formContainer) return;
+
+    const indicator = document.createElement('div');
+    indicator.className = 'ziwei-share-link-indicator';
+    indicator.innerHTML = `
+        <span class="ziwei-share-link-icon">🔗</span>
+        <span class="ziwei-share-link-text">正在載入分享連結的命盤...</span>
+    `;
+    indicator.style.cssText = `
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        font-size: 14px;
+        animation: pulse 1.5s ease-in-out infinite;
+    `;
+
+    // Add pulse animation if not exists
+    if (!document.querySelector('#ziwei-share-link-styles')) {
+        const style = document.createElement('style');
+        style.id = 'ziwei-share-link-styles';
+        style.textContent = `
+            @keyframes pulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.7; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    const form = formContainer.querySelector('form');
+    if (form) {
+        form.insertAdjacentElement('beforebegin', indicator);
+    } else {
+        formContainer.prepend(indicator);
+    }
+
+    // Remove indicator after form submission completes
+    const removeIndicator = () => {
+        indicator.style.transition = 'opacity 0.3s ease';
+        indicator.style.opacity = '0';
+        setTimeout(() => indicator.remove(), 300);
+        document.removeEventListener('ziwei-chart-generated', removeIndicator);
+        document.removeEventListener('ziwei-chart-error', removeIndicator);
+    };
+    document.addEventListener('ziwei-chart-generated', removeIndicator, { once: true });
+    document.addEventListener('ziwei-chart-error', removeIndicator, { once: true });
+}
 
 // ============================================================================
 // Initialization & Cleanup
@@ -90,10 +362,10 @@ console.log('[form.js] ziweiCalData:', !!window.ziweiCalData);
  */
 function initForm() {
     if (state.isInitialized) {
-        console.log('[form.js] initForm already done, skip');
+        if (DEBUG_FORM) console.log('[form.js] initForm already done, skip');
         return;
     }
-    console.log('[form.js] initForm START');
+    if (DEBUG_FORM) console.log('[form.js] initForm START');
     log('Initializing form...');
     
     const form = document.getElementById('ziwei-cal-form');
@@ -144,31 +416,30 @@ function initForm() {
     };
     
     form.addEventListener('submit', (e) => {
-    console.log('[form.js] Submit event attached and fired');
-    handleSubmit(e);
-});
+        if (DEBUG_FORM) console.log('[form.js] Submit event attached and fired');
+        handleSubmit(e);
+    });
     form.addEventListener('input', handleInput, { passive: true });
     form.addEventListener('reset', handleReset);
     state.listeners.push(['submit', handleSubmit], ['input', handleInput], ['reset', handleReset]);
     
-    console.log('[form.js] Caching submitBtn:', !!state.submitBtn, state.submitBtn);
-if (state.submitBtn) {
-  console.log('[form.js] Direct click listener on submitBtn');
-  state.submitBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    handleSubmit(e);
-  });
-}
+    if (DEBUG_FORM) console.log('[form.js] Caching submitBtn:', !!state.submitBtn, state.submitBtn);
+    if (state.submitBtn) {
+        if (DEBUG_FORM) console.log('[form.js] Direct click listener on submitBtn');
+        state.submitBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            handleSubmit(e);
+        });
+    }
 
-// Global fallback for submit button
-document.addEventListener('click', (e) => {
-  if (e.target.id === 'ziwei-submit-btn') {
-    console.log('[form.js] GLOBAL submitBtn click');
-    e.preventDefault();
-    handleSubmit(e);
-  }
-}, true);
-
+    // Global fallback for submit button
+    document.addEventListener('click', (e) => {
+        if (e.target.id === 'ziwei-submit-btn') {
+            if (DEBUG_FORM) console.log('[form.js] GLOBAL submitBtn click');
+            e.preventDefault();
+            handleSubmit(e);
+        }
+    }, true);
 
     state.isInitialized = true;
     log('Form initialized with', state.inputs.length, 'fields');
@@ -182,7 +453,7 @@ document.addEventListener('click', (e) => {
     // When there is an adapter-level error, show adapter error and clear busy state
     document.addEventListener('ziwei-chart-error', function (e) {
         try {
-            var detail = e && e.detail ? e.detail : {};
+            const detail = e && e.detail ? e.detail : {};
             console.error('[ziweiForm] ziwei-chart-error event:', detail);
             if (detail.error && typeof window.ziweiForm?.handleAdapterError === 'function') {
                 window.ziweiForm.handleAdapterError(detail.error);
@@ -194,6 +465,9 @@ document.addEventListener('click', (e) => {
             toggleBusy(false);
         }
     });
+
+    // Check for share link URL parameters and auto-submit if valid
+    checkAndProcessShareLink();
 }
 
 /**
@@ -442,7 +716,7 @@ function collectValues() {
             values[el.name] = v;
         }
     }
-    
+
     return values;
 }
 
@@ -526,20 +800,20 @@ function toggleBusy(busy) {
 async function handleSubmit(e) {
     e.preventDefault();
     if (!state.form) {
-        console.error('[form.js] No form in state');
+        err('No form in state');
         return;
     }
     if (state.isSubmitting) {
         return;
     }
-    console.log('[form.js] Starting submit process');
+    log('Starting submit process');
     state.isSubmitting = true;
     toggleBusy(true);
     try {
         clearAllErrors();
-        console.log('[form.js] Collected rawValues');
+        log('Collecting rawValues');
         const rawValues = collectValues();
-        console.log('[form.js] rawPayload ready');
+        log('rawPayload ready');
         
         // Frontend validation before API call
         if (!rawValues.gender) {
@@ -565,8 +839,7 @@ async function handleSubmit(e) {
         log('Raw form payload collected:', rawPayload);
         log('ziweiCalData:', window.ziweiCalData);
         if (!window.ziweiCalData || !window.ziweiCalData.nonce) {
-            console.error('[form.js] Missing ziweiCalData or nonce:', window.ziweiCalData);
-            err('Missing required WordPress configuration');
+            err('Missing ziweiCalData or nonce:', window.ziweiCalData);
             if (typeof showError === 'function') {
                 showError('系統配置錯誤，請重新載入頁面');
             }
@@ -623,12 +896,12 @@ async function handleSubmit(e) {
             detail
         });
         const dispatched = document.dispatchEvent(event);
-        console.log('[form.js] ziwei-form-submit dispatched on document');
+        log('ziwei-form-submit dispatched on document');
         if (!dispatched) {
-            console.warn('[form.js] Submit event cancelled');
+            warn('Submit event cancelled');
         }
     } catch (ex) {
-        console.error('[form.js] Submit error:', ex);
+        err('Submit error:', ex);
     } finally {
         if (state.isSubmitting === true) {
             state.isSubmitting = false;
@@ -890,20 +1163,22 @@ window.ziweiForm = {
 
 // Safe single init at end
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initForm);
+    document.addEventListener('DOMContentLoaded', initForm);
 } else {
-  initForm();
+    initForm();
 }
-console.log('[form.js] Single init scheduled');
+if (DEBUG_FORM) console.log('[form.js] Single init scheduled');
 
 // Global fallback submit listener (document level)
 document.addEventListener('submit', (e) => {
-  if (e.target.id === 'ziwei-cal-form') {
-    console.log('[form.js] Global submit fallback fired');
-    handleSubmit(e);
-  }
+    if (e.target.id === 'ziwei-cal-form') {
+        if (DEBUG_FORM) console.log('[form.js] Global submit fallback fired');
+        handleSubmit(e);
+    }
 }, true); // capture phase
 
 // Export for onclick
 window.ziweiFormSubmit = handleSubmit;
-console.log('[form.js] Ready - ziweiFormSubmit exported');
+if (DEBUG_FORM) console.log('[form.js] Ready - ziweiFormSubmit exported');
+
+})();

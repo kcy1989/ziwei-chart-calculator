@@ -1,14 +1,23 @@
+/**
+ * Gender and Yin-Yang Calculator
+ * 
+ * Determines the gender classification for Ziwei Doushu charts:
+ * - 陽年生: 陽男/陽女
+ * - 陰年生: 陰男/陰女
+ * 
+ * Yang stems (陽年天干): 甲, 丙, 戊, 庚, 壬
+ * Yin stems (陰年天干): 乙, 丁, 己, 辛, 癸
+ * 
+ * Dependencies: None
+ * 
+ * Exports: registerAdapterModule('gender', ...)
+ */
+
 'use strict';
 
-/**
- * Gender and Yin-Yang Calculator for Ziwei Doushu Chart Display
- * 
- * 陽年生：陽男/陽女
- * 陰年生：陰男/陰女
- * 
- * 陽年天干：甲, 丙, 戊, 庚, 壬
- * 陰年天干：乙, 丁, 己, 辛, 癸
- */
+// ============================================================================
+// Gender Classification
+// ============================================================================
 
 /**
  * Calculate gender classification based on gender and lunar year

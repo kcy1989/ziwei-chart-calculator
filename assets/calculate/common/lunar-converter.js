@@ -1,9 +1,21 @@
 /**
  * Lunar Calendar Converter
+ * 
+ * Converts between Solar (Gregorian) and Chinese Lunar calendar dates.
+ * 
  * Source: https://github.com/isee15/Lunar-Solar-Calendar-Converter
  * License: MIT
  * Supports: 1900-2100
+ * 
+ * Dependencies: None
+ * 
+ * Exports:
+ * - Lunar (constructor)
+ * - Solar (constructor)
+ * - LunarSolarConverter (main converter)
  */
+
+'use strict';
 
 function Lunar() {
     this.isleap = false;

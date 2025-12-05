@@ -1,20 +1,26 @@
 /**
  * Four Mutations (四化) Calculator
  * 
- * Calculates birth year mutations (生年四化) based on the heavenly stem (天干) of birth year.
- * Uses hybrid system: Zhongzhou School defaults + user-selectable alternatives for controversial stems.
+ * Calculates birth year mutations (生年四化) based on the heavenly stem (天干)
+ * of birth year. Uses hybrid system: Zhongzhou School defaults + user-selectable
+ * alternatives for controversial stems.
  * 
  * Dependencies:
- * - mutation.js: getMutation() and getAllMutations() functions
- * - basic.js: getHeavenlyStemIndex() function
+ * - assets/data/mutation.js (getMutation, getAllMutations)
+ * - assets/data/constants.js (STEM_NAMES, CONTROVERSIAL_STEMS)
+ * 
+ * Exports: registerAdapterModule('mutations', ...)
  */
 
 'use strict';
 
-/**
- * Array of heavenly stems (天干)
- */
-const HEAVENLY_STEMS = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
+// ============================================================================
+// Module Constants
+// ============================================================================
+
+const constants = window.ziweiConstants;
+const STEM_NAMES = constants.STEM_NAMES;
+const CONTROVERSIAL_STEMS = constants.CONTROVERSIAL_STEMS;
 
 /**
  * Array of mutation types (四化類型)
@@ -32,16 +38,13 @@ const MUTATION_TYPES = ['祿', '權', '科', '忌'];
  *                   }
  */
 function calculateBirthYearMutations(stemIndex) {
-    // Calculation of birth year mutations started (logging removed to reduce noise)
-    
     // Validate stem index
     if (stemIndex < 0 || stemIndex > 9) {
-        console.warn('Invalid stem index:', stemIndex);
         return { byType: {}, byStar: {} };
     }
 
     // Get heavenly stem character
-    const stem = HEAVENLY_STEMS[stemIndex];
+    const stem = STEM_NAMES[stemIndex];
     
     // Check if mutation functions are available
     if (typeof getAllMutations !== 'function') {
@@ -49,43 +52,33 @@ function calculateBirthYearMutations(stemIndex) {
         return { byType: {}, byStar: {} };
     }
     
-    // Get current user selections from adapter settings, use defaults if not available
+    // Get current user selections from adapter settings
     let userSelections = null;
-    try {
-        // Get from adapter settings (persistent)
-        if (window.ziweiAdapter && window.ziweiAdapter.settings && typeof window.ziweiAdapter.settings.get === 'function') {
-            const controversialStems = ['甲', '戊', '庚', '辛', '壬', '癸'];
-            userSelections = {};
-            for (const stem of controversialStems) {
-                const settingName = `stemInterpretation_${stem}`;
-                const value = window.ziweiAdapter.settings.get(settingName);
-                if (value) {
-                    userSelections[stem] = value;
-                }
+    const adapterSettings = window.ziweiAdapter?.settings;
+    if (adapterSettings && typeof adapterSettings.get === 'function') {
+        userSelections = {};
+        for (const controversialStem of CONTROVERSIAL_STEMS) {
+            const settingName = `stemInterpretation_${controversialStem}`;
+            const value = adapterSettings.get(settingName);
+            if (value) {
+                userSelections[controversialStem] = value;
             }
         }
-    } catch (e) {
-        console.warn('[mutations.js] Failed to get user selections from adapter:', e);
     }
     
     // Ensure all controversial stems have settings, use defaults for missing ones
-    const defaultSelections = {
-        '甲': 'interpretation_1',
-        '戊': 'interpretation_1',
-        '庚': 'interpretation_1',
-        '辛': 'interpretation_1',
-        '壬': 'interpretation_1',
-        '癸': 'interpretation_1'
-    };
+    const defaultSelections = {};
+    for (const s of CONTROVERSIAL_STEMS) {
+        defaultSelections[s] = 'interpretation_1';
+    }
     
     if (!userSelections) {
         userSelections = { ...defaultSelections };
     } else {
         // Fill in missing stems with defaults
-        const controversialStems = ['甲', '戊', '庚', '辛', '壬', '癸'];
-        for (const stem of controversialStems) {
-            if (!userSelections[stem]) {
-                userSelections[stem] = defaultSelections[stem];
+        for (const s of CONTROVERSIAL_STEMS) {
+            if (!userSelections[s]) {
+                userSelections[s] = defaultSelections[s];
             }
         }
     }
@@ -94,7 +87,6 @@ function calculateBirthYearMutations(stemIndex) {
     const mutations = getAllMutations(stem, userSelections);
     
     if (!mutations) {
-        console.warn('No mutations found for stem:', stem);
         return { byType: {}, byStar: {} };
     }
     
@@ -162,9 +154,8 @@ function getStarForMutation(mutationType, mutationsData) {
  */
 function calculateMajorCycleMutations(stemChar, userSelections = null) {
     // Use the same logic as birth year mutations
-    const stemIndex = HEAVENLY_STEMS.indexOf(stemChar);
+    const stemIndex = STEM_NAMES.indexOf(stemChar);
     if (stemIndex === -1) {
-        console.warn('Invalid stem character for major cycle mutations:', stemChar);
         return { byType: {}, byStar: {} };
     }
     
@@ -194,9 +185,8 @@ function calculateMajorCycleMutations(stemChar, userSelections = null) {
  */
 function calculateAnnualCycleMutations(stemChar, userSelections = null) {
     // Use the same logic as birth year mutations
-    const stemIndex = HEAVENLY_STEMS.indexOf(stemChar);
+    const stemIndex = STEM_NAMES.indexOf(stemChar);
     if (stemIndex === -1) {
-        console.warn('Invalid stem character for annual cycle mutations:', stemChar);
         return { byType: {}, byStar: {} };
     }
     

@@ -1,157 +1,119 @@
+/**
+ * Data Adapter Module
+ * 
+ * Central data transformation layer between form input and chart rendering.
+ * Handles input normalization, module registration, calculation orchestration,
+ * and output processing.
+ * 
+ * Dependencies:
+ * - assets/data/constants.js (ziweiConstants)
+ * - assets/calculate/common/lunar-converter.js (solarToLunar)
+ * 
+ * Exports: window.ziweiAdapter
+ */
+
 /* global solarToLunar */
 (function(window) {
     'use strict';
 
-    var GLOBAL_KEY = 'ziweiAdapter';
-    var adapter = window[GLOBAL_KEY] || {};
+    // ============================================================================
+    // Dependencies & Initialization
+    // ============================================================================
+    
+    const constants = window.ziweiConstants;
+    
+    // Ensure adapter object exists with proper structure
+    window.ziweiAdapter = window.ziweiAdapter || {};
+    const adapter = window.ziweiAdapter;
+
+    // Initialize modules registry
     adapter.modules = adapter.modules || {};
 
-    var pendingModules = window.__ziweiAdapterModules;
-    if (pendingModules && typeof pendingModules === 'object') {
-        for (var pendingName in pendingModules) {
-            if (Object.prototype.hasOwnProperty.call(pendingModules, pendingName)) {
-                adapter.modules[pendingName] = pendingModules[pendingName];
-            }
+    // Initialize storage system
+    adapter._storage = adapter._storage || {};
+    adapter.storage = adapter.storage || {
+        get: function(key) {
+            return adapter._storage[key];
+        },
+        set: function(key, value) {
+            adapter._storage[key] = value;
+        },
+        remove: function(key) {
+            delete adapter._storage[key];
+        },
+        clear: function() {
+            adapter._storage = {};
         }
+    };
+
+    // Initialize settings system
+    adapter._settings = adapter._settings || {};
+    adapter.settings = adapter.settings || {
+        get: function(key) {
+            return adapter._settings[key];
+        },
+        set: function(key, value) {
+            adapter._settings[key] = value;
+        },
+        getAll: function() {
+            return Object.assign({}, adapter._settings);
+        }
+    };
+
+    // Register module function
+    adapter.registerModule = function(name, api) {
+        if (!name || !api) return;
+        adapter.modules[name] = api;
+    };
+
+    // Get module function
+    adapter.getModule = function(name) {
+        if (!name) return null;
+        return adapter.modules[name] || null;
+    };
+
+    // Check if module exists
+    adapter.hasModule = function(name) {
+        return !!adapter.getModule(name);
+    };
+
+    // Process any pending modules registered before adapter was ready
+    if (window.__ziweiAdapterModules) {
+        Object.entries(window.__ziweiAdapterModules).forEach(function([name, api]) {
+            adapter.registerModule(name, api);
+        });
         delete window.__ziweiAdapterModules;
     }
 
-    if (typeof adapter.registerModule !== 'function') {
-        adapter.registerModule = function(name, api) {
-            if (!name || !api) {
-                return;
-            }
-            adapter.modules[name] = api;
-        };
-    }
-
-    // Robust module registration with multiple fallback strategies
-    function registerAdapterModule(name, api) {
-        function doRegister(targetAdapter) {
-            if (targetAdapter && typeof targetAdapter.registerModule === 'function') {
-                targetAdapter.registerModule(name, api);
-                return true;
-            }
-            return false;
-        }
-        
-        // Try with local adapter first (during initialization)
-        if (doRegister(adapter)) {
-            return;
-        }
-        
-        // Try with window adapter (after initialization)
-        if (doRegister(window.ziweiAdapter)) {
-            return;
-        }
-        
-        // Store in pending queue as last resort
-        var pending = window.__ziweiAdapterModules = window.__ziweiAdapterModules || {};
-        pending[name] = api;
-    }
-
-    // Simple settings store for adapter-level effective settings
-    // Session-only, memory-only (do NOT persist to sessionStorage or localStorage)
-    adapter._settings = adapter._settings || {};
-    (function initAdapterSettings() {
-        // Intentionally in-memory only per privacy-first policy
-        adapter._settings = adapter._settings || {};
-    })();
-
-    adapter.settings = adapter.settings || {};
-    adapter.settings.get = function(name) {
-        if (!name) return null;
-        return adapter._settings[name] !== undefined ? adapter._settings[name] : null;
-    };
-
-    // Generic storage for adapter-level transient data (in-memory only)
-    adapter._storage = adapter._storage || {};
-    (function initAdapterStorage() {
-        // Intentionally in-memory only
-        adapter._storage = adapter._storage || {};
-    })();
-
-    adapter.storage = adapter.storage || {};
-    adapter.storage.get = function(name) {
-        if (!name) return null;
-        return adapter._storage.hasOwnProperty(name) ? deepClone(adapter._storage[name]) : null;
-    };
-    adapter.storage.set = function(name, value) {
-        if (!name) return;
-        try {
-            adapter._storage[name] = deepClone(value);
-            // do NOT persist to sessionStorage for privacy — keep in-memory only
-        } catch (e) {
-            // ignore
-        }
-    };
-    adapter.storage.remove = function(name) {
-        if (!name) return;
-        try {
-            delete adapter._storage[name];
-            // in-memory only; do not persist changes to sessionStorage
-        } catch (e) {}
-    };
-    adapter.settings.set = function(name, value) {
-        if (!name) return;
-        adapter._settings[name] = value;
-        try {
-            // In-memory only — do not persist user preferences to session/local storage
-        } catch (e) {
-            // ignore storage errors
-        }
-    };
-
-    if (typeof adapter.getModule !== 'function') {
-        adapter.getModule = function(name) {
-            if (!name) {
-                return null;
-            }
-            return adapter.modules[name] || null;
-        };
-    }
-
-    if (typeof adapter.hasModule !== 'function') {
-        adapter.hasModule = function(name) {
-            return !!adapter.getModule(name);
-        };
-    }
-
-    // Current computed NatalChart object (in-memory). Use getCurrentChart() from display modules.
+    // Current computed NatalChart object (in-memory)
     adapter._currentChart = adapter._currentChart || null;
 
-    /**
-     * Set the in-memory cached result of the most recent chart calculation.
-     * This is intentionally internal (but exposed) and should not be persisted.
-     */
     adapter.setCurrentChart = function(chart) {
         adapter._currentChart = deepClone(chart);
     };
 
-    /**
-     * Get the cached NatalChart object. Returns a deep-cloned copy to prevent mutation.
-     */
     adapter.getCurrentChart = function() {
         return deepClone(adapter._currentChart) || null;
     };
 
-    function getAdapterModule(name) {
-        var targetAdapter = window.ziweiAdapter || adapter;
-        var module = targetAdapter.getModule ? targetAdapter.getModule(name) : null;
-        return module;
-    }
+    // ============================================================================
+    // Constants & Configuration
+    // ============================================================================
 
-    var constants = window.ziweiConstants || {};
-    var DEBUG = !!(constants.DEBUG && constants.DEBUG.ADAPTER);
-    var REGEX = constants.REGEX || {};
-    var NUMERIC_LIMITS = Object.assign({
-        LUNAR_YEAR_MIN: 1800,
-        LUNAR_YEAR_MAX: 2100
-    }, constants.NUMERIC || {});
+    const DEBUG = constants.DEBUG.ADAPTER;
+    const REGEX = constants.REGEX;
+    const DEFAULTS = constants.DEFAULTS;
+    const ERROR_CODES = constants.ERROR_CODES;
+    const NUMERIC = constants.NUMERIC;
+    const NUMERIC_LIMITS = constants.NUMERIC; // Alias for backward compatibility
+
+    // ============================================================================
+    // Helper Functions
+    // ============================================================================
 
     function log() {
         if (DEBUG) {
-            var args = Array.prototype.slice.call(arguments);
+            const args = Array.prototype.slice.call(arguments);
             args.unshift('[ziweiAdapter]');
             console.log.apply(console, args);
         }
@@ -159,23 +121,20 @@
 
     function warn() {
         if (DEBUG) {
-            var args = Array.prototype.slice.call(arguments);
+            const args = Array.prototype.slice.call(arguments);
             args.unshift('[ziweiAdapter]');
             console.warn.apply(console, args);
         }
     }
 
     function AdapterError(type, message, context, cause) {
-        var error = new Error(message || 'Adapter error');
+        const error = new Error(message || 'Adapter error');
         error.name = 'AdapterError';
-        error.type = type || 'ADAPTER_ERROR';
+        error.type = type || ERROR_CODES.CALCULATION_FAILED;
         error.context = context || {};
         error.timestamp = Date.now();
         if (cause) {
             error.cause = cause;
-        }
-        if (Error.captureStackTrace) {
-            Error.captureStackTrace(error, AdapterError);
         }
         return error;
     }
@@ -196,13 +155,12 @@
             try {
                 return structuredClone(value);
             } catch (err) {
-                warn('structuredClone failed, fallback to JSON clone.', err);
+                // Fall through to JSON method
             }
         }
         try {
             return JSON.parse(JSON.stringify(value));
         } catch (err2) {
-            warn('JSON clone failed, fallback to shallow copy.', err2);
             if (Array.isArray(value)) {
                 return value.slice();
             }
@@ -214,19 +172,15 @@
     }
 
     function normalizeGender(value) {
-        if (!value && value !== 0) {
-            return '';
-        }
-        var normalized = String(value).trim().toUpperCase();
-        return normalized === 'M' || normalized === 'F' ? normalized : '';
+        if (!value && value !== 0) return DEFAULTS.GENDER;
+        const normalized = String(value).trim().toUpperCase();
+        return normalized === 'M' || normalized === 'F' ? normalized : DEFAULTS.GENDER;
     }
 
     function sanitizeName(value) {
-        if (typeof value !== 'string') {
-            return '無名氏';
-        }
-        var trimmed = value.trim();
-        return trimmed.length ? trimmed : '無名氏';
+        if (typeof value !== 'string') return DEFAULTS.NAME;
+        const trimmed = value.trim();
+        return trimmed.length ? trimmed : DEFAULTS.NAME;
     }
 
     function sanitizeText(value) {
@@ -234,26 +188,22 @@
     }
 
     function normalizeCalendarType(value) {
-        var lowered = (value || '').toString().toLowerCase();
-        return lowered === 'lunar' ? 'lunar' : 'solar';
+        const lowered = (value || '').toString().toLowerCase();
+        return lowered === 'lunar' ? 'lunar' : DEFAULTS.CALENDAR_TYPE;
     }
 
     function toBoolean(value) {
-        if (typeof value === 'boolean') {
-            return value;
-        }
+        if (typeof value === 'boolean') return value;
         if (typeof value === 'string') {
-            var lowered = value.trim().toLowerCase();
+            const lowered = value.trim().toLowerCase();
             return lowered === '1' || lowered === 'true' || lowered === 'yes';
         }
         return Boolean(value);
     }
 
     function parseInteger(value, fallback) {
-        if (value === null || value === undefined || value === '') {
-            return fallback;
-        }
-        var num = Number(value);
+        if (value === null || value === undefined || value === '') return fallback;
+        const num = Number(value);
         return Number.isFinite(num) ? parseInt(num, 10) : fallback;
     }
 
@@ -262,19 +212,18 @@
     }
 
     function buildBirthdate(year, month, day) {
-        if (!year || !month || !day) {
-            return '';
-        }
+        if (!year || !month || !day) return '';
         return String(year).padStart(4, '0') + '-' + pad2(month) + '-' + pad2(day);
     }
 
     function buildBirthtime(hour, minute) {
-        if (hour === null || hour === undefined || minute === null || minute === undefined) {
-            return '';
-        }
+        if (hour === null || hour === undefined || minute === null || minute === undefined) return '';
         return pad2(hour) + ':' + pad2(minute);
     }
 
+    // ============================================================================
+    // Validation Logic
+    // ============================================================================
 
     function validateRequiredFields(values, errors) {
         if (!values.gender) errors.gender = '請選擇性別';
@@ -293,6 +242,14 @@
         if (REGEX.MINUTE && values.minute !== null && values.minute !== undefined && !REGEX.MINUTE.test(String(values.minute))) errors.minute = '分鐘格式不正確';
     }
 
+    // ============================================================================
+    // Core Logic: Normalization & Calculation
+    // ============================================================================
+
+    /**
+     * Ensures the provided lunar object is valid, checks if the lunar year is within supported range,
+     * and normalizes the isLeapMonth property.
+     */
     function ensureLunarObject(lunar, context) {
         if (!lunar) {
             throw AdapterError('LUNAR_MISSING', '無法取得農曆資料。', context);
@@ -305,70 +262,130 @@
         });
     }
 
+    /**
+     * Derives various indices and palaces based on lunar, solar, and meta data for Ziwei astrology calculations.
+     * This function aggregates indices from basic modules, handles leap month modes, and computes time indices,
+     * body palace, master palace, and gender classification where applicable.
+     */
     function deriveIndices(meta, lunar, solar) {
-        var indices = {};
-        var basic = getAdapterModule('basic') || {};
-        var genderModule = getAdapterModule('gender');
+        // Input validation
+        if (!lunar?.lunarYear) {
+            throw AdapterError('MISSING_LUNAR_YEAR', 'Lunar year is required for index derivation.');
+        }
+        if (!meta?.gender) {
+            warn('deriveIndices: Missing gender, genderClassification skipped.');
+        }
 
+        const indices = {};
+        const basic = adapter.getModule('basic') || {};
+        const genderModule = adapter.getModule('gender');
+
+        // 1. Year stem/branch (independent)
         if (typeof basic.getHeavenlyStemIndex === 'function') {
             indices.yearStemIndex = basic.getHeavenlyStemIndex(lunar.lunarYear);
         }
         if (typeof basic.getEarthlyBranchIndex === 'function') {
             indices.yearBranchIndex = basic.getEarthlyBranchIndex(lunar.lunarYear);
         }
+
+        // 2. Month/time indices (leap-aware; REQUIRED - no fallback)
         if (typeof basic.getBasicIndices === 'function') {
             try {
-                // Pass leapMonthHandling from meta to basic.getBasicIndices as leapMonthMode
-                var leapMonthMode = meta.leapMonthHandling || 'mid';
-                var result = basic.getBasicIndices(lunar, leapMonthMode);
-                if (result && typeof result === 'object') {
-                    if (result.monthIndex !== undefined) indices.monthIndex = result.monthIndex;
-                    if (result.timeIndex !== undefined) indices.timeIndex = result.timeIndex;
-                }
+                const leapMonthMode = meta.leapMonthHandling ?? 'mid';
+                const result = basic.getBasicIndices(lunar, leapMonthMode);
+                if (result?.monthIndex !== undefined) indices.monthIndex = result.monthIndex;
+                if (result?.timeIndex !== undefined) indices.timeIndex = result.timeIndex;
             } catch (err) {
-                warn('getBasicIndices failed', err);
+                warn('basic.getBasicIndices failed:', err);
             }
         }
-        if (indices.timeIndex === undefined) {
-            // Use only calculator.js getMilitaryHourIndex, no fallback
-            var calculator = window.ziweiCalculator || {};
-            if (typeof calculator.getMilitaryHourIndex === 'function') {
-                var timeStr = '';
-                if (solar.hour !== undefined && solar.minute !== undefined) {
-                    timeStr = String(solar.hour).padStart(2, '0') + ':' + String(solar.minute).padStart(2, '0');
-                }
-                indices.timeIndex = calculator.getMilitaryHourIndex(timeStr);
-            } else {
-                throw AdapterError('CALCULATOR_MISSING', 'calculator.getMilitaryHourIndex not found. Please ensure calculator.js is loaded.');
-            }
-        }
+
+        // 3. Body & Master palaces
         if (typeof basic.getBodyPalace === 'function') {
             try {
                 indices.bodyPalace = basic.getBodyPalace(lunar.lunarYear);
-            } catch (err2) {
-                warn('getBodyPalace failed', err2);
+            } catch (err) {
+                warn('basic.getBodyPalace failed:', err);
             }
         }
         if (typeof basic.getMasterPalace === 'function') {
             try {
                 indices.masterPalace = basic.getMasterPalace(lunar.lunarYear);
-            } catch (err3) {
-                warn('getMasterPalace failed', err3);
+            } catch (err) {
+                warn('basic.getMasterPalace failed:', err);
             }
         }
+
+        // 4. Gender classification
         if (genderModule && typeof genderModule.getGenderClassification === 'function') {
             try {
                 indices.genderClassification = genderModule.getGenderClassification(meta.gender, lunar.lunarYear);
-            } catch (err4) {
-                warn('getGenderClassification failed', err4);
+            } catch (err) {
+                warn('gender.getGenderClassification failed:', err);
             }
         }
+
+        // Strict: Ensure critical indices present (post-processing check)
+        if (indices.timeIndex === undefined) {
+            throw AdapterError('MISSING_TIME_INDEX', 'timeIndex computation failed. Check basic module and upstream lunar.timeIndex.');
+        }
+
         return indices;
     }
 
-    function buildNormalizedInput(rawData) {
-        var errors = {};
-        var sanitized = {
+    /**
+     * Normalizes and validates raw input data for Ziwei astrology calculations.
+     */
+    function normalizeInput(rawData) {
+        try {
+            // STEP 1: Input sanitization and validation
+            const sanitizedData = sanitizeAndValidateInput(rawData);
+            
+            // STEP 2: Calendar processing with Zi hour handling
+            const { solar, lunar } = processCalendarData(sanitizedData, rawData);
+            
+            // STEP 3: Time data processing and index calculation
+            const processedLunar = processTimeData(lunar, solar, rawData);
+            
+            // STEP 4: Metadata assembly
+            const meta = buildMetadata(sanitizedData, rawData);
+            const strings = buildDisplayStrings(solar);
+            
+            // STEP 5: Final assembly
+            const indices = deriveIndices(meta, processedLunar, solar);
+            const normalized = {
+                meta: meta,
+                solar: solar,
+                lunar: processedLunar,
+                indices: indices,
+                strings: strings,
+                raw: deepClone(rawData),
+                ziHourHandling: meta.ziHourHandling
+            };
+
+            log('Normalized input meta:', meta);
+            log('Normalized lunar data:', processedLunar);
+            log('Derived indices:', indices);
+
+            return normalized;
+            
+        } catch (error) {
+            if (isAdapterError(error)) {
+                throw error;
+            }
+            throw AdapterError('INPUT_NORMALIZATION_FAILED', '輸入資料處理失敗', { rawData: deepClone(rawData) }, error);
+        }
+    }
+
+    /**
+     * Sanitizes and validates basic input fields.
+     */
+    function sanitizeAndValidateInput(rawData) {
+        if (!rawData || typeof rawData !== 'object') {
+            throw AdapterError('INVALID_INPUT_TYPE', '輸入資料格式不正確');
+        }
+    
+        const sanitized = {
             gender: normalizeGender(rawData.gender),
             year: parseInteger(rawData.year, null),
             month: parseInteger(rawData.month, null),
@@ -376,196 +393,459 @@
             hour: parseInteger(rawData.hour, null),
             minute: parseInteger(rawData.minute, null)
         };
-
+    
+        const errors = {};
         validateRequiredFields(sanitized, errors);
         validateRegex(sanitized, errors);
-
-        if (sanitized.year && (sanitized.year < NUMERIC_LIMITS.LUNAR_YEAR_MIN || sanitized.year > NUMERIC_LIMITS.LUNAR_YEAR_MAX)) {
-            errors.year = '年份需介於 ' + NUMERIC_LIMITS.LUNAR_YEAR_MIN + '-' + NUMERIC_LIMITS.LUNAR_YEAR_MAX;
-        }
-
+        validateRanges(sanitized, errors);
+    
         if (Object.keys(errors).length > 0) {
-            // If there's only one validation error, present that message directly
-            var errorKeys = Object.keys(errors);
-            var friendlyMessage = '輸入資料驗證失敗。';
-            if (errorKeys.length === 1) {
-                friendlyMessage = errors[errorKeys[0]] || friendlyMessage;
-            } else {
-                // Combine multiple field messages into a single user-friendly string
-                try {
-                    friendlyMessage = errorKeys.map(function(k) { return errors[k]; }).filter(Boolean).join('；');
-                } catch (e) {
-                    friendlyMessage = '輸入資料驗證失敗。';
-                }
-            }
-
-            throw AdapterError('INPUT_VALIDATION_FAILED', friendlyMessage, { errors: errors, rawData: deepClone(rawData) });
+            const message = Object.keys(errors).length === 1
+                ? Object.values(errors)[0]
+                : Object.values(errors).join('；');
+            throw AdapterError('INPUT_VALIDATION_FAILED', message, { errors, rawData: deepClone(rawData) });
         }
+    
+        return sanitized;
+    }
 
-        var calendarType = normalizeCalendarType(rawData.calendarType);
-        var leapMonth = toBoolean(rawData.leapMonth);
+    /**
+     * Enhanced range validation with better error messages.
+     */
+    function validateRanges(sanitized, errors) {
+        if (sanitized.year && 
+            (sanitized.year < NUMERIC.LUNAR_YEAR_MIN || sanitized.year > NUMERIC.LUNAR_YEAR_MAX)) {
+            errors.year = `年份需介於 ${NUMERIC.LUNAR_YEAR_MIN}-${NUMERIC.LUNAR_YEAR_MAX}`;
+        }
+    }
 
-        var solar = {
-            year: sanitized.year,
-            month: sanitized.month,
-            day: sanitized.day,
-            hour: sanitized.hour,
-            minute: sanitized.minute
-        };
-
-        var lunar;
+    /**
+     * Processes calendar data with improved Zi hour handling.
+     */
+    function processCalendarData(sanitizedData, rawData) {
+        const solar = createSolarObject(sanitizedData);
+        const calendarType = normalizeCalendarType(rawData.calendarType);
+        
+        let lunar;
         if (calendarType === 'solar') {
-            if (typeof solarToLunar !== 'function') {
-                throw AdapterError('LUNAR_CONVERTER_MISSING', '找不到農曆轉換函式。');
-            }
-            try {
-                // If ziHourHandling requests 子時換日, do NOT mutate the solar (Gregorian)
-                // instead compute the conversion date as solar +1 day for the lunar conversion only.
-                var convYear = solar.year;
-                var convMonth = solar.month;
-                var convDay = solar.day;
-                var convHour = solar.hour;
-                var convMinute = solar.minute;
-
-                try {
-                    if (rawData.ziHourHandling === 'ziChange') {
-                        // Only shift lunar-conversion day when time is between 23:00 and 23:55
-                        var baseHour = Number(solar.hour);
-                        var baseMinute = Number(solar.minute) || 0;
-                        if (baseHour === 23 && baseMinute >= 0 && baseMinute <= 55) {
-                            var convDate = new Date(solar.year, solar.month - 1, solar.day, solar.hour, solar.minute || 0);
-                            convDate.setDate(convDate.getDate() + 1);
-                            convYear = convDate.getFullYear();
-                            convMonth = convDate.getMonth() + 1;
-                            convDay = convDate.getDate();
-                        }
-                    }
-                } catch (ziErr) {
-                    warn('ziHourHandling detection failed, falling back to original solar date', ziErr);
-                }
-
-                lunar = solarToLunar(convYear, convMonth, convDay, convHour, convMinute);
-            } catch (convertError) {
-                throw AdapterError('LUNAR_CONVERSION_FAILED', '國曆轉農曆失敗。', { solar: deepClone(solar) }, convertError);
-            }
+            lunar = convertSolarToLunarOptimized(solar, rawData);
         } else if (rawData.lunar && isPlainObject(rawData.lunar)) {
-            lunar = Object.assign({}, rawData.lunar);
-        }
-
-        lunar = ensureLunarObject(lunar, { solar: deepClone(solar) });
-        if (lunar.hour === undefined || lunar.hour === null) {
-            lunar.hour = solar.hour;
-        }
-        if (lunar.minute === undefined || lunar.minute === null) {
-            lunar.minute = solar.minute;
-        }
-        if (lunar.timeIndex === undefined || lunar.timeIndex === null) {
-            var calculator = window.ziweiCalculator || {};
-            if (typeof calculator.getMilitaryHourIndex === 'function') {
-                var timeStr = '';
-                if (solar.hour !== undefined && solar.minute !== undefined) {
-                    timeStr = String(solar.hour).padStart(2, '0') + ':' + String(solar.minute).padStart(2, '0');
-                }
-                lunar.timeIndex = calculator.getMilitaryHourIndex(timeStr);
-            } else {
-                throw AdapterError('CALCULATOR_MISSING', 'calculator.getMilitaryHourIndex not found. Please ensure calculator.js is loaded.');
-            }
-        }
-
-        // Determine ziHourHandling: prefer explicit rawData value, then adapter-level
-        // stored setting, then default to 'midnightChange'. This ensures the
-        // adapter is the canonical source of currently active settings.
-        var ziHourHandling = null;
-        if (typeof rawData.ziHourHandling === 'string') {
-            ziHourHandling = rawData.ziHourHandling;
+            lunar = deepClone(rawData.lunar);
         } else {
-            try {
-                if (adapter && adapter.settings && typeof adapter.settings.get === 'function') {
-                    ziHourHandling = adapter.settings.get('ziHourHandling');
-                }
-            } catch (e) {
-                // ignore
-            }
+            throw AdapterError('INVALID_CALENDAR_TYPE', '無效的曆法類型');
         }
-        if (!ziHourHandling) ziHourHandling = 'midnightChange';
+        
+        return { solar, lunar };
+    }
 
-        // Handle stem interpretations from rawData if provided
-        if (rawData.stemInterpretations && typeof rawData.stemInterpretations === 'object') {
-            try {
-                // Update adapter settings with stem interpretations
-                Object.entries(rawData.stemInterpretations).forEach(([stem, interpretation]) => {
-                    const settingName = `stemInterpretation_${stem}`;
-                    if (adapter && adapter.settings && typeof adapter.settings.set === 'function') {
-                        adapter.settings.set(settingName, interpretation);
-                    }
-                });
-                console.log('[ziweiAdapter] Updated stem interpretations from rawData:', rawData.stemInterpretations);
-            } catch (e) {
-                console.warn('[ziweiAdapter] Failed to update stem interpretations:', e);
-            }
+    /**
+     * Optimized solar to lunar conversion with improved Zi hour logic.
+     */
+    function convertSolarToLunarOptimized(solar, rawData) {
+        if (typeof solarToLunar !== 'function') {
+            throw AdapterError('LUNAR_CONVERTER_MISSING', '找不到農曆轉換函式');
         }
 
-        var meta = {
-            name: sanitizeName(rawData.name),
-            gender: sanitized.gender || 'M',
-            birthplace: sanitizeText(rawData.birthplace),
-            calendarType: calendarType,
-            leapMonth: leapMonth,
-            // Propagate leapMonthHandling setting from raw input (expected values: 'mid','current','next')
-            leapMonthHandling: rawData.leapMonthHandling || null,
-            // Record ziHour handling selection so later stages can cache on it
-            ziHourHandling: ziHourHandling
+        const conversionParams = calculateConversionParams(solar, rawData);
+        
+        try {
+            return solarToLunar(conversionParams.year, conversionParams.month, conversionParams.day, 
+                               conversionParams.hour, conversionParams.minute);
+        } catch (error) {
+            throw AdapterError('LUNAR_CONVERSION_FAILED', '國曆轉農曆失敗', 
+                { solar: deepClone(solar), params: conversionParams }, error);
+        }
+    }
+
+    /**
+     * Calculates conversion parameters with optimized Zi hour handling.
+     */
+    function calculateConversionParams(solar, rawData) {
+        const params = {
+            year: solar.year,
+            month: solar.month,
+            day: solar.day,
+            hour: solar.hour,
+            minute: solar.minute
         };
 
-        var strings = {
+        // Only process Zi hour if explicitly requested
+        const ziHourHandling = getZiHourHandling(rawData);
+        if (ziHourHandling === 'ziChange') {
+            const ziAdjustment = calculateZiHourAdjustment(solar.hour, solar.minute);
+            if (ziAdjustment.shouldAdjust) {
+                const adjustedDate = adjustDateForZiHour(solar, ziAdjustment.daysToAdd);
+                Object.assign(params, adjustedDate);
+                
+                log('[DEBUG] Applied Zi hour adjustment:', {
+                    original: { hour: solar.hour, minute: solar.minute },
+                    adjusted: adjustedDate,
+                    reason: ziAdjustment.reason
+                });
+            }
+        }
+
+        return params;
+    }
+
+    /**
+     * Get Zi hour handling preference with fallback to defaults.
+     */
+    function getZiHourHandling(rawData) {
+        if (typeof rawData.ziHourHandling === 'string') {
+            return rawData.ziHourHandling;
+        }
+        if (adapter.settings?.get) {
+            return adapter.settings.get('ziHourHandling') || DEFAULTS.ZI_HOUR_HANDLING;
+        }
+        return DEFAULTS.ZI_HOUR_HANDLING;
+    }
+
+    /**
+     * Calculate Zi hour adjustment with early returns.
+     */
+    function calculateZiHourAdjustment(hour, minute) {
+        const baseHour = Number(hour);
+        
+        // Early Zi hour (23:xx) - needs date adjustment
+        if (baseHour === 23) {
+            return { shouldAdjust: true, daysToAdd: 1, reason: 'Early Zi hour adjustment' };
+        }
+        
+        // Late Zi hour (00:xx) or non-Zi hour - no adjustment
+        return { shouldAdjust: false, daysToAdd: 0, reason: 'No adjustment needed' };
+    }
+
+    /**
+     * Adjust date for Zi hour with optimized Date handling.
+     */
+    function adjustDateForZiHour(solar, daysToAdd) {
+        const date = new Date(solar.year, solar.month - 1, solar.day, solar.hour, solar.minute || 0);
+        date.setDate(date.getDate() + daysToAdd);
+        
+        return {
+            year: date.getFullYear(),
+            month: date.getMonth() + 1,
+            day: date.getDate()
+        };
+    }
+
+    /**
+     * Processes time data and calculates time index.
+     */
+    function processTimeData(lunar, solar, rawData) {
+        const validatedLunar = ensureLunarObject(lunar, { solar: deepClone(solar) });
+        
+        const processedLunar = {
+            ...validatedLunar,
+            hour: validatedLunar.hour ?? solar.hour,
+            minute: validatedLunar.minute ?? solar.minute
+        };
+        
+        if (processedLunar.timeIndex === undefined || processedLunar.timeIndex === null) {
+            processedLunar.timeIndex = calculateTimeIndexOptimized(solar);
+        }
+        
+        return processedLunar;
+    }
+
+    /**
+     * Optimized time index calculation with better error handling.
+     */
+    function calculateTimeIndexOptimized(solar) {
+        const calculator = window.ziweiCalculator;
+        if (!calculator?.getMilitaryHourIndex) {
+            throw AdapterError('CALCULATOR_MISSING', 'calculator.getMilitaryHourIndex not found');
+        }
+
+        const timeString = formatTimeString(solar.hour, solar.minute);
+        return calculator.getMilitaryHourIndex(timeString);
+    }
+
+    /**
+     * Format time string with template literals.
+     */
+    function formatTimeString(hour, minute) {
+        if (hour == null || minute == null) return '00:00';
+        return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    }
+
+    /**
+     * Builds metadata with improved stem interpretation handling.
+     */
+    function buildMetadata(sanitizedData, rawData) {
+        updateStemInterpretationsSafely(rawData.stemInterpretations);
+        
+        return {
+            name: sanitizeName(rawData.name),
+            gender: sanitizedData.gender || 'M',
+            birthplace: sanitizeText(rawData.birthplace),
+            calendarType: normalizeCalendarType(rawData.calendarType),
+            leapMonth: toBoolean(rawData.leapMonth),
+            leapMonthHandling: rawData.leapMonthHandling || null,
+            ziHourHandling: getZiHourHandling(rawData)
+        };
+    }
+
+    /**
+     * Safely updates stem interpretations with graceful error handling.
+     */
+    function updateStemInterpretationsSafely(stemInterpretations) {
+        if (!stemInterpretations || typeof stemInterpretations !== 'object') return;
+        if (!adapter.settings?.set) return;
+        
+        try {
+            Object.entries(stemInterpretations).forEach(([stem, interpretation]) => {
+                adapter.settings.set(`stemInterpretation_${stem}`, interpretation);
+            });
+        } catch (error) {
+            warn('Failed to update stem interpretations:', error);
+            // Non-critical error - continue processing
+        }
+    }
+
+    /**
+     * Builds display strings with optimized string building.
+     */
+    function buildDisplayStrings(solar) {
+        return {
             birthdate: buildBirthdate(solar.year, solar.month, solar.day),
             birthtime: buildBirthtime(solar.hour, solar.minute)
         };
+    }
 
-        var indices = deriveIndices(meta, lunar, solar);
-
-        log('Normalized input meta:', meta);
-        log('Normalized lunar data:', lunar);
-        log('Derived indices:', indices);
-
+    /**
+     * Creates solar object from sanitized data.
+     */
+    function createSolarObject(sanitizedData) {
         return {
-            meta: meta,
-            solar: solar,
-            lunar: lunar,
-            indices: indices,
-            strings: strings,
-            raw: deepClone(rawData),
-            ziHourHandling: meta.ziHourHandling
+            year: sanitizedData.year,
+            month: sanitizedData.month,
+            day: sanitizedData.day,
+            hour: sanitizedData.hour,
+            minute: sanitizedData.minute
         };
     }
 
+    /**
+     * Enhanced mergeMeta function with improved readability, performance, and maintainability
+     * 
+     * Merges metadata from normalized data and calculated metadata, 
+     * applying defaults and generating formatted birthdate strings.
+     * 
+     * @param {Object} normalized - The normalized data object containing meta, lunar, solar, strings, and indices properties.
+     * @param {Object} [calcMeta] - Optional calculated metadata to merge into the normalized meta.
+     * @returns {Object} The merged metadata object with defaults applied and formatted birthdate texts.
+     * @throws {Error} If input validation fails
+     */
     function mergeMeta(normalized, calcMeta) {
-        var meta = Object.assign({}, normalized.meta || {});
-        // Prefer server-provided meta fields but allow normalized input to override
-        // specific fields when appropriate (notably lunar conversion results).
-        var merged = Object.assign({}, meta, calcMeta || {});
-        // If normalized input contains a lunar object, prefer it to ensure client-side
-        // adjustments (eg. zi-hour lunar+1) are reflected in display meta.
-        if (normalized && normalized.lunar) {
-            merged.lunar = normalized.lunar;
+        try {
+            // Input validation
+            const errors = [];
+            if (!normalized || typeof normalized !== 'object' || Array.isArray(normalized)) {
+                errors.push('normalized must be a valid object');
+            }
+            if (calcMeta !== undefined && (typeof calcMeta !== 'object' || Array.isArray(calcMeta))) {
+                errors.push('calcMeta must be a valid object if provided');
+            }
+            if (errors.length > 0) {
+                const error = new Error(`mergeMeta validation failed: ${errors.join(', ')}`);
+                error.name = 'AdapterError';
+                error.type = ERROR_CODES.CALCULATION_FAILED;
+                throw error;
+            }
+            
+            // Enhanced helper function for safe property access
+            function safeGet(obj, path, defaultValue) {
+                if (!obj || typeof obj !== 'object') return defaultValue;
+                return path.split('.').reduce((current, key) => {
+                    return (current && current[key] !== undefined) ? current[key] : defaultValue;
+                }, obj);
+            }
+            
+            // Enhanced string sanitization
+            function sanitizeString(value, defaultValue = '') {
+                if (typeof value !== 'string') return defaultValue;
+                const trimmed = value.trim();
+                return trimmed.length > 0 ? trimmed : defaultValue;
+            }
+            
+            // Step 1: Initial merge with safe defaults
+            const meta = safeGet(normalized, 'meta', {});
+            const initialMerge = Object.assign({}, meta, calcMeta || {});
+            
+            // Step 2: Include lunar data from normalized
+            const lunar = safeGet(normalized, 'lunar');
+            if (lunar) {
+                initialMerge.lunar = lunar;
+            }
+            
+            // Step 3: Apply defaults with enhanced validation
+            const DEFAULTS_ENHANCED = {
+                CHINESE_NAME: '無名氏',
+                DEFAULT_GENDER: 'M',
+                SOLAR_PREFIX: '西曆：',
+                LUNAR_PREFIX: '農曆：',
+                TIME_SUFFIX: '時',
+                LEAP_PREFIX: '閏'
+            };
+            
+            // Apply name defaults
+            if (!initialMerge.name) {
+                initialMerge.name = sanitizeString(
+                    safeGet(normalized, 'meta.name'), 
+                    DEFAULTS_ENHANCED.CHINESE_NAME
+                );
+            }
+            
+            // Apply gender defaults with validation
+            if (!initialMerge.gender) {
+                const normalizedGender = safeGet(normalized, 'meta.gender');
+                initialMerge.gender = sanitizeString(normalizedGender, DEFAULTS_ENHANCED.DEFAULT_GENDER).toUpperCase();
+                
+                // Validate gender values
+                if (initialMerge.gender !== 'M' && initialMerge.gender !== 'F') {
+                    initialMerge.gender = DEFAULTS_ENHANCED.DEFAULT_GENDER;
+                }
+            }
+            
+            // Apply birthdate defaults
+            if (!initialMerge.birthdate) {
+                initialMerge.birthdate = sanitizeString(
+                    safeGet(normalized, 'strings.birthdate')
+                );
+            }
+            
+            // Apply birthtime defaults
+            if (!initialMerge.birthtime) {
+                initialMerge.birthtime = sanitizeString(
+                    safeGet(normalized, 'strings.birthtime')
+                );
+            }
+            
+            // Apply birthplace defaults
+            if (!initialMerge.birthplace) {
+                initialMerge.birthplace = sanitizeString(
+                    safeGet(normalized, 'meta.birthplace')
+                );
+            }
+            
+            // Step 4: Merge gender classification with safe access
+            const genderClassification = safeGet(normalized, 'indices.genderClassification');
+            if (genderClassification !== undefined) {
+                initialMerge.genderClassification = genderClassification;
+            }
+            
+            // Step 5: Generate formatted birthdate texts with enhanced error handling
+            
+            // Enhanced solar date processing
+            const solar = safeGet(normalized, 'solar');
+            if (solar) {
+                try {
+                    const timeString = safeGet(normalized, 'strings.birthtime', '');
+                    
+                    // Validate solar data
+                    if (solar.year !== undefined && solar.month !== undefined && solar.day !== undefined) {
+                        const timePart = sanitizeString(timeString);
+                        const timeDisplay = timePart ? ` ${timePart}` : '';
+                        
+                        // Use template literals for better performance
+                        const solarText = `${DEFAULTS_ENHANCED.SOLAR_PREFIX}${solar.year}年${solar.month}月${solar.day}日${timeDisplay}`;
+                        initialMerge.birthdateSolarText = solarText;
+
+                        // Generate birthdateSolarNumeric for control.js hour navigation
+                        const hour = (solar.hour !== undefined) ? solar.hour : 0;
+                        const minute = (solar.minute !== undefined) ? solar.minute : 0;
+                        
+                        // Validate time ranges
+                        if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+                            initialMerge.birthdateSolarNumeric = {
+                                year: solar.year,
+                                month: solar.month,
+                                day: solar.day,
+                                hour: hour,
+                                minute: minute
+                            };
+                        }
+                    }
+                } catch (error) {
+                    warn('Solar data processing failed:', error);
+                    if (!initialMerge.birthdateSolarText) {
+                        initialMerge.birthdateSolarText = '';
+                    }
+                }
+            }
+            
+            // Enhanced lunar date processing
+            const lunarData = safeGet(normalized, 'lunar');
+            if (lunarData) {
+                try {
+                    const timeIndex = safeGet(lunarData, 'timeIndex');
+                    const timeBranch = (typeof timeIndex === 'number' && 
+                                      timeIndex >= 0 && timeIndex < constants.BRANCH_NAMES.length) 
+                                      ? constants.BRANCH_NAMES[timeIndex] || '' : '';
+                    
+                    let lunarText;
+                    
+                    // Handle pre-formatted gan-zhi year and date from converter
+                    if (lunarData.year && lunarData.date && 
+                        typeof lunarData.year === 'string' && typeof lunarData.date === 'string') {
+                        const yearIndex = lunarData.year.indexOf('年');
+                        if (yearIndex !== -1) {
+                            const ganzhiYear = lunarData.year.slice(0, yearIndex + 1);
+                            lunarText = `${DEFAULTS_ENHANCED.LUNAR_PREFIX}${ganzhiYear}${lunarData.date}${timeBranch}${DEFAULTS_ENHANCED.TIME_SUFFIX}`;
+                        }
+                    }
+                    
+                    // Fallback for direct lunar input (numeric values)
+                    if (!lunarText) {
+                        const lunarYear = safeGet(lunarData, 'lunarYear');
+                        const lunarMonth = safeGet(lunarData, 'lunarMonth');
+                        const lunarDay = safeGet(lunarData, 'lunarDay');
+                        
+                        if (lunarYear && lunarMonth && lunarDay) {
+                            const isLeapMonth = Boolean(safeGet(lunarData, 'isLeapMonth'));
+                            const leapPrefix = isLeapMonth ? DEFAULTS_ENHANCED.LEAP_PREFIX : '';
+                            
+                            lunarText = `${DEFAULTS_ENHANCED.LUNAR_PREFIX}${lunarYear}年${leapPrefix}${lunarMonth}月${lunarDay}日${timeBranch}${DEFAULTS_ENHANCED.TIME_SUFFIX}`;
+                        }
+                    }
+                    
+                    if (lunarText) {
+                        initialMerge.birthdateLunarText = lunarText;
+                    }
+                } catch (error) {
+                    warn('Lunar data processing failed:', error);
+                    if (!initialMerge.birthdateLunarText) {
+                        initialMerge.birthdateLunarText = '';
+                    }
+                }
+            }
+            
+            log('Meta merge completed successfully');
+            return initialMerge;
+            
+        } catch (error) {
+            warn('Meta merge failed:', error);
+            
+            // Provide fallback with minimal data
+            if (error.name === 'AdapterError') {
+                throw error;
+            }
+            
+            const adapterError = new Error('Metadata merge operation failed');
+            adapterError.name = 'AdapterError';
+            adapterError.type = ERROR_CODES.CALCULATION_FAILED;
+            adapterError.context = { normalized, calcMeta, originalError: error };
+            throw adapterError;
         }
-        if (!merged.name) merged.name = '無名氏';
-        if (!merged.gender) merged.gender = normalized.meta && normalized.meta.gender ? normalized.meta.gender : 'M';
-        if (!merged.birthdate) merged.birthdate = (normalized.strings && normalized.strings.birthdate) || '';
-        if (!merged.birthtime) merged.birthtime = (normalized.strings && normalized.strings.birthtime) || '';
-        if (!merged.birthplace) merged.birthplace = (normalized.meta && normalized.meta.birthplace) || '';
-        return merged;
     }
 
     function extractMeta(calcResult) {
-        if (!calcResult) {
-            return {};
-        }
-        var payload = calcResult.data || calcResult;
-        if (!payload || typeof payload !== 'object') {
-            return {};
-        }
-        var meta = {};
+        if (!calcResult) return {};
+        const payload = calcResult.data || calcResult;
+        if (!payload || typeof payload !== 'object') return {};
+        const meta = {};
         if (payload.name) meta.name = payload.name;
         if (payload.gender) meta.gender = payload.gender;
         if (payload.birthdate) meta.birthdate = payload.birthdate;
@@ -586,15 +866,15 @@
     }
 
     function computePalaces(context) {
-        var palacesModule = getAdapterModule('palaces');
+        const palacesModule = adapter.getModule('palaces');
         if (!palacesModule || typeof palacesModule.calculatePalacePositions !== 'function') {
             throw AdapterError('MODULE_MISSING', '找不到宮位計算模組。');
         }
-        var meta = {
+        const meta = {
             lunar: context.lunar,
             gender: context.meta.gender
         };
-        var result = palacesModule.calculatePalacePositions(meta) || {};
+        const result = palacesModule.calculatePalacePositions(meta) || {};
         if (!result || Object.keys(result).length === 0) {
             throw AdapterError('PALACE_CALC_FAILED', '宮位計算失敗。', { meta: meta });
         }
@@ -608,93 +888,19 @@
 
     function findPalace(list, predicate) {
         if (!Array.isArray(list)) return null;
-        for (var i = 0; i < list.length; i += 1) {
-            if (predicate(list[i])) {
-                return list[i];
-            }
+        for (let i = 0; i < list.length; i += 1) {
+            if (predicate(list[i])) return list[i];
         }
         return null;
     }
 
-        function toIntOrNull(value) {
-            if (value === undefined || value === null || value === '') {
-                return null;
-            }
-            var num = parseInt(value, 10);
-            return Number.isFinite(num) ? num : null;
-        }
-
-        function buildSolarNumericSnapshot(solar) {
-            if (!solar) return null;
-            var snapshot = {
-                year: toIntOrNull(solar.year),
-                month: toIntOrNull(solar.month),
-                day: toIntOrNull(solar.day),
-                hour: toIntOrNull(solar.hour),
-                minute: toIntOrNull(solar.minute)
-            };
-            if (snapshot.year && snapshot.month && snapshot.day) {
-                if (snapshot.hour === null) snapshot.hour = 0;
-                if (snapshot.minute === null) snapshot.minute = 0;
-                return snapshot;
-            }
-            return null;
-        }
-
-        function formatGregorianDisplayString(solarSnapshot) {
-            if (!solarSnapshot) return null;
-            var year = solarSnapshot.year;
-            var month = solarSnapshot.month;
-            var day = solarSnapshot.day;
-            if (!year || !month || !day) {
-                return null;
-            }
-            var hour = (solarSnapshot.hour !== undefined && solarSnapshot.hour !== null) ? solarSnapshot.hour : 0;
-            var minute = (solarSnapshot.minute !== undefined && solarSnapshot.minute !== null) ? solarSnapshot.minute : 0;
-            return '西曆：' + year + '年' + month + '月' + day + '日' + hour + '時' + minute + '分';
-        }
-
-        function buildLunarNumericSnapshot(lunar) {
-            if (!lunar) return null;
-            var snapshot = {
-                lunarYear: toIntOrNull(lunar.lunarYear || lunar.year),
-                lunarMonth: toIntOrNull(lunar.lunarMonth || lunar.month),
-                lunarDay: toIntOrNull(lunar.lunarDay || lunar.day),
-                isLeapMonth: !!lunar.isLeapMonth,
-                timeIndex: (Number.isInteger(lunar.timeIndex) ? lunar.timeIndex : null)
-            };
-            if (snapshot.lunarYear || snapshot.lunarMonth || snapshot.lunarDay) {
-                return snapshot;
-            }
-            return null;
-        }
-
-        function formatLunarDisplayString(lunar) {
-            if (!lunar) return null;
-            if (lunar.formatted && lunar.formatted.full) {
-                return '農曆：' + lunar.formatted.full;
-            }
-            var parts = [];
-            if (lunar.year) parts.push(String(lunar.year));
-            if (lunar.date) parts.push(String(lunar.date));
-            if (lunar.formatted && lunar.formatted.timeName) {
-                parts.push(lunar.formatted.timeName);
-            }
-            if (!parts.length) {
-                return null;
-            }
-            return '農曆：' + parts.join('');
-        }
-
     function computeNayinInfo(mingPalace) {
-        if (!window.ziweiNayin) {
-            return { loci: null, name: '' };
-        }
+        if (!window.ziweiNayin) return { loci: null, name: '' };
         try {
-            var loci = typeof window.ziweiNayin.getNayin === 'function'
+            const loci = typeof window.ziweiNayin.getNayin === 'function'
                 ? window.ziweiNayin.getNayin(mingPalace.stemIndex, mingPalace.index)
                 : null;
-            var name = loci !== null && typeof window.ziweiNayin.getNayinName === 'function'
+            const name = loci !== null && typeof window.ziweiNayin.getNayinName === 'function'
                 ? window.ziweiNayin.getNayinName(loci)
                 : '';
             return { loci: loci, name: name };
@@ -705,15 +911,15 @@
     }
 
     function computePrimaryStars(context, derived) {
-        var primaryModule = getAdapterModule('primary');
+        const primaryModule = adapter.getModule('primary');
         if (!primaryModule || typeof primaryModule.placePrimaryStars !== 'function') {
             throw AdapterError('MODULE_MISSING', '找不到主星計算模組。');
         }
-        var chartData = {
+        const chartData = {
             lunarDay: context.lunar.lunarDay,
             nayinLoci: derived.nayin.loci
         };
-        var result = primaryModule.placePrimaryStars(chartData);
+        const result = primaryModule.placePrimaryStars(chartData);
         if (!result || Object.keys(result).length === 0) {
             throw AdapterError('PRIMARY_STARS_FAILED', '主星計算失敗。', { chartData: chartData });
         }
@@ -721,17 +927,17 @@
     }
 
     function computeSecondaryStars(context) {
-        var secondaryModule = getAdapterModule('secondary');
+        const secondaryModule = adapter.getModule('secondary');
         if (!secondaryModule || typeof secondaryModule.calculateAllSecondaryStars !== 'function') {
             throw AdapterError('MODULE_MISSING', '找不到輔星計算模組。');
         }
-        var payload = {
+        const payload = {
             monthIndex: context.indices.monthIndex,
             timeIndex: context.indices.timeIndex,
             stemIndex: context.indices.yearStemIndex,
             branchIndex: context.indices.yearBranchIndex
         };
-        var result = secondaryModule.calculateAllSecondaryStars(payload);
+        const result = secondaryModule.calculateAllSecondaryStars(payload);
         if (!result || Object.keys(result).length === 0) {
             throw AdapterError('SECONDARY_STARS_FAILED', '輔星計算失敗。', { payload: payload });
         }
@@ -739,7 +945,7 @@
     }
 
     function computeMutations(context) {
-        var mutationsModule = getAdapterModule('mutations');
+        const mutationsModule = adapter.getModule('mutations');
         if (!mutationsModule || typeof mutationsModule.calculateBirthYearMutations !== 'function') {
             return null;
         }
@@ -756,376 +962,204 @@
     }
 
     function computeMinorStars(context, derived, secondaryStars) {
-        var minorModule = getAdapterModule('minorStars');
+        const minorModule = adapter.getModule('minorStars');
         if (!minorModule || typeof minorModule.calculateMinorStars !== 'function') {
             return null;
         }
-        var indices = context.indices;
-        var lunar = context.lunar;
-        var shenPalaceIndex = derived.shenPalace ? derived.shenPalace.index : null;
+        const indices = context.indices;
+        const lunar = context.lunar;
+        const shenPalaceIndex = derived.shenPalace ? derived.shenPalace.index : null;
         
-        var migrationPalace = findPalace(derived.palaceList, function(item) {
-            // Check for 遷移 or any palace name that contains '遷' (migration character)
-            // This handles cases where Shen Palace coincides with Migration Palace (e.g., '身遷')
+        const migrationPalace = findPalace(derived.palaceList, function(item) {
             return item && (item.name === '遷移' || (item.name && item.name.indexOf('遷') !== -1));
         });
         
-        // CRITICAL VALIDATION: migrationPalaceIndex is required for 天傷 and 天使 calculations
-        // Must validate before passing to calculateMinorStars
+        // Get migration palace index from found palace or calculate from Ming palace
+        let migrationPalaceIndex;
         if (!migrationPalace || migrationPalace.index === null || migrationPalace.index === undefined) {
-            throw AdapterError('MIGRATION_PALACE_NOT_FOUND', '遷移宮不存在，無法計算天傷和天使。', { derived: derived });
+            // Migration palace is always opposite to Ming palace (6 positions apart)
+            if (derived.mingPalace && derived.mingPalace.index !== undefined) {
+                migrationPalaceIndex = (derived.mingPalace.index + 6) % 12;
+            } else {
+                throw AdapterError('MIGRATION_PALACE_NOT_FOUND', '遷移宮不存在，無法計算天傷和天使。', { derived: derived });
+            }
+        } else {
+            migrationPalaceIndex = migrationPalace.index;
         }
         
-        var migrationPalaceIndex = migrationPalace.index;
-        
-        // Validate migrationPalaceIndex is a valid palace index (0-11)
         if (typeof migrationPalaceIndex !== 'number' || migrationPalaceIndex < 0 || migrationPalaceIndex > 11) {
             throw AdapterError('INVALID_MIGRATION_INDEX', '遷移宮位置無效：' + migrationPalaceIndex, { migrationPalaceIndex: migrationPalaceIndex });
         }
         
-        // Get woundedServantHandling setting from adapter
-        var woundedServantHandling = 'zhongzhou';  // default
-        var adapter = window.ziweiAdapter;
-        if (adapter && adapter.settings && typeof adapter.settings.get === 'function') {
-            var val = adapter.settings.get('woundedServantHandling');
+        let woundedServantHandling = 'zhongzhou';
+        if (adapter.settings && typeof adapter.settings.get === 'function') {
+            const val = adapter.settings.get('woundedServantHandling');
             if (val) woundedServantHandling = val;
         }
         
-        var payload = {
-            monthIndex: indices.monthIndex,
-            timeIndex: indices.timeIndex,
-            yearBranchIndex: indices.yearBranchIndex,
-            dayBranchIndex: indices.dayBranchIndex,
-            yearStemIndex: indices.yearStemIndex,
-            mingPalaceIndex: derived.mingPalace ? derived.mingPalace.index : null,
-            shenPalaceIndex: shenPalaceIndex,
-            gender: context.meta.gender,
-            lunarYear: lunar.lunarYear,
-            migrationPalaceIndex: migrationPalaceIndex,
-            literaryCraftIndex: resolveSecondaryPosition(secondaryStars, '文曲'),
-            leftAssistantIndex: resolveSecondaryPosition(secondaryStars, '左輔'),
-            rightAssistIndex: resolveSecondaryPosition(secondaryStars, '右弼'),
-            literaryTalentIndex: resolveSecondaryPosition(secondaryStars, '文昌'),
-            lunarDay: lunar.lunarDay,
-            woundedServantHandling: woundedServantHandling
-        };
-        try {
-            return minorModule.calculateMinorStars(
-                payload.monthIndex,
-                payload.timeIndex,
-                payload.yearBranchIndex,
-                payload.dayBranchIndex,
-                payload.yearStemIndex,
-                payload.mingPalaceIndex,
-                payload.shenPalaceIndex,
-                payload.gender,
-                payload.lunarYear,
-                payload.migrationPalaceIndex,
-                payload.literaryCraftIndex,
-                payload.leftAssistantIndex,
-                payload.rightAssistIndex,
-                payload.literaryTalentIndex,
-                payload.lunarDay,
-                payload.woundedServantHandling
-            );
-        } catch (err) {
-            throw AdapterError('MINOR_STARS_FAILED', '雜曜計算失敗。', { payload: payload }, err);
-        }
+        // calculateMinorStars expects positional arguments, not an object
+        return minorModule.calculateMinorStars(
+            indices.monthIndex,                              // monthIndex
+            indices.timeIndex,                               // timeIndex
+            indices.yearBranchIndex,                         // yearBranchIndex
+            indices.dayBranchIndex,                          // dayBranchIndex
+            indices.yearStemIndex,                           // yearStemIndex
+            derived.mingPalace ? derived.mingPalace.index : null, // mingPalaceIndex
+            shenPalaceIndex,                                 // shenPalaceIndex
+            context.gender,                                  // gender
+            lunar.lunarYear,                                 // lunarYear
+            migrationPalaceIndex,                            // migrationPalaceIndex
+            resolveSecondaryPosition(secondaryStars, '文曲'), // literaryCraftIndex (文曲)
+            resolveSecondaryPosition(secondaryStars, '左輔'), // leftAssistantIndex (左輔)
+            resolveSecondaryPosition(secondaryStars, '右弼'), // rightAssistIndex (右弼)
+            resolveSecondaryPosition(secondaryStars, '文昌'), // literaryTalentIndex (文昌)
+            lunar.lunarDay,                                  // lunarDay
+            woundedServantHandling                           // woundedServantHandling
+        );
     }
 
-    function computeAttributes(context, derived, secondaryStars) {
-        var attributesModule = getAdapterModule('attributes');
+    function computeAttributes(context, secondaryStars) {
+        const attributesModule = adapter.getModule('attributes');
         if (!attributesModule || typeof attributesModule.calculateAllAttributes !== 'function') {
             return null;
         }
-        var yearBranchIndex = context.indices.yearBranchIndex;
-        var monthIndex = context.indices.monthIndex;
-        var luCunIndex = resolveSecondaryPosition(secondaryStars, '祿存');
-        var basic = getAdapterModule('basic') || {};
-        var isClockwise = true;
-        if (typeof basic.isClockwise === 'function') {
-            try {
-                isClockwise = basic.isClockwise(context.meta.gender, context.lunar.lunarYear);
-            } catch (err) {
-                warn('isClockwise failed', err);
-            }
+        
+        // Get 祿存 position from secondary stars
+        const luCunIndex = resolveSecondaryPosition(secondaryStars, '祿存');
+        if (luCunIndex === null || luCunIndex === undefined) {
+            return null;
         }
-        try {
-            if (luCunIndex !== null && luCunIndex !== undefined) {
-                return attributesModule.calculateAllAttributes(yearBranchIndex, luCunIndex, isClockwise);
-            }
-            return attributesModule.calculateAllAttributes(yearBranchIndex, monthIndex, isClockwise);
-        } catch (err2) {
-            throw AdapterError('ATTRIBUTES_FAILED', '神煞計算失敗。', { yearBranchIndex: yearBranchIndex, luCunIndex: luCunIndex }, err2);
+        
+        // Calculate direction based on gender and year
+        const basicModule = adapter.getModule('basic');
+        let isClockwise = true; // default
+        if (basicModule && typeof basicModule.isClockwise === 'function') {
+            isClockwise = basicModule.isClockwise(context.meta.gender, context.lunar.lunarYear);
         }
+        
+        return attributesModule.calculateAllAttributes(
+            context.indices.yearBranchIndex,
+            luCunIndex,
+            isClockwise
+        );
+    }
+
+    function computeBrightness(context, derived, sections) {
+        const brightnessModule = adapter.getModule('brightness');
+        if (!brightnessModule || typeof brightnessModule.calculateAllBrightness !== 'function') {
+            warn('calculateAllBrightness function not found in brightness module, returning empty brightness data');
+            return {};
+        }
+        const result = brightnessModule.calculateAllBrightness(
+            sections.primaryStars,
+            sections.secondaryStars,
+            derived.palaces
+        );
+        log('Brightness calculation completed');
+        return result;
     }
 
     function computeLifeCycles(context, derived) {
-        var lifeCycleModule = getAdapterModule('lifeCycle');
-        if (!lifeCycleModule) {
-            return null;
+        const lifeCycleModule = adapter.getModule('lifeCycle');
+        if (!lifeCycleModule || typeof lifeCycleModule.calculateMajorCycles !== 'function') {
+            return {};
         }
-        var payload = {
-            nayinLoci: derived.nayin.loci,
-            gender: context.meta.gender,
-            lunarYear: context.lunar.lunarYear,
-            mingPalaceIndex: derived.mingPalace ? derived.mingPalace.index : null
-        };
-        var result = {};
-        if (lifeCycleModule && typeof lifeCycleModule.calculateMajorCycles === 'function') {
-            try {
-                result.major = lifeCycleModule.calculateMajorCycles(payload.nayinLoci, payload.gender, payload.lunarYear, payload.mingPalaceIndex);
-            } catch (err) {
-                warn('calculateMajorCycles failed', err);
-            }
-        }
-        if (lifeCycleModule && typeof lifeCycleModule.calculateTwelveLongLifePositions === 'function') {
-            try {
-                result.twelve = lifeCycleModule.calculateTwelveLongLifePositions(payload.nayinLoci, payload.gender, payload.lunarYear);
-            } catch (err2) {
-                warn('calculateTwelveLongLifePositions failed', err2);
-            }
-        }
-        return result;
+        // Use lunar.year for lunarYear - needed for clockwise calculation
+        const lunarYear = context.lunar?.year;
+        const major = lifeCycleModule.calculateMajorCycles(
+            derived.nayin.loci,
+            context.meta.gender,
+            lunarYear,
+            derived.mingPalace.index
+        );
+        const twelve = typeof lifeCycleModule.calculateTwelveLongLifePositions === 'function'
+            ? lifeCycleModule.calculateTwelveLongLifePositions(derived.nayin.loci, context.meta.gender, lunarYear)
+            : {};
+        return { major: major, twelve: twelve };
     }
 
-    function computeBrightness(primaryStars, secondaryStars, palaces) {
-        var brightness = {
-            primary: {},
-            secondary: {}
-        };
-        var brightnessModule = getAdapterModule('brightness');
-        if (!brightnessModule) {
-            console.warn('[ziweiAdapter] Brightness module not found');
-            return brightness;
-        }
-        // Get the current starBrightness setting from adapter.settings
-        var adapter = window.ziweiAdapter;
-        var starBrightnessSetting = 'hidden';
-        if (adapter && adapter.settings && typeof adapter.settings.get === 'function') {
-            var val = adapter.settings.get('starBrightness');
-            if (val) starBrightnessSetting = val;
-        }
+    // ============================================================================
+    // Main Calculation Function
+    // ============================================================================
+
+    adapter.calculate = function(inputData) {
         try {
-            brightness.primary = brightnessModule.calculatePrimaryBrightness(primaryStars, palaces, starBrightnessSetting) || {};
-        } catch (err) {
-            warn('calculatePrimaryBrightness failed', err);
-        }
-        try {
-            brightness.secondary = brightnessModule.calculateSecondaryBrightness(secondaryStars, palaces, starBrightnessSetting) || {};
-        } catch (err2) {
-            warn('calculateSecondaryBrightness failed', err2);
-        }
-        return brightness;
-    }
+            log('Starting calculation with input:', inputData);
 
-    function safeCompute(sectionName, fn, errors, fallback) {
-        try {
-            return fn();
-        } catch (err) {
-            var adapterError = isAdapterError(err) ? err : AdapterError('OUTPUT_SECTION_FAILED', '資料轉換失敗：' + sectionName, { section: sectionName }, err);
-            errors[sectionName] = adapterError;
-            console.error('[ziweiAdapter]', adapterError);
-            return fallback;
-        }
-    }
+            const normalized = normalizeInput(inputData);
+            const context = {
+                meta: normalized.meta,
+                lunar: normalized.lunar,
+                solar: normalized.solar,
+                indices: normalized.indices,
+                strings: normalized.strings
+            };
 
-    function processCalculation(calcResult, normalizedInput) {
-        if (!normalizedInput || !normalizedInput.meta) {
-            throw AdapterError('INPUT_CONTEXT_REQUIRED', '缺少標準化輸入。');
-        }
-        var calcMeta = extractMeta(calcResult);
-        // Prefer client-normalized lunar data (normalizedInput.lunar) when present
-        // so that client-side adjustments (eg. zi-hour lunar+1) are reflected
-        // even if the server calcResult contains a lunar object. Server-provided
-        // lunar fields will be used as fallback where client-normalized fields
-        // are missing.
-        var lunarMerged = Object.assign({}, calcMeta.lunar || {}, normalizedInput.lunar || {});
-        var context = {
-            meta: mergeMeta(normalizedInput, calcMeta),
-            lunar: lunarMerged,
-            indices: Object.assign({}, normalizedInput.indices),
-            normalized: normalizedInput,
-            solar: normalizedInput.solar ? Object.assign({}, normalizedInput.solar) : null
-        };
-        ensureBasicIndex(context, calcMeta);
-        var errors = {};
+            // 1. Compute Palaces
+            const palaces = computePalaces(context);
+            const palaceList = toPalaceList(palaces);
+            const mingPalace = findPalace(palaceList, p => p.isMing);
+            const shenPalace = findPalace(palaceList, p => p.isShen);
 
-        var palaces = safeCompute('palaces', function() {
-            return computePalaces(context);
-        }, errors, {});
-        var palaceList = toPalaceList(palaces);
-        var mingPalace = findPalace(palaceList, function(item) { return item && (item.isMing || item.name === '命宮'); });
-        var shenPalace = findPalace(palaceList, function(item) { return item && (item.isShen || item.name === '身宮'); });
-        var nayin = mingPalace ? computeNayinInfo(mingPalace) : { loci: null, name: '' };
-
-        var derived = {
-            palaces: palaces,
-            palaceList: palaceList,
-            mingPalace: mingPalace,
-            shenPalace: shenPalace,
-            nayin: nayin
-        };
-
-        var primaryStars = safeCompute('primaryStars', function() {
-            return computePrimaryStars(context, derived);
-        }, errors, {});
-
-        var secondaryStars = safeCompute('secondaryStars', function() {
-            return computeSecondaryStars(context);
-        }, errors, {});
-
-        var mutations = safeCompute('mutations', function() {
-            return computeMutations(context);
-        }, errors, null);
-
-        var minorStars = safeCompute('minorStars', function() {
-            return computeMinorStars(context, derived, secondaryStars);
-        }, errors, null);
-
-        var attributes = safeCompute('attributes', function() {
-            return computeAttributes(context, derived, secondaryStars);
-        }, errors, null);
-
-        var lifeCycles = safeCompute('lifeCycles', function() {
-            return computeLifeCycles(context, derived);
-        }, errors, null);
-
-        var brightness = computeBrightness(primaryStars, secondaryStars, palaces);
-        // Add friendly formatted strings to lunar/meta so display layer can render
-        try {
-            var branchNames = (constants && constants.BRANCH_NAMES) ? constants.BRANCH_NAMES : ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
-            var tIndex = context.lunar && (context.lunar.timeIndex !== undefined) ? context.lunar.timeIndex : (context.lunar && context.lunar.timeIndex ? context.lunar.timeIndex : null);
-            var timeName = null;
-            if (tIndex !== null && tIndex !== undefined && branchNames[tIndex]) {
-                timeName = branchNames[tIndex] + '時';
+            if (!mingPalace) {
+                throw AdapterError('MING_PALACE_MISSING', '無法定位命宮。');
             }
-            // lunar.year may include 
-            var lunarYearText = context.lunar && context.lunar.year ? String(context.lunar.year).split('，')[0] : '';
-            var lunarDateText = context.lunar && context.lunar.date ? String(context.lunar.date) : '';
-            var lunarFull = [lunarYearText, lunarDateText].filter(Boolean).join('');
-            // Concatenate timeName without additional spaces so adapter provides
-            // a display-ready string (e.g. '乙巳年九月廿五子時') — display layer
-            // must consume this exact field to avoid inserting its own spacing.
-            if (timeName) lunarFull = lunarFull + timeName;
-            // attach formatted fields
-            context.lunar = Object.assign({}, context.lunar, { formatted: { year: lunarYearText, date: lunarDateText, timeName: timeName, full: lunarFull } });
 
-            // prefer gender classification from indices if available
-            if (context.indices && context.indices.genderClassification) {
-                context.meta.genderClassification = context.indices.genderClassification;
-            } else {
-                var genderModule = getAdapterModule('gender');
-                try {
-                    if (genderModule && typeof genderModule.getGenderClassification === 'function') {
-                        context.meta.genderClassification = genderModule.getGenderClassification(context.meta.gender, context.lunar.lunarYear);
-                    }
-                } catch (e) {
-                    // ignore
-                }
-            }
-        } catch (e) {
-            // ignore formatting errors
-        }
+            const derived = {
+                palaces: palaces,
+                palaceList: palaceList,
+                mingPalace: mingPalace,
+                shenPalace: shenPalace,
+                nayin: computeNayinInfo(mingPalace)
+            };
 
-        try {
-            var solarNumeric = buildSolarNumericSnapshot(context.solar || (context.normalized && context.normalized.solar));
-            if (solarNumeric) {
-                context.meta.birthdateSolarNumeric = solarNumeric;
-                var solarDisplay = formatGregorianDisplayString(solarNumeric);
-                if (solarDisplay) {
-                    context.meta.birthdateSolarText = solarDisplay;
-                }
-            }
-            var lunarNumericSnapshot = buildLunarNumericSnapshot(context.lunar);
-            if (lunarNumericSnapshot) {
-                context.meta.birthdateLunarNumeric = lunarNumericSnapshot;
-            }
-            var lunarDisplayText = formatLunarDisplayString(context.lunar);
-            if (lunarDisplayText) {
-                context.meta.birthdateLunarText = lunarDisplayText;
-            }
-        } catch (metaFormatErr) {
-            // ignore
-        }
+            // 2. Compute Stars
+            const primaryStars = computePrimaryStars(context, derived);
+            const secondaryStars = computeSecondaryStars(context);
+            const mutations = computeMutations(context);
+            const minorStars = computeMinorStars(context, derived, secondaryStars);
+            const attributes = computeAttributes(context, secondaryStars);
 
-        return {
-            meta: context.meta,
-            lunar: context.lunar,
-            indices: context.indices,
-            derived: derived,
-            sections: {
+            const sections = {
                 palaces: palaces,
                 primaryStars: primaryStars,
                 secondaryStars: secondaryStars,
-                mutations: mutations,
                 minorStars: minorStars,
-                attributes: attributes,
-                lifeCycles: lifeCycles,
-                brightness: brightness
-            },
-            constants: {
-                grid: deepClone(constants.GRID_BRANCH_MAP),
-                triSquare: deepClone(constants.TRI_SQUARE_MAP)
-            },
-            errors: errors,
-            raw: {
-                calculation: calcResult,
-                normalizedInput: normalizedInput
+                mutations: mutations,
+                attributes: attributes
+            };
+
+            // 3. Compute Brightness & Life Cycles
+            const brightness = computeBrightness(context, derived, sections);
+            const lifeCycles = computeLifeCycles(context, derived);
+
+            sections.brightness = brightness;
+            sections.lifeCycles = lifeCycles;
+
+            // 4. Assemble Final Output
+            const output = {
+                meta: mergeMeta(normalized, {}),
+                lunar: context.lunar,
+                indices: context.indices,
+                derived: derived,
+                sections: sections,
+                normalized: normalized
+            };
+
+            adapter.setCurrentChart(output);
+            log('Calculation completed successfully.', output);
+            return output;
+
+        } catch (err) {
+            warn('Calculation failed:', err);
+            if (isAdapterError(err)) {
+                throw err;
             }
-        };
-    }
-
-    adapter.input = adapter.input || {};
-    adapter.output = adapter.output || {};
-
-    adapter.input.normalize = function(rawData) {
-        if (!rawData || typeof rawData !== 'object') {
-            throw AdapterError('INPUT_INVALID', '原始表單資料格式錯誤。', { rawData: rawData });
+            throw AdapterError('CALCULATION_FAILED', '排盤過程發生未預期的錯誤。', { input: inputData }, err);
         }
-        // Temporary debug trace to help diagnose ziHourAdjustment issues
-        try {
-            // Only emit normalize debug traces when adapter-level DEBUG is enabled
-            if (DEBUG && typeof console !== 'undefined' && console.log) {
-                console.log('[ziweiAdapter] normalize() called. rawData snapshot:', {
-                    birthdate: rawData.birthdate || rawData.date || null,
-                    birthtime: rawData.birthtime || rawData.time || null,
-                    year: rawData.year,
-                    month: rawData.month,
-                    day: rawData.day,
-                    hour: rawData.hour,
-                    minute: rawData.minute,
-                    ziHourHandling: rawData.ziHourHandling || null,
-                    _debugMarker: rawData._ziChangeApplied || null
-                });
-            }
-        } catch (dbgErr) {
-            // swallow debug errors
-        }
-
-        return buildNormalizedInput(rawData);
     };
 
-    adapter.output.process = function(calcResult, normalizedInput) {
-        var result = processCalculation(calcResult, normalizedInput);
-        // Store the last output for use by other modules (e.g., chart updates)
-        adapter._lastOutput = result;
-        return result;
-    };
+    // Expose normalizeInput for external use (e.g. form validation)
+    adapter.normalizeInput = normalizeInput;
 
-    adapter.output.getLastOutput = function() {
-        return adapter._lastOutput || null;
-    };
-
-    adapter.errors = {
-        AdapterError: AdapterError,
-        isAdapterError: isAdapterError
-    };
-
-    adapter.utils = {
-        deepClone: deepClone
-    };
-
-    window[GLOBAL_KEY] = adapter;
-    log('Data adapter initialized.');
 })(window);
