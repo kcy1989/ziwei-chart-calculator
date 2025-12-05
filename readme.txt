@@ -5,7 +5,7 @@ Tags: 紫微斗數, 命理, 排盤, 中州派, astrology
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -168,6 +168,14 @@ ziwei-cal/
 支援多種匯出格式：PNG圖片、PDF文件、JSON資料，可用於列印或進一步處理。
 
 == Changelog ==
+= 1.0.1 - 2025-12-06 =
+* 修正：大限/流年方向的罕見錯誤
+* 修正：分享到菜單在返回後可能消失的問題
+* 更改：分享鍵的樣式改動
+* 更新：支援年份範圍與修正紀錄（支援 800-2200 年）
+* 新增：表單年份輸入點擊時，使用者可直接輸入出生年
+* 修正：嘗試修正圖表溢出問題
+
 = 1.0.0 - 2025-12-05 =
 * 新增：完整星曜解釋系統 - 點擊宮位顯示簡單術語解釋
 * 新增：分享連結功能

@@ -549,7 +549,7 @@
 
         // Create a lightweight Share button (visible immediately).
         // The heavy share module will be loaded lazily when the user clicks it.
-        const shareBtn = createButton('🔄', 'ziwei-control-share-btn');
+        const shareBtn = createButton('📤', 'ziwei-control-share-btn');
         shareBtn.type = 'button';
         // Use aria-label instead of title to avoid browser-native tooltip
         shareBtn.setAttribute('aria-label', '分享與匯出');

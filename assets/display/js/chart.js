@@ -1489,7 +1489,7 @@ function createCenterCell(meta, palaceData = {}, lunarYear = 0, mingPalaceData =
 
 /**
  * Format lunar object into Chinese string
- * Frontend uses local LunarSolarConverter (1900-2100)
+ * Frontend uses local LunarSolarConverter (800-2200)
  * Returns format: { year: "癸卯年，兔", date: "二月初十", lunarYear, lunarMonth, lunarDay, ... }
  * Example output: 癸卯年二月初十午時
  */

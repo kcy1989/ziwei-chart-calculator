@@ -13,11 +13,15 @@
    ======================================== */
 
 .ziwei-cycle-panel {
-    min-width: 640px;
-    margin: 16px auto 10px auto;
+    min-width: auto;
+    width: 100%;
+    max-width: 640px;
+    margin: 8px auto 6px auto;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
+    box-sizing: border-box;
+    padding: 0 2px;
 }
 
 .ziwei-cycle-section {
@@ -151,6 +155,95 @@
 .ziwei-cycle-button-active .ziwei-annual-stem-branch {
     color: #512e5f;
     font-weight: 500;
+}
+
+/* ========================================
+   Responsive Design - Mobile
+   ======================================== */
+
+@media (max-width: 700px) {
+    .ziwei-cycle-panel {
+        padding: 0;
+        gap: 6px;
+        margin: 6px 0 4px 0;
+        width: 100%;
+    }
+
+    .ziwei-cycle-label {
+        font-size: 14px;
+    }
+
+    .ziwei-major-cycle-row,
+    .ziwei-annual-cycle-row {
+        padding: 0;
+    }
+
+    .ziwei-cycle-button {
+        height: 38px;
+        font-size: 10px;
+        gap: 2px;
+        white-space: nowrap;
+    }
+
+    .ziwei-cycle-button-label {
+        white-space: nowrap;
+    }
+
+    .ziwei-cycle-button-age {
+        white-space: nowrap;
+    }
+
+    .ziwei-cycle-button-label {
+        font-size: 10px;
+    }
+
+    .ziwei-cycle-button-age {
+        font-size: 9px;
+    }
+
+    .ziwei-annual-year {
+        font-size: 10px;
+    }
+
+    .ziwei-annual-stem-branch {
+        font-size: 9px;
+    }
+}
+
+@media (max-width: 400px) {
+    .ziwei-cycle-panel {
+        padding: 0;
+        gap: 4px;
+        margin: 4px 0 2px 0;
+        width: 100%;
+    }
+
+    .ziwei-cycle-label {
+        font-size: 12px;
+    }
+
+    .ziwei-cycle-button {
+        height: 36px;
+        font-size: 9px;
+        gap: 1px;
+        white-space: nowrap;
+    }
+
+    .ziwei-cycle-button-label {
+        font-size: 9px;
+    }
+
+    .ziwei-cycle-button-age {
+        font-size: 8px;
+    }
+
+    .ziwei-annual-year {
+        font-size: 9px;
+    }
+
+    .ziwei-annual-stem-branch {
+        font-size: 8px;
+    }
 }
 
 /* ========================================

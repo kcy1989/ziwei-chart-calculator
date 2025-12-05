@@ -1081,7 +1081,13 @@ async function copyJSON() {
    * Inject menu HTML into existing button
    */
   function injectMenu(btn) {
-    if (btn.querySelector('.ziwei-share-menu')) return; // 已注入
+    if (!btn) return;
+    
+    // 移除舊菜單（如果存在）並重新創建，確保菜單是最新的
+    const existingMenu = btn.querySelector('.ziwei-share-menu');
+    if (existingMenu) {
+      existingMenu.remove();
+    }
 
     const menu = document.createElement('div');
     menu.className = 'ziwei-share-menu';
@@ -1125,7 +1131,7 @@ async function copyJSON() {
     btn = document.createElement('button');
     btn.className = 'ziwei-share-btn';
     btn.setAttribute('aria-label', '分享與下載');
-    btn.innerHTML = `<span class="icon">🔄</span><span class="text">分享</span>`;
+    btn.innerHTML = `<span class="icon">📤</span><span class="text">分享</span>`;
     
     const settingsBtn = controlBar.querySelector('.ziwei-settings-toggle');
     if (settingsBtn) {
@@ -1142,7 +1148,17 @@ async function copyJSON() {
  * Toggle menu display
  */
 function toggleMenu() {
-  const menu = document.querySelector('.ziwei-share-menu');
+  // 先確保按鈕存在並已注入菜單
+  const btn = ensureShareButton();
+  
+  if (!btn) {
+    console.error('[ziwei-share] Share button not found');
+    return;
+  }
+  
+  // 直接從按鈕內部查找菜單
+  const menu = btn.querySelector('.ziwei-share-menu');
+  
   if (!menu) {
     console.error('[ziwei-share] Menu element not found');
     return;

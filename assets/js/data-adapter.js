@@ -1064,8 +1064,9 @@
         if (!lifeCycleModule || typeof lifeCycleModule.calculateMajorCycles !== 'function') {
             return {};
         }
-        // Use lunar.year for lunarYear - needed for clockwise calculation
-        const lunarYear = context.lunar?.year;
+        // Use lunar.lunarYear for lunarYear - needed for clockwise calculation.
+        // Some places used `year` mistakenly; prefer `lunarYear` and fall back to `year` for compatibility.
+        const lunarYear = context.lunar?.lunarYear ?? context.lunar?.year ?? null;
         const major = lifeCycleModule.calculateMajorCycles(
             derived.nayin.loci,
             context.meta.gender,

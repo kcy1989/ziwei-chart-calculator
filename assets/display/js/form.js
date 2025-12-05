@@ -409,6 +409,21 @@ function initForm() {
     // Pre-fill current date and time
     prefillCurrentDateTime();
     
+    // Add focus event to year field - clear default year on first focus
+    if (_domCache.yearSelect) {
+        let yearCleared = false;
+        _domCache.yearSelect.addEventListener('focus', function() {
+            if (!yearCleared) {
+                const currentYear = new Date().getFullYear();
+                // Only clear if the value is the current year (pre-filled default)
+                if (this.value === String(currentYear)) {
+                    this.value = '';
+                    yearCleared = true;
+                }
+            }
+        }, { once: true });
+    }
+    
     // Register event listeners
     const handleReset = () => {
         // Re-fill date and time after form reset

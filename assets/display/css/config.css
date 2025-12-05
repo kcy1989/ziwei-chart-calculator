@@ -8,6 +8,7 @@
 
 .ziwei-settings-panel {
     width: 640px;
+    max-width: 100%;
     margin: 0 auto 30px auto;
     padding: 16px 20px;
     background: #f8f9fa;
@@ -15,6 +16,7 @@
     border-radius: 8px;
     display: none;
     flex-direction: column;
+    box-sizing: border-box;
 }
 
 .ziwei-settings-panel.active {
@@ -471,8 +473,21 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
+    .ziwei-settings-panel {
+        padding: 12px 15px;
+        margin: 0 10px 20px 10px;
+        width: auto;
+    }
+
     .ziwei-settings-panel.active {
         grid-template-columns: 1fr;
+    }
+
+    .ziwei-settings-category-content.one-col,
+    .ziwei-settings-category-content.two-col,
+    .ziwei-settings-category-content.three-col {
+        grid-template-columns: 1fr;
+        width: 100%;
     }
 
     .ziwei-settings-group {
@@ -482,5 +497,33 @@
 
     .ziwei-settings-select {
         width: 100%;
+    }
+
+    .ziwei-settings-label {
+        font-size: 13px;
+    }
+
+    .ziwei-settings-category {
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 400px) {
+    .ziwei-settings-panel {
+        padding: 10px 10px;
+        margin: 0 5px 15px 5px;
+    }
+
+    .ziwei-settings-category-wrapper {
+        padding: 8px 10px;
+    }
+
+    .ziwei-settings-label {
+        font-size: 12px;
+    }
+
+    .ziwei-settings-select {
+        font-size: 13px;
+        padding: 6px 8px;
     }
 }

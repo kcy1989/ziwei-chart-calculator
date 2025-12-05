@@ -195,10 +195,12 @@
 
 @media (max-width: 768px) {
   .ziwei-share-btn {
-    padding: 6px 10px;
-    font-size: 13px;
-    min-height: 44px;
-    min-width: 44px;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 0;
+    font-size: 16px;
   }
 
   .ziwei-share-option {
@@ -222,8 +224,12 @@
 
 @media (max-width: 480px) {
   .ziwei-share-btn {
-    padding: 6px 8px;
-    font-size: 12px;
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+    padding: 0;
+    font-size: 14px;
   }
 
   .ziwei-share-option {

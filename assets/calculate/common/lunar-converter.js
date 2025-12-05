@@ -5,7 +5,7 @@
  * 
  * Source: https://github.com/isee15/Lunar-Solar-Calendar-Converter
  * License: MIT
- * Supports: 1900-2100
+ * Supports: 800-2200
  * 
  * Dependencies: None
  * 
@@ -182,9 +182,9 @@ function solarToLunar(year, month, day, hour, minute) {
             if (typeof console !== 'undefined' && console.log) {
             }
         } catch (dbg) {}
-        // Validate year range (library supports 1900-2100)
-        if (year < 1800 || year > 2100) {
-            console.error('Lunar conversion: Year out of range (1900-2100)');
+        // Validate year range (library supports 800-2200)
+        if (year < 800 || year > 2200) {
+            console.error('Lunar conversion: Year out of range (800-2200)');
             return null;
         }
 
@@ -284,4 +284,4 @@ function solarToLunar(year, month, day, hour, minute) {
 }
 // Note: External API-based conversion (e.g. Hong Kong Observatory) was removed
 // The converter now uses the embedded LunarSolarConverter implementation above
-// which supports years 1900-2100 and runs entirely in the browser.
+// which supports years 800-2200 and runs entirely in the browser.

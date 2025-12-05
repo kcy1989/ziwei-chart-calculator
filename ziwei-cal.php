@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * Plugin Name: Ziwei Cal
  * Description: Ziwei Doushu Chart Calculator
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: kcy1989
  * License: GPL v2 or later
  * Text Domain: ziwei-cal
@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('ZIWEI_CAL_VERSION', '1.0.0'); // Bump version to force cache refresh
+define('ZIWEI_CAL_VERSION', '1.0.1'); // Bump version to force cache refresh
 define('ZIWEI_CAL_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('ZIWEI_CAL_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -62,8 +62,8 @@ function ziwei_cal_register_rest_routes(): void {
                 'required' => true,
                 'type' => 'integer',
                 'sanitize_callback' => 'absint',
-                'minimum' => 1800,
-                'maximum' => 2100,
+                'minimum' => 800,
+                'maximum' => 2200,
             ],
             'month' => [
                 'required' => true,
@@ -129,7 +129,7 @@ add_action('rest_api_init', 'ziwei_cal_register_rest_routes');
  * Server-side HKO API-based lunar conversion and fallback removed.
  * Lunar conversion is performed client-side using the included
  * `LunarSolarConverter` (assets/calculate/common/lunar-converter.js) which supports
- * years 1900-2100. The REST API now expects lunar data to be provided
+ * years 800-2200. The REST API now expects lunar data to be provided
  * by the frontend where applicable.
  */
 

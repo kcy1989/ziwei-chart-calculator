@@ -4,13 +4,15 @@
 
 .ziwei-control-bar {
     width: 640px;
+    max-width: 100%;
     margin: 0 auto 15px auto;
-    padding: 0;
+    padding: 0 10px;
     display: grid;
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
     column-gap: 16px;
     background: transparent;
+    box-sizing: border-box;
 }
 
 .ziwei-control-group {
@@ -95,6 +97,81 @@
 .ziwei-control-settings-btn.active:hover {
     background: #2980b9;
     color: #ffffff;
+}
+
+/* ========================================
+   Responsive Design - Mobile
+   ======================================== */
+
+@media (max-width: 700px) {
+    .ziwei-control-bar {
+        width: 100%;
+        padding: 0 2px;
+        column-gap: 4px;
+        margin-bottom: 8px;
+    }
+
+    .ziwei-control-group {
+        gap: 4px;
+    }
+
+    .ziwei-control-button {
+        padding: 0;
+        font-size: 12px;
+        height: 32px;
+        border-radius: 6px;
+    }
+
+    .ziwei-control-prev-hour,
+    .ziwei-control-next-hour {
+        min-width: auto;
+        padding: 0 8px;
+        height: 32px;
+    }
+
+    /* Square buttons - consistent size */
+    .ziwei-back-btn,
+    .ziwei-control-settings-btn {
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+        min-height: 32px;
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 400px) {
+    .ziwei-control-bar {
+        padding: 0 1px;
+        column-gap: 2px;
+        margin-bottom: 4px;
+    }
+
+    .ziwei-control-group {
+        gap: 2px;
+    }
+
+    .ziwei-control-button {
+        font-size: 11px;
+        height: 28px;
+        border-radius: 4px;
+    }
+
+    .ziwei-control-prev-hour,
+    .ziwei-control-next-hour {
+        padding: 0 6px;
+        height: 28px;
+    }
+
+    /* Square buttons - consistent size */
+    .ziwei-back-btn,
+    .ziwei-control-settings-btn {
+        width: 28px;
+        height: 28px;
+        min-width: 28px;
+        min-height: 28px;
+        font-size: 14px;
+    }
 }
 
 /* ========================================
