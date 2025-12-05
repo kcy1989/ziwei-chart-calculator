@@ -956,13 +956,42 @@ async function downloadJSON() {
 /**
  * Copy JSON to clipboard in compact format (no indentation, no spaces)
  * Optimized for AI input to minimize token usage
+ * Prepends AI prompt based on active major/annual cycle selection
  */
 async function copyJSON() {
   try {
     const jsonData = buildExportJSON();
     const jsonString = JSON.stringify(jsonData); // Compact format
     
-    await navigator.clipboard.writeText(jsonString);
+    // Detect active major cycle (大限)
+    const activeMajorBtn = document.querySelector('.ziwei-major-cycle-button.ziwei-cycle-button-active');
+    // Detect active annual cycle (流年)
+    const activeAnnualBtn = document.querySelector('.ziwei-annual-cycle-button.ziwei-cycle-button-active');
+    
+    let aiPrompt = '';
+    
+    if (activeAnnualBtn) {
+      // Case 3: Both major and annual cycle selected -> 流年運勢
+      const annualYear = activeAnnualBtn.dataset.year || '';
+      aiPrompt = `你是紫微斗數大師，請按以下命盤推算${annualYear}年的流年運情。`;
+    } else if (activeMajorBtn) {
+      // Case 2: Only major cycle selected -> 十年大限運勢
+      // Get age range from the button's data or from lifeCycleData
+      const chart = window.ziweiAdapter?.getCurrentChart();
+      const palaceIndex = parseInt(activeMajorBtn.dataset.palaceIndex, 10);
+      const majorCycleInfo = chart?.sections?.lifeCycles?.major?.find(c => c.palaceIndex === palaceIndex);
+      const startAge = majorCycleInfo?.startAge || '';
+      const endAge = majorCycleInfo?.endAge || '';
+      aiPrompt = `你是紫微斗數大師，請按以下命盤推算${startAge}歲至${endAge}歲的十年大限運勢。`;
+    } else {
+      // Case 1: No cycle selected -> 性格與一生命運
+      aiPrompt = '你是紫微斗數大師，請按以下命盤推算其性格，一生整體命運。';
+    }
+    
+    // Combine prompt with JSON
+    const textToCopy = aiPrompt + jsonString;
+    
+    await navigator.clipboard.writeText(textToCopy);
     
     // Show toast feedback (same style as share link)
     showShareLinkFeedback('已複製 JSON！');
