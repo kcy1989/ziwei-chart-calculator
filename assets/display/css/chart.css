@@ -770,6 +770,10 @@
     }
 
     /* Primary and secondary stars - MUST SHRINK */
+    .ziwei-stars-container {
+        top: 0px;
+    }
+
     .ziwei-primary-star {
         font-size: 14px;
         height: 30px;
@@ -790,6 +794,7 @@
         grid-template-rows: repeat(3, 10px);
         width: 10px;
         height: 30px;
+        margin-left: -2px;
     }
 
     .ziwei-mutation {
@@ -808,6 +813,7 @@
     .ziwei-minor-stars-container {
         /* adjusted upward to reduce overlap with 流曜 */
         top: 37px;
+        left: 1px;
         gap: 0;
     }
 
@@ -839,7 +845,7 @@
 
     /* Life cycle container - smaller */
     .ziwei-life-cycle-container {
-        margin-left: 12px;
+        margin-left: 10px;
         margin-right: 22px;
         padding: 1px;
         gap: 0;
@@ -929,6 +935,10 @@
     }
 
     /* Primary and secondary stars - even smaller */
+    .ziwei-stars-container {
+        top: 1px;
+    }
+
     .ziwei-primary-star {
         font-size: 12px;
         height: 26px;
@@ -947,6 +957,7 @@
         grid-template-rows: repeat(3, 8px);
         width: 8px;
         height: 26px;
+        margin-left: -1px;
     }
 
     .ziwei-mutation {
@@ -965,6 +976,7 @@
     .ziwei-minor-stars-container {
         /* adjusted upward for very small screens */
         top: 30px;
+        left: 1px;
     }
 
     .ziwei-minor-star {
@@ -985,7 +997,7 @@
 
     /* Life cycle */
     .ziwei-life-cycle-container {
-        margin-left: 10px;
+        margin-left: 8px;
         margin-right: 18px;
     }
 

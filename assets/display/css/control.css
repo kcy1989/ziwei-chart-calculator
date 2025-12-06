@@ -39,7 +39,7 @@
     font-weight: 600;
     line-height: 1.5;
     border: none;
-    border-radius: 8px;
+    border-radius: 6px;
     cursor: pointer;
     transition: background-color 0.3s ease, color 0.3s ease;
     text-align: center;
@@ -67,6 +67,7 @@
 .ziwei-control-prev-hour,
 .ziwei-control-next-hour {
     min-width: 80px;
+    border-radius: 6px;
 }
 
 .ziwei-back-btn {
@@ -77,6 +78,7 @@
     padding: 0;
     font-size: 18px;
     line-height: 1;
+    border-radius: 6px;
 }
 
 .ziwei-control-settings-btn {
@@ -87,6 +89,7 @@
     padding: 0;
     font-size: 24px;
     line-height: 1;
+    border-radius: 6px;
 }
 
 .ziwei-control-settings-btn.active {
@@ -127,6 +130,7 @@
         min-width: auto;
         padding: 0 8px;
         height: 32px;
+        border-radius: 6px;
     }
 
     /* Square buttons - consistent size */
@@ -137,6 +141,7 @@
         min-width: 32px;
         min-height: 32px;
         font-size: 16px;
+        border-radius: 6px;
     }
 }
 
@@ -154,13 +159,14 @@
     .ziwei-control-button {
         font-size: 11px;
         height: 28px;
-        border-radius: 4px;
+        border-radius: 6px;
     }
 
     .ziwei-control-prev-hour,
     .ziwei-control-next-hour {
         padding: 0 6px;
         height: 28px;
+        border-radius: 6px;
     }
 
     /* Square buttons - consistent size */
@@ -171,6 +177,7 @@
         min-width: 28px;
         min-height: 28px;
         font-size: 14px;
+        border-radius: 6px;
     }
 }
 

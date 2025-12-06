@@ -158,12 +158,25 @@ function parseShareLinkParameters() {
         // Optional parameters (bd_n=name, bd_p=place)
         const name = params.get('bd_n');
         if (name) {
-            result.bd_name = decodeURIComponent(name).trim();
+            // URLSearchParams already returns decoded values in most browsers.
+            // Avoid calling decodeURIComponent again which can throw for
+            // malformed or already-decoded input. Trim and store raw value.
+            try {
+                result.bd_name = String(name).trim();
+            } catch (e) {
+                result.bd_name = '';
+            }
         }
 
         const birthplace = params.get('bd_p');
         if (birthplace) {
-            result.bd_place = decodeURIComponent(birthplace).trim();
+            // Birthplace is optional for form submission; store if present
+            // but avoid causing parsing errors — form processing will ignore it.
+            try {
+                result.bd_place = String(birthplace).trim();
+            } catch (e) {
+                result.bd_place = '';
+            }
         }
 
         // Settings
@@ -229,12 +242,8 @@ function prefillFromShareLink(params) {
             nameInput.value = params.bd_name;
         }
     }
-    if (params.bd_place) {
-        const birthplaceInput = document.getElementById('ziwei-birthplace');
-        if (birthplaceInput) {
-            birthplaceInput.value = params.bd_place;
-        }
-    }
+    // Note: birthplace (bd_place) is intentionally ignored when pre-filling
+    // from a share link to avoid errors or extra lookup requirements.
 
     // Apply settings to adapter if available
     if (window.ziweiAdapter && window.ziweiAdapter.settings) {
