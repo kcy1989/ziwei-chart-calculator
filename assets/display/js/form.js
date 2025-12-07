@@ -36,6 +36,7 @@ const state = {
     inputs: [],
     inputMap: new Map(),
     submitBtn: null,
+    aiBtn: null,
     lastValues: null,
     listeners: [],
     debounceTimers: new Map(),
@@ -441,7 +442,7 @@ function initForm() {
     
     form.addEventListener('submit', (e) => {
         if (DEBUG_FORM) console.log('[form.js] Submit event attached and fired');
-        handleSubmit(e);
+        handleSubmit(e, { mode: 'chart' });
     });
     form.addEventListener('input', handleInput, { passive: true });
     form.addEventListener('reset', handleReset);
@@ -452,7 +453,15 @@ function initForm() {
         if (DEBUG_FORM) console.log('[form.js] Direct click listener on submitBtn');
         state.submitBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            handleSubmit(e);
+            handleSubmit(e, { mode: 'chart' });
+        });
+    }
+
+    state.aiBtn = document.getElementById('ziwei-ai-btn');
+    if (state.aiBtn) {
+        state.aiBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            handleSubmit(e, { mode: 'ai' });
         });
     }
 
@@ -461,7 +470,11 @@ function initForm() {
         if (e.target.id === 'ziwei-submit-btn') {
             if (DEBUG_FORM) console.log('[form.js] GLOBAL submitBtn click');
             e.preventDefault();
-            handleSubmit(e);
+            handleSubmit(e, { mode: 'chart' });
+        }
+        if (e.target.id === 'ziwei-ai-btn') {
+            e.preventDefault();
+            handleSubmit(e, { mode: 'ai' });
         }
     }, true);
 
@@ -799,20 +812,29 @@ function clearAllErrors() {
  * Toggle busy state
  * @param {boolean} busy Whether form is busy
  */
-function toggleBusy(busy) {
+function toggleBusy(busy, mode = 'chart') {
     if (!state.form) return;
-    
+
     if (busy) {
         state.form.setAttribute('aria-busy', 'true');
         if (state.submitBtn) {
             state.submitBtn.disabled = true;
-            state.submitBtn.textContent = '計算中...';
+            // Keep the original text "開始排盤" instead of changing to "計算中..."
+            state.submitBtn.textContent = '開始排盤';
+        }
+        if (state.aiBtn) {
+            state.aiBtn.disabled = true;
+            state.aiBtn.textContent = mode === 'ai' ? '生成中...' : '生成AI算命提示詞';
         }
     } else {
         state.form.removeAttribute('aria-busy');
         if (state.submitBtn) {
             state.submitBtn.disabled = false;
             state.submitBtn.textContent = '開始排盤';
+        }
+        if (state.aiBtn) {
+            state.aiBtn.disabled = false;
+            state.aiBtn.textContent = '生成AI算命提示詞';
         }
     }
 }
@@ -821,7 +843,7 @@ function toggleBusy(busy) {
  * Handle form submission
  * @param {Event} e Submit event
  */
-async function handleSubmit(e) {
+async function handleSubmit(e, options = {}) {
     e.preventDefault();
     if (!state.form) {
         err('No form in state');
@@ -830,9 +852,10 @@ async function handleSubmit(e) {
     if (state.isSubmitting) {
         return;
     }
+    const mode = options.mode === 'ai' ? 'ai' : 'chart';
     log('Starting submit process');
     state.isSubmitting = true;
-    toggleBusy(true);
+    toggleBusy(true, mode);
     try {
         clearAllErrors();
         log('Collecting rawValues');
@@ -912,7 +935,8 @@ async function handleSubmit(e) {
         const detail = Object.freeze({
             formData: rawPayload,
             nonce: window.ziweiCalData.nonce,
-            apiResponse
+            apiResponse,
+            mode
         });
         const event = new CustomEvent('ziwei-form-submit', {
             bubbles: true,
@@ -930,7 +954,7 @@ async function handleSubmit(e) {
         if (state.isSubmitting === true) {
             state.isSubmitting = false;
             if (state.form?.hasAttribute('aria-busy')) {
-                toggleBusy(false);
+                toggleBusy(false, mode);
             }
         }
     }
@@ -1012,7 +1036,39 @@ function handleAdapterError(error) {
     }
 
     log('Adapter validation failed:', error);
-    toggleBusy(false);
+
+    // DEBUG: Log the error and current state
+    console.error('[ziweiForm] handleAdapterError called with:', error);
+    console.log('[ziweiForm] Current state:', {
+        isSubmitting: state.isSubmitting,
+        mode: mode // This will show undefined, confirming our diagnosis
+    });
+
+    // Fix: Use default mode if not provided
+    // Try to determine the current mode from various sources
+    let currentMode = 'chart'; // Default to chart mode
+
+    // Check if we can determine mode from DOM
+    const container = document.querySelector('.ziwei-cal');
+    if (container) {
+        const domMode = container.getAttribute('data-ziwei-mode');
+        if (domMode === 'ai') {
+            currentMode = 'ai';
+        }
+    }
+
+    // Check if AI mode is active via adapter
+    try {
+        if (window.ziweiAdapter?.storage?.get('aiModeActive') === true) {
+            currentMode = 'ai';
+        }
+    } catch (e) {
+        console.warn('[ziweiForm] Could not check AI mode from adapter:', e);
+    }
+
+    console.log('[ziweiForm] Determined current mode for error handling:', currentMode);
+
+    toggleBusy(false, currentMode);
     state.isSubmitting = false;
 
     const adapterErrors = error?.context?.errors || {};
@@ -1162,7 +1218,7 @@ async function restoreForm(currentElement) {
         initForm();
         
         // Ensure button is in correct state
-        toggleBusy(false);
+        toggleBusy(false, mode);
         
         log('Form restored successfully');
     } catch (err2) {

@@ -360,28 +360,7 @@ function calculateMinorStars(
     return minorStars;
 }
 
-// Cache for memoization
-const minorStarsCache = new Map();
-minorStarsCache.clear = minorStarsCache.clear || function() { this.clear(); }; // Ensure clear method
 
-// Memoized wrapper
-const memoizedCalculateMinorStars = (...args) => {
-    const key = args.join(',');
-    if (minorStarsCache.has(key)) {
-        return minorStarsCache.get(key);
-    }
-    const result = calculateMinorStars(...args);
-    if (minorStarsCache.size >= 100) {
-        // Simple LRU: remove oldest (first entry)
-        const firstKey = minorStarsCache.keys().next().value;
-        minorStarsCache.delete(firstKey);
-    }
-    minorStarsCache.set(key, result);
-    return result;
-};
-
-// Override original with memoized version
-window.calculateMinorStarsMemoized = memoizedCalculateMinorStars;
 
 /**
  * registerAdapterModule centralized in assets/js/adapter-register.js

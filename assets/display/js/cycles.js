@@ -339,6 +339,35 @@
                     annualBtn.addEventListener('click', (e) => {
                         e.stopPropagation();
                         e.preventDefault();
+
+                        // Check if this button is already selected - if so, deselect and show major period chart
+                        if (annualBtn.classList.contains('ziwei-cycle-button-active')) {
+                            // Clear only annual cycle state, keep major cycle active
+                            const allAnnualButtons = annualRow.querySelectorAll('.ziwei-annual-cycle-button');
+                            allAnnualButtons.forEach(btn => {
+                                btn.classList.remove('ziwei-cycle-button-active');
+                            });
+                            window.ziweiChartHelpers?.clearAnnualCycleStars?.();
+                            window.ziweiChartHelpers?.clearAnnualCycleMutations?.();
+                            window.ziweiChartHelpers?.clearAnnualMingLabel?.();
+                            window.ziweiChartHelpers?.clearAnnualCycleLabels?.();
+
+                            // Update AI prompt for major cycle view (without annual)
+                            if (window.ziweiAiMode && window.ziweiAiMode.updateJsonText) {
+                                const isTrulyActive = window.ziweiAiMode.isActive();
+                                const container = document.querySelector('.ziwei-cal');
+                                const domModeAi = container && container.getAttribute('data-ziwei-mode') === 'ai';
+                                const aiPanelVisible = !!document.querySelector('.ziwei-ai-panel[style*="display:"]') ||
+                                                      !!document.querySelector('.ziwei-ai-panel:not([style*="display: none"])');
+                                const trulyActive = isTrulyActive && domModeAi && aiPanelVisible;
+
+                                if (trulyActive) {
+                                    window.ziweiAiMode.updateJsonText();
+                                }
+                            }
+                            return;
+                        }
+
                         // Extract branch character from stem-branch (last character is branch)
                         const stemChar = stemBranch.charAt(0);
                         const branchChar = stemBranch.charAt(1);
@@ -374,6 +403,25 @@
                         // Apply annual cycle mutations (流年四化)
                         if (stemChar) {
                             window.ziweiChartHelpers?.applyAnnualCycleMutations?.(stemChar);
+                        }
+
+                        // Update AI prompt only if AI mode is truly active
+                        // Check both module state AND DOM state to avoid false positives during mode transitions
+                        if (window.ziweiAiMode && window.ziweiAiMode.updateJsonText) {
+                            const isTrulyActive = window.ziweiAiMode.isActive();
+                            const container = document.querySelector('.ziwei-cal');
+                            const domModeAi = container && container.getAttribute('data-ziwei-mode') === 'ai';
+                            const aiPanelVisible = !!document.querySelector('.ziwei-ai-panel[style*="display:"]') ||
+                                                 !!document.querySelector('.ziwei-ai-panel:not([style*="display: none"])');
+                            const trulyActive = isTrulyActive && domModeAi && aiPanelVisible;
+
+                            console.log('[ziweiCycles] Checking AI mode for annual cycle update:', {
+                                isTrulyActive, domModeAi, aiPanelVisible, trulyActive
+                            });
+
+                            if (trulyActive) {
+                                window.ziweiAiMode.updateJsonText();
+                            }
                         }
 
                         // Allow deferred clear callbacks to run after highlight completes
@@ -439,6 +487,25 @@
                 e.stopPropagation();
                 e.preventDefault();
 
+                // Check if this button is already selected - if so, deselect and show natal chart
+                if (btn.classList.contains('ziwei-cycle-button-active')) {
+                    clearCycleState();
+                    // Update AI prompt for natal chart view
+                    if (window.ziweiAiMode && window.ziweiAiMode.updateJsonText) {
+                        const isTrulyActive = window.ziweiAiMode.isActive();
+                        const container = document.querySelector('.ziwei-cal');
+                        const domModeAi = container && container.getAttribute('data-ziwei-mode') === 'ai';
+                        const aiPanelVisible = !!document.querySelector('.ziwei-ai-panel[style*="display:"]') ||
+                                              !!document.querySelector('.ziwei-ai-panel:not([style*="display: none"])');
+                        const trulyActive = isTrulyActive && domModeAi && aiPanelVisible;
+
+                        if (trulyActive) {
+                            window.ziweiAiMode.updateJsonText();
+                        }
+                    }
+                    return;
+                }
+
                 // Set flag to prevent clearCycleState from running during our click handling
                 isProcessingCycleClick = true;
 
@@ -458,6 +525,25 @@
                 highlightPalace(cycle.palaceIndex);
                 renderAnnualRow(cycle);
                 handleMajorCycleSelection(cycle, stemBranch);
+
+                // Update AI prompt only if AI mode is truly active
+                // Check both module state AND DOM state to avoid false positives during mode transitions
+                if (window.ziweiAiMode && window.ziweiAiMode.updateJsonText) {
+                    const isTrulyActive = window.ziweiAiMode.isActive();
+                    const container = document.querySelector('.ziwei-cal');
+                    const domModeAi = container && container.getAttribute('data-ziwei-mode') === 'ai';
+                    const aiPanelVisible = !!document.querySelector('.ziwei-ai-panel[style*="display:"]') ||
+                                         !!document.querySelector('.ziwei-ai-panel:not([style*="display: none"])');
+                    const trulyActive = isTrulyActive && domModeAi && aiPanelVisible;
+
+                    console.log('[ziweiCycles] Checking AI mode for major cycle update:', {
+                        isTrulyActive, domModeAi, aiPanelVisible, trulyActive
+                    });
+
+                    if (trulyActive) {
+                        window.ziweiAiMode.updateJsonText();
+                    }
+                }
 
                 // Reset flag after a short delay to allow palace highlight to complete
                 setTimeout(() => {

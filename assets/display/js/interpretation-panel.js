@@ -910,6 +910,14 @@
 
     function showPanel() {
         if (!panelElement) return;
+
+        // Check if we're in AI mode - if so, don't show the panel
+        const mainContainer = document.querySelector('.ziwei-cal[data-ziwei-mode="ai"]');
+        if (mainContainer) {
+            // We're in AI mode, hide the interpretation panel
+            panelElement.style.display = 'none';
+            return;
+        }
         
         // Find cycle panel to insert after
         const cyclePanel = document.querySelector('.ziwei-cycle-panel');
@@ -920,9 +928,9 @@
             }
         } else {
             // Fallback: try to find the main container (not chart-wrapper, to avoid scroll issues)
-            const mainContainer = document.querySelector('.ziwei-cal[data-ziwei-mode="chart"]');
-            if (mainContainer && !panelElement.parentNode) {
-                mainContainer.appendChild(panelElement);
+            const mainChartContainer = document.querySelector('.ziwei-cal[data-ziwei-mode="chart"]');
+            if (mainChartContainer && !panelElement.parentNode) {
+                mainChartContainer.appendChild(panelElement);
             }
         }
 

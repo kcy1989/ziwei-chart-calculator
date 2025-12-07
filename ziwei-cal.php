@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * Plugin Name: Ziwei Cal
  * Description: Ziwei Doushu Chart Calculator
- * Version: 1.0.4
+ * Version: 1.1.0
  * Author: kcy1989
  * License: GPL v2 or later
  * Text Domain: ziwei-cal
@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('ZIWEI_CAL_VERSION', '1.0.4'); // Bump version to force cache refresh
+define('ZIWEI_CAL_VERSION', '1.1.0'); // Bump version to force cache refresh
 define('ZIWEI_CAL_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('ZIWEI_CAL_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -268,6 +268,7 @@ class Ziwei_Enqueuer {
             'config' => 'assets/display/css/config.css',
             'share' => 'assets/display/css/share.css',
             'interpretation-panel' => 'assets/display/css/interpretation-panel.css',
+            'ai_mode' => 'assets/display/css/ai_mode.css',
         ];
         foreach ($styles as $handle => $path) {
             wp_enqueue_style("ziwei-cal-{$handle}", ZIWEI_CAL_PLUGIN_URL . $path, [], ZIWEI_CAL_VERSION);
@@ -305,6 +306,10 @@ class Ziwei_Enqueuer {
     }
 
     private static function enqueue_display_modules(): void {
+        // Load external libraries for export functionality
+        wp_enqueue_script('ziwei-cal-domtoimage', 'https://cdnjs.cloudflare.com/ajax/libs/dom-to-image/2.8.0/dom-to-image.min.js', [], '2.8.0', true);
+        wp_enqueue_script('ziwei-cal-jspdf', 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', [], '2.5.1', true);
+
         wp_enqueue_script('ziwei-cal-chart', ZIWEI_CAL_PLUGIN_URL . 'assets/display/js/chart.js', ['jquery', 'ziwei-cal-constants', 'ziwei-cal-adapter-utils'], ZIWEI_CAL_VERSION, true);
         
         wp_enqueue_script('ziwei-cal-data-adapter', ZIWEI_CAL_PLUGIN_URL . 'assets/js/data-adapter.js', [
@@ -319,6 +324,7 @@ class Ziwei_Enqueuer {
         wp_enqueue_script('ziwei-cal-interpretation-panel', ZIWEI_CAL_PLUGIN_URL . 'assets/display/js/interpretation-panel.js', ['ziwei-cal-palace-interaction', 'ziwei-cal-interpretations', 'ziwei-cal-data-adapter'], ZIWEI_CAL_VERSION, true);
         wp_enqueue_script('ziwei-cal-config', ZIWEI_CAL_PLUGIN_URL . 'assets/display/js/config.js', ['ziwei-cal-data-adapter'], ZIWEI_CAL_VERSION, true);
         wp_enqueue_script('ziwei-cal-control', ZIWEI_CAL_PLUGIN_URL . 'assets/display/js/control.js', ['ziwei-cal-config'], ZIWEI_CAL_VERSION, true);
+        wp_enqueue_script('ziwei-cal-ai-mode', ZIWEI_CAL_PLUGIN_URL . 'assets/display/js/ai_mode.js', ['ziwei-cal-chart', 'ziwei-cal-cycles', 'ziwei-cal-control'], ZIWEI_CAL_VERSION, true);
     }
 
     private static function enqueue_calculator(): void {

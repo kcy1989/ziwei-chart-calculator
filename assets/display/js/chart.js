@@ -36,6 +36,18 @@ let currentMajorCycleMingIndex = null;
 let currentAnnualCycleMingIndex = null;
 
 // ============================================================================
+// AI Mode Detection
+// ============================================================================
+
+function isAiModeActive() {
+    try {
+        return !!(window.ziweiAiMode && typeof window.ziweiAiMode.isActive === 'function' && window.ziweiAiMode.isActive());
+    } catch (e) {
+        return false;
+    }
+}
+
+// ============================================================================
 // Constants from centralized module
 // ============================================================================
 const constants = window.ziweiConstants;
@@ -1043,17 +1055,25 @@ function draw(context) {
     
     // Star brightness setting
     document.addEventListener('ziwei-starBrightness-changed', function handleStarBrightnessChange(e) {
+        // Skip chart updates in AI mode
+        const aiModeActive = isAiModeActive();
+        console.log('[ziweiChart] Star brightness event received, AI mode active:', aiModeActive);
+        if (aiModeActive) {
+            console.log('[ziweiChart] Skipping star brightness update - AI mode is active');
+            return;
+        }
+
         const detail = e && e.detail ? e.detail : {};
         const brightnessValue = detail.value || 'hidden';
-        
+
         // Update chart wrapper's data attribute for CSS-driven visibility
-        let chart = document.querySelector('[data-ziwei-chart]') || 
-                   document.querySelector('.ziwei-chart-wrapper');
-        
+        let chart = document.querySelector('[data-ziwei-chart]') ||
+                    document.querySelector('.ziwei-chart-wrapper');
+
         if (chart) {
             chart.setAttribute('data-star-brightness', brightnessValue);
         }
-        
+
         if (window.ziweiCalData && window.ziweiCalData.env && window.ziweiCalData.env.isDebug) {
             console.log('[ziweiChart] Star brightness changed to:', brightnessValue);
         }
@@ -1061,12 +1081,20 @@ function draw(context) {
 
     // XunKong (截空旬空 - void stars) setting
     document.addEventListener('ziwei-xunkong-changed', function handleXunKongChange(e) {
+        // Skip chart updates in AI mode
+        const aiModeActive = isAiModeActive();
+        console.log('[ziweiChart] XunKong event received, AI mode active:', aiModeActive);
+        if (aiModeActive) {
+            console.log('[ziweiChart] Skipping XunKong update - AI mode is active');
+            return;
+        }
+
         const detail = e && e.detail ? e.detail : {};
         const xunKongValue = detail.value || 'marked';
-        
+
         // Update chart wrapper's data attribute to control xunKong display mode
         chartWrapper.setAttribute('data-xunkong-mode', xunKongValue);
-        
+
         // Find and update xunKong/jieKong minor star visibility
         const allMinorStarElements = document.querySelectorAll('.ziwei-minor-star');
         allMinorStarElements.forEach((element) => {
@@ -1080,21 +1108,29 @@ function draw(context) {
                 }
             }
         });
-        
+
         if (window.ziweiCalData && window.ziweiCalData.env && window.ziweiCalData.env.isDebug) {
             console.log('[ziweiChart] T086: xunKong setting changed to:', xunKongValue);
         }
     });
 
     document.addEventListener('ziwei-palace-name-changed', function handlePalaceNameChange(e) {
+        // Skip chart updates in AI mode
+        const aiModeActive = isAiModeActive();
+        console.log('[ziweiChart] Palace name event received, AI mode active:', aiModeActive);
+        if (aiModeActive) {
+            console.log('[ziweiChart] Skipping palace name update - AI mode is active');
+            return;
+        }
+
         const detail = e && e.detail ? e.detail : {};
         const settingName = detail.settingName;
         const newValue = detail.newValue;
-        
+
         if (!settingName || !newValue) {
             return;
         }
-        
+
         // Define palace name mappings
         const palaceNameMappings = {
             palaceNameCareer: {
@@ -1107,15 +1143,15 @@ function draw(context) {
                 servants_alt: '僕役'
             }
         };
-        
+
         // Get the display name for the selected value
         const mapping = palaceNameMappings[settingName];
         if (!mapping || !mapping[newValue]) {
             return;
         }
-        
+
         const displayName = mapping[newValue];
-        
+
         // Find palace by name instead of index
         // Event handler needs to find the palace that matches the setting
         let targetPalaceName = null;
@@ -1125,24 +1161,24 @@ function draw(context) {
         } else if (settingName === 'palaceNameFriends') {
             targetPalaceName = displayName;
         }
-        
+
         if (!targetPalaceName) {
             return;
         }
-        
+
         // Find all palace name elements and update those that match
         const palaceNameElements = document.querySelectorAll('.ziwei-palace-name');
         let updated = false;
-        
+
         palaceNameElements.forEach((el) => {
             const currentText = el.textContent.trim();
             // Check if this palace matches one of the old names for this setting
             let isTargetPalace = false;
-            
+
             if (settingName === 'palaceNameCareer') {
                 // This palace should be Career palace (relative position 4 from Ming)
                 // We identify it by checking if the current name is 事業 or 官祿 or their Shen combinations
-                if (currentText === '事業' || currentText === '官祿' || 
+                if (currentText === '事業' || currentText === '官祿' ||
                     currentText === '身事' || currentText === '身官') {
                     isTargetPalace = true;
                 }
@@ -1153,14 +1189,14 @@ function draw(context) {
                     isTargetPalace = true;
                 }
             }
-            
+
             if (isTargetPalace) {
                 // Check if this is Shen Palace (Body Palace 身宮)
                 const cell = el.closest('.ziwei-cell');
                 const isShenPalace = cell && cell.classList.contains('ziwei-palace-shen');
-                
+
                 let finalName = displayName;
-                
+
                 // If this is Shen Palace and this is the Career palace, apply combined name
                 if (isShenPalace && settingName === 'palaceNameCareer') {
                     const shenCombineMap = {
@@ -1170,173 +1206,14 @@ function draw(context) {
                     finalName = shenCombineMap[displayName] || displayName;
                 }
                 // Friends Palace cannot be Shen Palace, so no Shen combination logic needed here
-                
+
                 el.textContent = finalName;
                 updated = true;
             }
         });
     });
 
-    document.addEventListener('ziwei-wounded-servant-changed', function handleWoundedServantChange(e) {
-        const detail = e && e.detail ? e.detail : {};
-        const woundedServantValue = detail.value || 'zhongzhou';
 
-        if (window.ziweiCalData && window.ziweiCalData.env && window.ziweiCalData.env.isDebug) {
-            console.log('[ziweiChart] Wounded servant handling changed to:', woundedServantValue);
-        }
-
-
-        // Get the last calculated adapter output to access palace and minor stars data
-        if (!window.ziweiAdapter || typeof window.ziweiAdapter.getCurrentChart !== 'function') {
-            return;
-        }
-
-        const adapterOutput = window.ziweiAdapter.getCurrentChart();
-        if (!adapterOutput || !adapterOutput.derived || !adapterOutput.derived.palaceList) {
-            return;
-        }
-        
-        // Find migration palace (遷移)
-        const palaceList = adapterOutput.derived.palaceList;
-        let migrationPalaceIndex = null;
-        for (let i = 0; i < palaceList.length; i++) {
-            const palace = palaceList[i];
-            if (palace && (palace.name === '遷移' || (palace.name && palace.name.indexOf('遷') !== -1))) {
-                migrationPalaceIndex = palace.index;
-                break;
-            }
-        }
-        
-        if (migrationPalaceIndex === null) {
-            return;
-        }
-        
-        // Calculate new positions based on woundedServantHandling setting
-        let tianShangIndex, tianShiIndex;
-        
-        if (woundedServantValue === 'noDistinction') {
-            // Fixed positions: 天傷 at Friends Palace (遷移-1), 天使 at Illness Palace (遷移+1)
-            tianShangIndex = (migrationPalaceIndex - 1 + 12) % 12;
-            tianShiIndex = (migrationPalaceIndex + 1) % 12;
-        } else {
-            // 'zhongzhou' (default): Calculate based on gender and year
-            const basicModule = window.ziweiAdapter.getModule('basic');
-            if (!basicModule || !adapterOutput.meta || !adapterOutput.lunar) {
-                return;
-            }
-            
-            const gender = adapterOutput.meta.gender;
-            const lunarYear = adapterOutput.lunar.lunarYear;
-            const clockwise = basicModule.isClockwise(gender, lunarYear);
-            const offset = clockwise ? -1 : 1;
-            
-            tianShangIndex = (migrationPalaceIndex + offset + 12) % 12;
-            tianShiIndex = (migrationPalaceIndex - offset + 12) % 12;
-        }
-        
-        if (window.ziweiCalData && window.ziweiCalData.env && window.ziweiCalData.env.isDebug) {
-            console.log('[ziweiChart] Recalculated wounded servant positions: 天傷=%d, 天使=%d', tianShangIndex, tianShiIndex);
-        }
-        
-        // Update DOM: Remove old 天傷 and 天使 elements and place them at new positions
-        const allMinorStarElements = document.querySelectorAll('.ziwei-minor-star');
-        if (window.ziweiCalData && window.ziweiCalData.env && window.ziweiCalData.env.isDebug) {
-            console.log('[ziweiChart] Found %d minor star elements', allMinorStarElements.length);
-        }
-        const starElementsToMove = { '天傷': null, '天使': null };
-
-        // Find and remove existing 天傷 and 天使 minor stars
-        allMinorStarElements.forEach((element) => {
-            const starName = element.textContent.trim();
-            if (starName === '天傷' || starName === '天使') {
-                starElementsToMove[starName] = element.cloneNode(true);
-                element.remove();
-                if (window.ziweiCalData && window.ziweiCalData.env && window.ziweiCalData.env.isDebug) {
-                    console.log('[ziweiChart] Removed %s from DOM', starName);
-                    console.log('[ziweiChart] Cloned element:', starElementsToMove[starName]);
-                }
-            }
-        });
-        
-        // Place the stars at their new palace positions
-        // Note: Palace cells use data-branch-index, not data-palace-index
-        // branchIndex corresponds to the palace index (0-11)
-        if (starElementsToMove['天傷']) {
-            const selector = `[data-branch-index="${tianShangIndex}"]`;
-            const tianShangPalaceCell = document.querySelector(selector);
-            if (window.ziweiCalData && window.ziweiCalData.env && window.ziweiCalData.env.isDebug) {
-                console.log('[ziweiChart] Looking for palace at selector: %s, found: %s', selector, tianShangPalaceCell ? 'yes' : 'no');
-                if (tianShangPalaceCell) {
-                    console.log('[ziweiChart] Palace cell HTML:', tianShangPalaceCell.outerHTML);
-                }
-            }
-            if (tianShangPalaceCell) {
-                const minorStarsContainer = tianShangPalaceCell.querySelector('.ziwei-minor-stars-container');
-                if (window.ziweiCalData && window.ziweiCalData.env && window.ziweiCalData.env.isDebug) {
-                    console.log('[ziweiChart] Minor stars container found:', !!minorStarsContainer);
-                    if (minorStarsContainer) {
-                        console.log('[ziweiChart] Minor stars container HTML:', minorStarsContainer.outerHTML);
-                    }
-                }
-                if (minorStarsContainer) {
-                    const group = minorStarsContainer.querySelector('.ziwei-minor-stars-group') || minorStarsContainer;
-                    if (window.ziweiCalData && window.ziweiCalData.env && window.ziweiCalData.env.isDebug) {
-                        console.log('[ziweiChart] Group element found:', !!group);
-                        console.log('[ziweiChart] Group HTML before append:', group.outerHTML);
-                    }
-                    group.appendChild(starElementsToMove['天傷']);
-                    if (window.ziweiCalData && window.ziweiCalData.env && window.ziweiCalData.env.isDebug) {
-                        console.log('[ziweiChart] Moved 天傷 to palace index %d', tianShangIndex);
-                        console.log('[ziweiChart] Group HTML after append:', group.outerHTML);
-                    }
-                } else {
-                    tianShangPalaceCell.appendChild(starElementsToMove['天傷']);
-                    if (window.ziweiCalData && window.ziweiCalData.env && window.ziweiCalData.env.isDebug) {
-                        console.log('[ziweiChart] Appended 天傷 directly to palace cell at index %d', tianShangIndex);
-                        console.log('[ziweiChart] Palace cell HTML after append:', tianShangPalaceCell.outerHTML);
-                    }
-                }
-            }
-        }
-        
-        if (starElementsToMove['天使']) {
-            const selector = `[data-branch-index="${tianShiIndex}"]`;
-            const tianShiPalaceCell = document.querySelector(selector);
-            if (window.ziweiCalData && window.ziweiCalData.env && window.ziweiCalData.env.isDebug) {
-                console.log('[ziweiChart] Looking for palace at selector: %s, found: %s', selector, tianShiPalaceCell ? 'yes' : 'no');
-                if (tianShiPalaceCell) {
-                    console.log('[ziweiChart] Palace cell HTML:', tianShiPalaceCell.outerHTML);
-                }
-            }
-            if (tianShiPalaceCell) {
-                const minorStarsContainer = tianShiPalaceCell.querySelector('.ziwei-minor-stars-container');
-                if (window.ziweiCalData && window.ziweiCalData.env && window.ziweiCalData.env.isDebug) {
-                    console.log('[ziweiChart] Minor stars container found:', !!minorStarsContainer);
-                    if (minorStarsContainer) {
-                        console.log('[ziweiChart] Minor stars container HTML:', minorStarsContainer.outerHTML);
-                    }
-                }
-                if (minorStarsContainer) {
-                    const group = minorStarsContainer.querySelector('.ziwei-minor-stars-group') || minorStarsContainer;
-                    if (window.ziweiCalData && window.ziweiCalData.env && window.ziweiCalData.env.isDebug) {
-                        console.log('[ziweiChart] Group element found:', !!group);
-                        console.log('[ziweiChart] Group HTML before append:', group.outerHTML);
-                    }
-                    group.appendChild(starElementsToMove['天使']);
-                    if (window.ziweiCalData && window.ziweiCalData.env && window.ziweiCalData.env.isDebug) {
-                        console.log('[ziweiChart] Moved 天使 to palace index %d', tianShiIndex);
-                        console.log('[ziweiChart] Group HTML after append:', group.outerHTML);
-                    }
-                } else {
-                    tianShiPalaceCell.appendChild(starElementsToMove['天使']);
-                    if (window.ziweiCalData && window.ziweiCalData.env && window.ziweiCalData.env.isDebug) {
-                        console.log('[ziweiChart] Appended 天使 directly to palace cell at index %d', tianShiIndex);
-                        console.log('[ziweiChart] Palace cell HTML after append:', tianShiPalaceCell.outerHTML);
-                    }
-                }
-            }
-        }
-    });
 
     // Dispatch event to notify other modules that the chart has been drawn
     // This allows dynamically loaded modules like share.js to initialize after the chart is ready

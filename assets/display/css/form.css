@@ -372,6 +372,13 @@ body {
     color: #34495e;
 }
 
+/* AI button text margin adjustment to prevent wrapping */
+#ziwei-ai-btn {
+    padding: 16px 24px;
+    white-space: nowrap;
+    min-width: 160px; /* Ensure button doesn't shrink when text changes */
+}
+
 .ziwei-cal[data-ziwei-mode="form"] .ziwei-cal-btn-secondary:hover {
     background: #bdc3c7;
 }

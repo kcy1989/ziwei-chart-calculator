@@ -348,20 +348,10 @@
             }
         } catch (e) {}
 
-        // In-place update
-        const existingChart = document.querySelector('[data-ziwei-chart]');
-        if (existingChart) {
-            const newChartElement = window.ziweiChart.draw({
-                calcResult,
-                normalizedInput: normalized,
-                adapterOutput
-            });
-
-            // Replace existing chart with new one
-            if (newChartElement) {
-                updateChartDisplay(newChartElement, { adapterOutput });
-            }
-        }
+        // Dispatch setting changed event
+        document.dispatchEvent(new CustomEvent('ziwei-setting-changed', {
+            detail: { setting: 'hour-change' }
+        }));
 
         // Reapply settings
         const brightnessSetting = getAdapterSettingValue('starBrightness');
@@ -543,6 +533,9 @@
         prevBtn.setAttribute('data-control', 'prev-hour');
         centerGroup.appendChild(prevBtn);
 
+        const modeBtn = createButton('看命盤', 'ziwei-control-mode-toggle');
+        centerGroup.appendChild(modeBtn);
+
         const nextBtn = createButton('時辰 →', 'ziwei-control-next-hour');
         nextBtn.setAttribute('data-control', 'next-hour');
         centerGroup.appendChild(nextBtn);
@@ -625,6 +618,68 @@
             e.preventDefault();
             e.stopPropagation();
             handleHourChange('next');
+        });
+
+        // Add event listener for mode toggle button
+        modeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const container = mountNode.closest('.ziwei-cal');
+            if (!container) return;
+            const chartElement = container.querySelector('[data-ziwei-chart]');
+            if (!chartElement) return;
+            const currentMode = container.getAttribute('data-ziwei-mode') || 'chart';
+            if (currentMode === 'ai') {
+                // Switch to chart mode
+                container.setAttribute('data-ziwei-mode', 'chart');
+                if (window.ziweiAiMode && typeof window.ziweiAiMode.deactivate === 'function') {
+                    window.ziweiAiMode.deactivate(chartElement);
+                }
+                const grid = chartElement.querySelector('.ziwei-4x4-grid');
+                if (grid) grid.style.display = '';
+                const interpPanels = document.querySelectorAll('.ziwei-interpretation-panel, .ziwei-interpretation-wrapper');
+                interpPanels.forEach((panel) => panel.style.display = '');
+                
+                // Force re-inject share menu and enable PNG/PDF
+                const shareBtn = document.querySelector('.ziwei-share-btn');
+                if (shareBtn) {
+                    const existingMenu = shareBtn.querySelector('.ziwei-share-menu');
+                    if (existingMenu) {
+                        existingMenu.remove();
+                    }
+                    if (window.ziweiShare && typeof window.ziweiShare._injectMenu === 'function') {
+                        window.ziweiShare._injectMenu(shareBtn);
+                    }
+                    // Force enable PNG/PDF options with delay
+                    setTimeout(() => {
+                        const targets = document.querySelectorAll('.ziwei-share-option[data-action="download-png"], .ziwei-share-option[data-action="download-pdf"]');
+                        targets.forEach((opt) => {
+                            opt.classList.remove('disabled');
+                            opt.removeAttribute('aria-disabled');
+                            opt.removeAttribute('data-title');
+                        });
+                    }, 200);
+                }
+                modeBtn.textContent = '看AI提示詞';
+            } else {
+                // Switch to ai mode
+                container.setAttribute('data-ziwei-mode', 'ai');
+                if (window.ziweiAiMode && typeof window.ziweiAiMode.activate === 'function') {
+                    window.ziweiAiMode.activate(chartElement);
+                }
+                // Force re-inject share menu for AI mode
+                const shareBtn = document.querySelector('.ziwei-share-btn');
+                if (shareBtn) {
+                    const existingMenu = shareBtn.querySelector('.ziwei-share-menu');
+                    if (existingMenu) {
+                        existingMenu.remove();
+                    }
+                    if (window.ziweiShare && typeof window.ziweiShare._injectMenu === 'function') {
+                        window.ziweiShare._injectMenu(shareBtn);
+                    }
+                }
+                modeBtn.textContent = '看命盤';
+            }
         });
 
         // Add event listener for settings button toggle
@@ -712,7 +767,31 @@
 
     function lazyLoadShareModule() {
         if (window.ziweiShare && typeof window.ziweiShare._toggleMenu === 'function') {
-            return Promise.resolve();
+            // If share.js is already loaded but dependencies are missing, load them.
+            const pluginBase = (window.ziweiCalData && window.ziweiCalData.pluginUrl) ? window.ziweiCalData.pluginUrl : '';
+            const pluginVersion = (window.ziweiCalData && window.ziweiCalData.pluginVersion) ? window.ziweiCalData.pluginVersion : Date.now();
+            const urls = {
+                domToImage: 'https://cdn.jsdelivr.net/npm/dom-to-image@2.6.0/dist/dom-to-image.min.js',
+                upng: 'https://cdn.jsdelivr.net/npm/upng-js@2.1.0/UPNG.min.js',
+                jspdf: 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
+                share: pluginBase + 'assets/display/js/share.js?ver=' + pluginVersion
+            };
+
+            const needsDom = !window.domtoimage;
+            const needsUpng = !window.UPNG;
+            const needsJsPdf = !(window.jspdf?.jsPDF || window.jsPDF);
+
+            return Promise.resolve()
+                .then(() => needsDom ? ensureScript(urls.domToImage, ['domtoimage']) : null)
+                .then(() => needsUpng ? ensureScript(urls.upng, ['UPNG']) : null)
+                .then(() => needsJsPdf ? ensureScript(urls.jspdf, ['jspdf']) : null)
+                .then(() => {
+                    try {
+                        window.ziweiShare._toggleMenu();
+                    } catch (e) {
+                        // ignore if menu not ready
+                    }
+                });
         }
         const pluginBase = (window.ziweiCalData && window.ziweiCalData.pluginUrl) ? window.ziweiCalData.pluginUrl : '';
         const pluginVersion = (window.ziweiCalData && window.ziweiCalData.pluginVersion) ? window.ziweiCalData.pluginVersion : Date.now();

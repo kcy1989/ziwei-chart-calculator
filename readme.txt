@@ -5,7 +5,7 @@ Tags: 紫微斗數, 命理, 排盤, 中州派, astrology
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.0.4
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -28,6 +28,7 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 * ✅ 設定面板：宮位名稱、四化選擇、星曜亮度等客製化選項
 * ✅ 大限流年系統：互動式大限盤與流年顯示
 * ✅ 三方四正宮位互動：點擊宮位顯示相關宮位連線
+* ✅ AI 智慧解釋：AI 輔助命盤解釋功能
 * ✅ 分享與匯出：PNG、PDF、JSON格式匯出
 
 **開發進度與功能階段**
@@ -98,7 +99,9 @@ ziwei-cal/
 │   │   │   ├── config.css         # 設定面板樣式
 │   │   │   ├── palace-interaction.css  # 宮位互動樣式（高亮、連線）
 │   │   │   ├── cycles.css         # 大限/流年控制面板樣式
-│   │   │   └── share.css          # 分享/匯出按鈕樣式
+│   │   │   ├── share.css          # 分享/匯出按鈕樣式
+│   │   │   ├── ai_mode.css        # AI 模式樣式
+│   │   │   └── interpretation-panel.css  # 解釋面板樣式
 │   │   └── js/
 │   │       ├── chart.js           # 命盤渲染引擎（使用 adapterOutput）
 │   │       ├── form.js            # 表單邏輯（收集輸入，不驗證）
@@ -106,7 +109,9 @@ ziwei-cal/
 │   │       ├── config.js          # 設定模組（選項管理）
 │   │       ├── palace-interaction.js  # 宮位互動邏輯
 │   │       ├── cycles.js          # 大限/流年顯示邏輯
-│   │       └── share.js           # 分享與匯出系統（PNG/PDF/社群分享）
+│   │       ├── share.js           # 分享與匯出系統（PNG/PDF/社群分享）
+│   │       ├── ai_mode.js         # AI 模式邏輯
+│   │       └── interpretation-panel.js  # 解釋面板邏輯
 │   └── data/                      # 資料表
 │       ├── constants.js           # 全域常數（宮位名、天干、地支等）
 │       ├── palaces-name.js        # 宮位名稱
@@ -168,6 +173,11 @@ ziwei-cal/
 支援多種匯出格式：PNG圖片、PDF文件、JSON資料，可用於列印或進一步處理。
 
 == Changelog ==
+= 1.1.0 - 2025-12-07 =
+* 新增：AI 模式功能
+* 新增：解釋面板系統
+* 更新：插件架構文檔更新
+
 = 1.0.4 - 2025-12-06 =
 * 修正：分享連結包含出生地導致無法排盤的錯誤
 * 優化：手機版顯示微調

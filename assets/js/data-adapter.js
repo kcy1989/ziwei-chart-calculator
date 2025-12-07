@@ -970,21 +970,12 @@
         const lunar = context.lunar;
         const shenPalaceIndex = derived.shenPalace ? derived.shenPalace.index : null;
         
-        const migrationPalace = findPalace(derived.palaceList, function(item) {
-            return item && (item.name === '遷移' || (item.name && item.name.indexOf('遷') !== -1));
-        });
-        
-        // Get migration palace index from found palace or calculate from Ming palace
+        // Get migration palace index directly from Ming palace (always opposite, 6 positions apart)
         let migrationPalaceIndex;
-        if (!migrationPalace || migrationPalace.index === null || migrationPalace.index === undefined) {
-            // Migration palace is always opposite to Ming palace (6 positions apart)
-            if (derived.mingPalace && derived.mingPalace.index !== undefined) {
-                migrationPalaceIndex = (derived.mingPalace.index + 6) % 12;
-            } else {
-                throw AdapterError('MIGRATION_PALACE_NOT_FOUND', '遷移宮不存在，無法計算天傷和天使。', { derived: derived });
-            }
+        if (derived.mingPalace && derived.mingPalace.index !== undefined) {
+            migrationPalaceIndex = (derived.mingPalace.index + 6) % 12;
         } else {
-            migrationPalaceIndex = migrationPalace.index;
+            throw AdapterError('MING_PALACE_NOT_FOUND', '命宮不存在，無法計算天傷和天使。', { derived: derived });
         }
         
         if (typeof migrationPalaceIndex !== 'number' || migrationPalaceIndex < 0 || migrationPalaceIndex > 11) {

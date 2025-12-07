@@ -122,21 +122,51 @@
         // Prefer canonical stored form snapshot in adapter storage
         try {
             const stored = getAdapterStorageValue('formInput');
-            if (stored) return Object.assign({}, stored);
-        } catch (e) {}
-
+            if (stored) {
+                console.log('[ziweiConfig] Retrieved form data from adapter storage:', stored);
+                return Object.assign({}, stored);
+            }
+        } catch (e) {
+            console.warn('[ziweiConfig] Failed to get formInput from storage:', e);
+        }
+    
         try {
             const normalized = getAdapterStorageValue('normalizedInput') || getAdapterStorageValue('normalized');
-            if (normalized && normalized.raw) return Object.assign({}, normalized.raw);
-        } catch (e) {}
-
+            if (normalized && normalized.raw) {
+                console.log('[ziweiConfig] Retrieved form data from normalized input:', normalized.raw);
+                return Object.assign({}, normalized.raw);
+            } else if (normalized) {
+                console.log('[ziweiConfig] Retrieved incomplete normalized input:', normalized);
+                // Try to build complete form data from normalized
+                const formData = {
+                    gender: normalized.meta?.gender || normalized.raw?.gender,
+                    name: normalized.meta?.name || normalized.raw?.name,
+                    birthplace: normalized.meta?.birthplace || normalized.raw?.birthplace,
+                    year: normalized.solar?.year || normalized.raw?.year,
+                    month: normalized.solar?.month || normalized.raw?.month,
+                    day: normalized.solar?.day || normalized.raw?.day,
+                    hour: normalized.solar?.hour || normalized.raw?.hour,
+                    minute: normalized.solar?.minute || normalized.raw?.minute
+                };
+                console.log('[ziweiConfig] Built form data from partial normalized:', formData);
+                return Object.keys(formData).length > 0 ? formData : null;
+            }
+        } catch (e) {
+            console.warn('[ziweiConfig] Failed to get normalized input:', e);
+        }
+    
         // Last-resort: ask form module directly (not preferred)
         if (window.ziweiForm && typeof window.ziweiForm.getLastFormData === 'function') {
-            return window.ziweiForm.getLastFormData();
+            const formData = window.ziweiForm.getLastFormData();
+            console.log('[ziweiConfig] Retrieved form data from form module function:', formData);
+            return formData;
         }
         if (window.ziweiForm && window.ziweiForm.formData) {
+            console.log('[ziweiConfig] Retrieved form data from form module property:', window.ziweiForm.formData);
             return window.ziweiForm.formData;
         }
+    
+        console.warn('[ziweiConfig] No form data available from any source');
         return null;
     }
 
@@ -433,11 +463,42 @@
             formData = recoverFormDataFromCache();
         }
         if (!formData) {
+            console.error('[ziweiConfig] No form data available for recalculation');
             return;
         }
-        
+    
+        // DEBUG: Log original form data
+        console.log('[ziweiConfig] Original formData before modification:', { ...formData });
+    
         // 3. Apply value to formData
         formData[settingName] = value;
+    
+        // CRITICAL FIX: Ensure essential fields are preserved during setting changes
+        // This prevents the "請選擇性別" error by maintaining gender and other critical fields
+        const essentialFields = ['gender', 'name', 'birthplace', 'year', 'month', 'day', 'hour', 'minute'];
+        essentialFields.forEach(field => {
+            // Only preserve if the field exists in the original form data but was not in the modified formData
+            const originalValue = getAdapterStorageValue('formInput')?.[field];
+            if (originalValue !== undefined && formData[field] === undefined) {
+                formData[field] = originalValue;
+                console.log(`[ziweiConfig] Preserved essential field ${field}:`, originalValue);
+            }
+        });
+    
+        // Additional fallback: Get from normalized input if still missing
+        if (formData.gender === undefined) {
+            const normalized = getAdapterStorageValue('normalizedInput');
+            if (normalized?.meta?.gender) {
+                formData.gender = normalized.meta.gender;
+                console.log(`[ziweiConfig] Fallback: Preserved gender from normalized input:`, formData.gender);
+            } else if (normalized?.raw?.gender) {
+                formData.gender = normalized.raw.gender;
+                console.log(`[ziweiConfig] Fallback: Preserved gender from normalized raw:`, formData.gender);
+            }
+        }
+    
+        // DEBUG: Log modified form data
+        console.log('[ziweiConfig] Modified formData after applying setting and preserving essentials:', { ...formData });
         
         // 4. Allow custom modifications (e.g., zi-hour date conversion)
         if (typeof formDataModifier === 'function') {
@@ -579,6 +640,7 @@
         const solar = normalized.solar || {};
         const raw = normalized.raw || {};
         const strings = normalized.strings || {};
+        const meta = normalized.meta || {};
         const pick = (key) => {
             if (solar[key] !== undefined && solar[key] !== null) return solar[key];
             if (raw[key] !== undefined && raw[key] !== null) return raw[key];
@@ -598,6 +660,17 @@
         if (birthtime) form.birthtime = birthtime;
         if (raw.birthplace) form.birthplace = raw.birthplace;
         if (raw.name) form.name = raw.name;
+    
+        // CRITICAL FIX: Always preserve gender from meta or raw data
+        // This prevents the "請選擇性別" error during leap month changes
+        if (meta.gender) {
+            form.gender = meta.gender;
+        } else if (raw.gender) {
+            form.gender = raw.gender;
+        } else if (normalized.gender) {
+            form.gender = normalized.gender;
+        }
+    
         // Preserve ziHourHandling from normalized.meta when available so recovered
         // form data will continue to respect the user's zi-hour setting.
         try {

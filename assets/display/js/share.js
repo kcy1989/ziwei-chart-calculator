@@ -23,6 +23,8 @@
 (function () {
   "use strict";
 
+  console.log('[ziwei-share] Module loaded (v1.0.6)');
+
   // ============================================================================
   // Private Configuration
   // ============================================================================
@@ -34,9 +36,56 @@
   ];
   const EXPORT_SCALE = 2;
 
+  function isAiModeActive() {
+    try {
+      return !!(window.ziweiAiMode && typeof window.ziweiAiMode.isActive === 'function' && window.ziweiAiMode.isActive());
+    } catch (e) {
+      return false;
+    }
+  }
+
   let browserSupport = {};
   let isMenuOpen = false;
   let loader;
+
+  // ============================================================================
+  // External Library Loader Helpers
+  // ============================================================================
+
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      if (!src) return reject(new Error('Missing src'));
+
+      const exists = Array.from(document.scripts).some((s) => s.src && s.src.indexOf(src) !== -1);
+      if (exists) {
+        resolve();
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = src;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Failed to load ' + src));
+      document.head.appendChild(script);
+    });
+  }
+
+  function waitForLibrary(checkFn, maxWait = 15000) {
+    return new Promise((resolve, reject) => {
+      const startTime = Date.now();
+      const checkInterval = setInterval(() => {
+        if (checkFn()) {
+          clearInterval(checkInterval);
+          resolve();
+        } else if (Date.now() - startTime > maxWait) {
+          clearInterval(checkInterval);
+          reject(new Error('Library load timeout'));
+        }
+      }, 100);
+    });
+  }
 
   // ============================================================================
   // Browser Support Detection
@@ -47,8 +96,8 @@
     const isIE11 = ua.includes("Trident") && ua.includes("11.0");
 
     browserSupport = {
-      canExportPNG: typeof window.domtoimage !== "undefined" && !isIE11,
-      canExportPDF: typeof window.jspdf?.jsPDF !== "undefined" && !isIE11,
+      canExportPNG: !isIE11,
+      canExportPDF: !isIE11,
       canShare: typeof navigator.share !== "undefined",
       canShareWeb: /iPhone|iPad|Android/.test(ua),
       isUnsupported: isIE11,
@@ -164,9 +213,39 @@
       return;
     }
 
+    // Ensure dom-to-image is available (load dynamically if missing)
     if (!window.domtoimage) {
+      try {
+        await loadScript('https://cdn.jsdelivr.net/npm/dom-to-image@2.6.0/dist/dom-to-image.min.js');
+        await waitForLibrary(() => !!window.domtoimage, 15000);
+      } catch (e) {
+        console.error('[ziwei-share] Failed to load dom-to-image', e);
         alert("截圖組件 (dom-to-image) 尚未加載，請刷新頁面重試");
         return;
+      }
+    }
+
+    // Ensure pako and UPNG are available (load dynamically if missing)
+    if (!window.pako) {
+      try {
+        await loadScript('https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js');
+        await waitForLibrary(() => !!window.pako, 15000);
+      } catch (e) {
+        console.warn('[ziwei-share] Failed to load pako for PNG compression', e);
+        // Continue without compression
+      }
+    }
+
+    if (!window.UPNG) {
+      try {
+        console.log('[ziwei-share] Loading UPNG, pako available:', !!window.pako);
+        await loadScript('https://cdn.jsdelivr.net/npm/upng-js@2.1.0/UPNG.min.js');
+        await waitForLibrary(() => !!window.UPNG, 15000);
+        console.log('[ziwei-share] UPNG loaded, pako available:', !!window.pako);
+      } catch (e) {
+        console.warn('[ziwei-share] Failed to load UPNG for PNG', e);
+        // Continue without UPNG
+      }
     }
 
     const cleanupExport = prepareForExport(target);
@@ -209,15 +288,35 @@
           left: "0",
           top: "0",
           margin: "0"
+        },
+        // Suppress CORS warnings for external stylesheets
+        filter: (node) => {
+          if (node.tagName === 'LINK' && node.rel === 'stylesheet') {
+            const href = node.href || '';
+            if (href.includes('wp.com') || href.includes('googleapis.com')) {
+              return false;
+            }
+          }
+          return true;
         }
       });
 
       if (window.UPNG) {
-        const pixelData = await getPixelsFromBase64(dataUrl, width, height);
-        const compressed = window.UPNG.encode([pixelData.buffer], width, height, 256);
-        const blob = new Blob([compressed], { type: "image/png" });
-        downloadBlob(blob, getFileName("png", name, birthStr));
+        try {
+          const pixelData = await getPixelsFromBase64(dataUrl, width, height);
+          const compressed = window.UPNG.encode([pixelData.buffer], width, height, 256);
+          const blob = new Blob([compressed], { type: "image/png" });
+          downloadBlob(blob, getFileName("png", name, birthStr));
+          console.log('[ziwei-share] PNG compressed via UPNG');
+        } catch (upngErr) {
+          console.warn('[ziwei-share] UPNG compression failed, using original:', upngErr);
+          const link = document.createElement('a');
+          link.download = getFileName("png", name, birthStr);
+          link.href = dataUrl;
+          link.click();
+        }
       } else {
+        console.log('[ziwei-share] UPNG not available, using uncompressed PNG');
         const link = document.createElement('a');
         link.download = getFileName("png", name, birthStr);
         link.href = dataUrl;
@@ -252,7 +351,39 @@
           return;
       }
 
-      if (!window.domtoimage || !window.jspdf?.jsPDF) {
+      // Check if libraries are loaded, load/wait if necessary
+      try {
+        if (!window.domtoimage) {
+          await loadScript('https://cdn.jsdelivr.net/npm/dom-to-image@2.6.0/dist/dom-to-image.min.js');
+          await waitForLibrary(() => !!window.domtoimage, 15000);
+        }
+        if (!window.jspdf?.jsPDF && !window.jsPDF) {
+          await loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js');
+          await waitForLibrary(() => !!window.jspdf?.jsPDF || !!window.jsPDF, 15000);
+        }
+        if (!window.pako) {
+          try {
+            await loadScript('https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js');
+            await waitForLibrary(() => !!window.pako, 15000);
+          } catch (e) {
+            console.warn('[ziwei-share] Failed to load pako for PDF compression', e);
+            // Continue without compression
+          }
+        }
+
+        if (!window.UPNG) {
+          console.log('[ziwei-share] Loading UPNG for PDF, pako available:', !!window.pako);
+          await loadScript('https://cdn.jsdelivr.net/npm/upng-js@2.1.0/UPNG.min.js');
+          await waitForLibrary(() => !!window.UPNG, 15000);
+          console.log('[ziwei-share] UPNG loaded for PDF, pako available:', !!window.pako);
+        }
+      } catch (e) {
+        console.error('[ziwei-share] Library load timeout', e);
+        alert("PDF 組件尚未加載，請刷新頁面重試");
+        return;
+      }
+
+      if (!window.domtoimage || (!window.jspdf?.jsPDF && !window.jsPDF)) {
           alert("PDF 組件尚未加載，請刷新頁面重試");
           return;
       }
@@ -297,10 +428,26 @@
                   left: "0",
                   top: "0",
                   margin: "0"
+              },
+              // Suppress CORS warnings for external stylesheets
+              imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==',
+              filter: (node) => {
+                if (node.tagName === 'LINK' && node.rel === 'stylesheet') {
+                  const href = node.href || '';
+                  if (href.includes('wp.com') || href.includes('googleapis.com')) {
+                    return false;
+                  }
+                }
+                return true;
               }
           });
 
-          const pdf = new window.jspdf.jsPDF('p', 'mm', 'a5');
+          // Handle both jsPDF loading methods (CDN vs module)
+          const jsPDFLib = window.jspdf?.jsPDF || window.jsPDF;
+          if (!jsPDFLib) {
+            throw new Error('jsPDF library not available');
+          }
+          const pdf = new jsPDFLib('p', 'mm', 'a5');
           const leftMargin = 20;
           const rightMargin = 10;
           const topMargin = 10;
@@ -312,12 +459,19 @@
           let imageSrc = dataUrl;
           let revokeUrl = null;
           if (window.UPNG) {
-            const pixelData = await getPixelsFromBase64(dataUrl, width, height);
-            const compressed = window.UPNG.encode([pixelData.buffer], width, height, 256);
-            const blob = new Blob([compressed], { type: "image/png" });
-            const optimizedUrl = URL.createObjectURL(blob);
-            imageSrc = optimizedUrl;
-            revokeUrl = optimizedUrl;
+            try {
+              const pixelData = await getPixelsFromBase64(dataUrl, width, height);
+              const compressed = window.UPNG.encode([pixelData.buffer], width, height, 256);
+              const blob = new Blob([compressed], { type: "image/png" });
+              const optimizedUrl = URL.createObjectURL(blob);
+              imageSrc = optimizedUrl;
+              revokeUrl = optimizedUrl;
+              console.log('[ziwei-share] PDF image compressed via UPNG');
+            } catch (upngErr) {
+              console.warn('[ziwei-share] UPNG compression failed for PDF, using original:', upngErr);
+            }
+          } else {
+            console.log('[ziwei-share] UPNG not available for PDF, using uncompressed image');
           }
 
           let positionY = topMargin;
@@ -529,6 +683,7 @@ function buildExportJSON() {
   // Apply user palace name preferences (career/friends palaces)
   const careerSetting = settings?.get('palaceNameCareer') || 'career';
   const friendsSetting = settings?.get('palaceNameFriends') || 'friends';
+  const xunKongSetting = settings?.get('xunKong') || 'marked';
   
   // Career palace: index 4 relative to Ming (事業宮 position)
   if (careerSetting === 'official') {
@@ -713,8 +868,20 @@ function buildExportJSON() {
   
   // === 四化 mapping ===
   const mutationTypeMap = { '祿': '化祿', '權': '化權', '科': '化科', '忌': '化忌' };
-  // Birth year mutations from adapter (same as chart.js mutationBirthLookup)
-  const starMutationsBirth = mutations?.byStar || {};
+  
+  // Dynamically calculate birth year mutations based on current stem interpretation settings
+  // This ensures the JSON reflects the current settings, not cached data
+  let starMutationsBirth = {};
+  const yearStemIndex = indices?.yearStemIndex ?? lunar?.yearStemIndex;
+  if (mutationsModule && typeof mutationsModule.calculateBirthYearMutations === 'function' && yearStemIndex !== undefined) {
+    const birthMutResult = mutationsModule.calculateBirthYearMutations(yearStemIndex);
+    starMutationsBirth = birthMutResult?.byStar || {};
+    console.log('[ziwei-share] Dynamically calculated birth year mutations:', starMutationsBirth);
+  } else {
+    // Fallback to cached mutations if dynamic calculation not available
+    starMutationsBirth = mutations?.byStar || {};
+    console.log('[ziwei-share] Using cached birth year mutations:', starMutationsBirth);
+  }
   
   // === Major/Flow cycle star short-to-full name mapping ===
   const STAR_SHORT_TO_FULL = {
@@ -832,6 +999,11 @@ function buildExportJSON() {
     // === 雜曜 ===
     const zaYao = [];
     Object.entries(minorStars).forEach(([starName, placement]) => {
+      // Apply XunKong visibility rules
+      if (xunKongSetting === 'primaryOnly' && (starName === '副旬' || starName === '副截')) {
+        return;
+      }
+      
       const isAtPalace = Array.isArray(placement) ? placement.includes(i) : placement === i;
       if (isAtPalace) zaYao.push(starName);
     });
@@ -916,13 +1088,12 @@ function buildExportJSON() {
 
 async function downloadJSON() {
   showLoadingState("正在生成 JSON...");
-  
+
   try {
     const jsonData = buildExportJSON();
     const jsonString = JSON.stringify(jsonData, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
-    
-    // Get file name from chart meta
+
     let name = '';
     let birthStr = '';
     const chart = window.ziweiAdapter?.getCurrentChart();
@@ -942,9 +1113,9 @@ async function downloadJSON() {
         birthStr = date.replace(/[^0-9]/g, '');
       }
     }
-    
+
     downloadBlob(blob, getFileName("json", name, birthStr));
-    
+
   } catch (err) {
     console.error("JSON Export Error:", err);
     alert("JSON 生成失敗: " + (err.message || "未知錯誤"));
@@ -953,49 +1124,62 @@ async function downloadJSON() {
   }
 }
 
-/**
- * Copy JSON to clipboard in compact format (no indentation, no spaces)
- * Optimized for AI input to minimize token usage
- * Prepends AI prompt based on active major/annual cycle selection
- */
-async function copyJSON() {
+function buildAiPromptPrefix() {
+  console.log('[ziwei-share] buildAiPromptPrefix called at:', new Date().toISOString());
+  
+  const activeMajorBtn = document.querySelector('.ziwei-major-cycle-button.ziwei-cycle-button-active');
+  const activeAnnualBtn = document.querySelector('.ziwei-annual-cycle-button.ziwei-cycle-button-active');
+
+  console.log('[ziwei-share] Active major cycle button found:', !!activeMajorBtn);
+  console.log('[ziwei-share] Active annual cycle button found:', !!activeAnnualBtn);
+
+  if (activeAnnualBtn) {
+    const annualYear = activeAnnualBtn.dataset.year || '';
+    console.log('[ziwei-share] Using annual cycle prompt for year:', annualYear);
+    return `你是紫微斗數大師，請按以下命盤推算${annualYear}年的流年運情。`;
+  }
+
+  if (activeMajorBtn) {
+    const chart = window.ziweiAdapter?.getCurrentChart();
+    const palaceIndex = parseInt(activeMajorBtn.dataset.palaceIndex, 10);
+    const majorCycleInfo = chart?.sections?.lifeCycles?.major?.find(c => c.palaceIndex === palaceIndex);
+    const startAge = majorCycleInfo?.startAge || '';
+    const endAge = majorCycleInfo?.endAge || '';
+    console.log('[ziwei-share] Using major cycle prompt for palace:', palaceIndex, 'age range:', startAge, '-', endAge);
+    return `你是紫微斗數大師，請按以下命盤推算${startAge}歲至${endAge}歲的十年大限運勢。`;
+  }
+
+  console.log('[ziwei-share] Using default prompt (no active cycles)');
+  return '你是紫微斗數大師，請按以下命盤推算其性格，一生整體命運。';
+}
+
+function buildAIPromptText() {
+  console.log('[ziwei-share] buildAIPromptText called at:', new Date().toISOString());
+  
   try {
     const jsonData = buildExportJSON();
-    const jsonString = JSON.stringify(jsonData); // Compact format
+    const jsonString = JSON.stringify(jsonData);
+    const aiPrompt = buildAiPromptPrefix();
     
-    // Detect active major cycle (大限)
-    const activeMajorBtn = document.querySelector('.ziwei-major-cycle-button.ziwei-cycle-button-active');
-    // Detect active annual cycle (流年)
-    const activeAnnualBtn = document.querySelector('.ziwei-annual-cycle-button.ziwei-cycle-button-active');
+    console.log('[ziwei-share] AI prompt length:', aiPrompt.length);
+    console.log('[ziwei-share] JSON string length:', jsonString.length);
+    console.log('[ziwei-share] Total length:', (aiPrompt + jsonString).length);
     
-    let aiPrompt = '';
-    
-    if (activeAnnualBtn) {
-      // Case 3: Both major and annual cycle selected -> 流年運勢
-      const annualYear = activeAnnualBtn.dataset.year || '';
-      aiPrompt = `你是紫微斗數大師，請按以下命盤推算${annualYear}年的流年運情。`;
-    } else if (activeMajorBtn) {
-      // Case 2: Only major cycle selected -> 十年大限運勢
-      // Get age range from the button's data or from lifeCycleData
-      const chart = window.ziweiAdapter?.getCurrentChart();
-      const palaceIndex = parseInt(activeMajorBtn.dataset.palaceIndex, 10);
-      const majorCycleInfo = chart?.sections?.lifeCycles?.major?.find(c => c.palaceIndex === palaceIndex);
-      const startAge = majorCycleInfo?.startAge || '';
-      const endAge = majorCycleInfo?.endAge || '';
-      aiPrompt = `你是紫微斗數大師，請按以下命盤推算${startAge}歲至${endAge}歲的十年大限運勢。`;
-    } else {
-      // Case 1: No cycle selected -> 性格與一生命運
-      aiPrompt = '你是紫微斗數大師，請按以下命盤推算其性格，一生整體命運。';
-    }
-    
-    // Combine prompt with JSON
-    const textToCopy = aiPrompt + jsonString;
-    
+    return aiPrompt + jsonString;
+  } catch (err) {
+    console.error('[ziwei-share] buildAIPromptText failed:', err);
+    throw err;
+  }
+}
+
+async function copyJSON() {
+  try {
+    const textToCopy = buildAIPromptText();
+
     await navigator.clipboard.writeText(textToCopy);
-    
-    // Show toast feedback (same style as share link)
+
     showShareLinkFeedback('已複製 JSON！');
-    
+
   } catch (err) {
     console.error("JSON Copy Error:", err);
     showShareLinkFeedback('複製失敗：' + (err.message || '未知錯誤'));
@@ -1132,6 +1316,7 @@ async function copyJSON() {
     ].join("");
 
     menu.innerHTML = menuHTML;
+        applyAiModeShareDisables(menu);
     btn.appendChild(menu);
 
     // 根據瀏覽器支持禁用選項
@@ -1139,6 +1324,27 @@ async function copyJSON() {
       const opt = menu.querySelector('[data-action="download-png"]');
       if(opt) opt.classList.add('disabled');
     }
+  }
+
+  function applyAiModeShareDisables(menuRoot) {
+    if (!menuRoot) return;
+    // Use DOM check directly instead of isAiModeActive to avoid timing issues
+    const container = document.querySelector('.ziwei-cal[data-ziwei-mode="ai"]');
+    const isAi = !!container;
+    ['download-png', 'download-pdf'].forEach(action => {
+      const opt = menuRoot.querySelector(`[data-action="${action}"]`);
+      if (opt) {
+        if (isAi) {
+          opt.classList.add('disabled');
+          opt.setAttribute('aria-disabled', 'true');
+          opt.setAttribute('data-title', 'AI 模式停用');
+        } else {
+          opt.classList.remove('disabled');
+          opt.removeAttribute('aria-disabled');
+          opt.removeAttribute('data-title');
+        }
+      }
+    });
   }
 
 /**
@@ -1334,8 +1540,10 @@ function toggleMenu() {
     downloadJSON: downloadJSON,
     copyJSON: copyJSON,
     generateShareLink: generateShareLink,
+    getAIPromptText: buildAIPromptText,
     init: init,
-    _toggleMenu: toggleMenu // 供 control.js 調用
+    _toggleMenu: toggleMenu, // 供 control.js 調用
+    _injectMenu: injectMenu // 供 control.js 調用
   };
 
   // 啟動

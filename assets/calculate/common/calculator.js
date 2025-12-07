@@ -38,6 +38,8 @@
         ADAPTER_KEYS.RAW
     ]);
 
+    let lastRenderMode = 'chart';
+
     // ============================================================================
     // Cache Implementation
     // ============================================================================
@@ -568,7 +570,8 @@
      * @param {HTMLElement} chartElement
      * @returns {Promise<void>}
      */
-    async function updateDisplay(chartElement) {
+    async function updateDisplay(chartElement, options = {}) {
+        const renderMode = options.mode || 'chart';
         const form = document.getElementById('ziwei-cal-form');
 
         if (!form) {
@@ -580,6 +583,9 @@
 
                 chartElement.setAttribute('data-ziwei-chart', '1');
                 existingChart.parentNode.replaceChild(chartElement, existingChart);
+                if (existingChart.parentNode?.setAttribute) {
+                    existingChart.parentNode.setAttribute('data-ziwei-mode', renderMode);
+                }
 
                 window.scrollTo(scrollLeft, scrollTop);
             }
@@ -592,7 +598,7 @@
         
         // Update container mode to 'chart' for CSS styling
         if (container && container.hasAttribute('data-ziwei-mode')) {
-            container.setAttribute('data-ziwei-mode', 'chart');
+            container.setAttribute('data-ziwei-mode', renderMode);
         }
         
         // 建立控制列
@@ -706,8 +712,52 @@
 
             try {
                 const result = await computeChartWithCache(formData);
-                const chartElement = await showChart(result);
-                await updateDisplay(chartElement);
+                let chartElement;
+                const renderMode = lastRenderMode;
+
+                // Check if AI mode is currently active
+                // Check module state, DOM attribute, AND existence of AI panel to be absolutely sure
+                const container = document.querySelector('.ziwei-cal');
+                const domModeAi = container && container.getAttribute('data-ziwei-mode') === 'ai';
+                const moduleActive = window.ziweiAiMode?.isActive?.();
+                const hasAiPanel = !!document.querySelector('.ziwei-ai-panel:not([style*="display: none"])') && 
+                                  !!document.querySelector('.ziwei-ai-panel[style*="display:"]:not([style*="display: none"])');
+                const adapterActive = window.ziweiAdapter?.storage?.get('aiModeActive') === true;
+                
+                const aiModeActive = moduleActive || domModeAi || hasAiPanel || adapterActive;
+                console.log('[ziweiCalculator] Setting changed:', setting, 'AI mode active:', aiModeActive, 
+                    '(Module:', moduleActive, 'DOM:', domModeAi, 'Panel:', hasAiPanel, 'Adapter:', adapterActive, ')');
+
+                // If AI mode is active, only update JSON text, don't redraw chart
+                if (aiModeActive) {
+                    console.log('[ziweiCalculator] AI mode active, updating JSON text only');
+                    
+                    // Update the existing chart data in adapter
+                    if (typeof adapter.setCurrentChart === 'function') {
+                        adapter.setCurrentChart(result.adapterOutput);
+                    }
+                    
+                    // Update JSON text in AI mode
+                    if (window.ziweiAiMode?.updateJsonText) {
+                        window.ziweiAiMode.updateJsonText();
+                    }
+                    
+                    // Restore cycle state if needed
+                    if (cycleState) {
+                        restoreCycleState(cycleState);
+                    }
+                    
+                    // Sync lastRenderMode to AI mode
+                    lastRenderMode = 'ai';
+                } else {
+                    // Not in AI mode, redraw chart as normal
+                    console.log('[ziweiCalculator] Chart mode active, redrawing chart');
+                    chartElement = await showChart(result);
+                    const finalElement = (renderMode === 'ai' && window.ziweiAiMode?.activate)
+                        ? window.ziweiAiMode.activate(chartElement)
+                        : chartElement;
+                    await updateDisplay(finalElement, { mode: renderMode });
+                }
             } catch (err) {
                 console.error('[ziweiCalculator] Recomputation failed:', err);
             }
@@ -722,8 +772,33 @@
         setupSettingsListener();
 
         document.addEventListener('ziwei-form-submit', async (e) => {
-            const { formData } = e.detail;
+            const { formData, mode } = e.detail;
             console.log('[DEBUG] ziwei-form-submit received', { formData });
+
+            // Check if AI mode is currently active (robust check)
+            const container = document.querySelector('.ziwei-cal');
+            const domModeAi = container && container.getAttribute('data-ziwei-mode') === 'ai';
+            const moduleActive = window.ziweiAiMode?.isActive?.();
+            const hasAiPanel = !!document.querySelector('.ziwei-ai-panel:not([style*="display: none"])') && 
+                              !!document.querySelector('.ziwei-ai-panel[style*="display:"]:not([style*="display: none"])');
+            const adapterActive = window.ziweiAdapter?.storage?.get('aiModeActive') === true;
+            
+            const isAiModeActive = moduleActive || domModeAi || hasAiPanel || adapterActive;
+
+            // Determine render mode: use provided mode, or preserve AI mode if active
+            let targetMode = mode;
+            if (!targetMode) {
+                targetMode = isAiModeActive ? 'ai' : 'chart';
+            }
+            
+            lastRenderMode = targetMode;
+
+            // If we are explicitly switching to chart mode from AI mode
+            if (lastRenderMode === 'chart' && isAiModeActive) {
+                if (window.ziweiAiMode?.deactivate) {
+                    window.ziweiAiMode.deactivate(document.querySelector('[data-ziwei-chart="1"]'));
+                }
+            }
 
             if (window.ziweiForm?.saveState) {
                 window.ziweiForm.saveState();
@@ -734,8 +809,19 @@
 
             try {
                 const result = await computeChartWithCache(formData);
-                const chartElement = await showChart(result);
-                await updateDisplay(chartElement);
+                let chartElement;
+                const renderMode = lastRenderMode;
+
+                console.log('[ziweiCalculator] Form submit - AI mode active:', isAiModeActive, 'Target mode:', renderMode);
+
+                // Always redraw chart to ensure DOM is up to date with new settings
+                // This ensures correct cycle buttons in DOM (used by export JSON) and correct state if user switches back to chart mode
+                chartElement = await showChart(result);
+
+                const finalElement = (renderMode === 'ai' && window.ziweiAiMode?.activate)
+                    ? window.ziweiAiMode.activate(chartElement)
+                    : chartElement;
+                await updateDisplay(finalElement, { mode: renderMode });
             } catch (error) {
                 console.error('[ziweiCalculator] Computation failed:', error);
                 if (window.ziweiForm?.handleAdapterError) {

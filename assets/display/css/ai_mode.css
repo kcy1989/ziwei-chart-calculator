@@ -1,0 +1,79 @@
+/* Ziwei AI Mode Styles */
+
+/* Container styling for AI mode - same as chart mode */
+.ziwei-cal[data-ziwei-mode="ai"] {
+    max-width: 700px;
+    margin: 20px auto;
+    padding: 10px 30px 10px 30px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.ziwei-ai-panel {
+  width: 70%;
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid #e0e4ea;
+  border-radius: 12px;
+  background: #f9fbff;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+}
+
+.ziwei-ai-title {
+  font-weight: 700;
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.ziwei-ai-textarea {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  min-height: 260px;
+  font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 12px;
+  border: 1px solid #d7dce3;
+  border-radius: 8px;
+  resize: vertical;
+  background: #fff;
+}
+
+.ziwei-ai-copy-btn {
+  margin: 12px auto 0;
+  display: block;
+  width: fit-content;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+  background: #ecf0f1;
+  color: #34495e;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: center;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.ziwei-ai-copy-btn:hover {
+  background: #bdc3c7;
+  color: #34495e;
+}
+
+.ziwei-ai-copy-btn:focus {
+  outline: none;
+}
+
+.ziwei-ai-toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #0f172a;
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.2);
+}
