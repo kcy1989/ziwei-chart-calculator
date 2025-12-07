@@ -1148,19 +1148,23 @@ function cloneFormWithValues(formEl) {
  * @returns {Promise<void>}
  */
 async function restoreForm(currentElement) {
+    log('Starting form restoration...');
     if (!state.savedFormClone) {
+        log('No saved form clone found, reloading page');
         window.location.reload();
         return;
     }
 
     // Defensive checks
     if (!currentElement || typeof currentElement.closest !== 'function') {
+        log('Invalid currentElement, reloading page');
         window.location.reload();
         return;
     }
 
     const container = currentElement.closest('.ziwei-cal');
     if (container) {
+        log('Setting container mode to form');
         container.setAttribute('data-ziwei-mode', 'form');
     }
 
@@ -1168,7 +1172,7 @@ async function restoreForm(currentElement) {
         currentElement.style.transition = 'opacity 200ms ease';
         currentElement.style.opacity = '0';
     }
-    
+
     const parent = currentElement.parentNode;
     const controls = parent?.querySelector('.ziwei-control-bar');
     if (controls && controls.style) {
@@ -1181,10 +1185,12 @@ async function restoreForm(currentElement) {
         settingsPanel.style.transition = 'opacity 200ms ease';
         settingsPanel.style.opacity = '0';
     }
-    
+
+    log('Waiting 220ms for transitions...');
     await new Promise(resolve => setTimeout(resolve, 220));
 
     try {
+        log('Cloning saved form...');
         // Use a fresh clone so the savedFormClone remains reusable for future restores
         const newForm = state.savedFormClone.cloneNode(true);
 
@@ -1193,19 +1199,23 @@ async function restoreForm(currentElement) {
             newForm.id = 'ziwei-cal-form';
         }
 
+        log('Replacing current element with form...');
         currentElement.replaceWith(newForm);
-        
+
         if (controls) {
+            log('Removing controls...');
             controls.remove();
         }
         if (settingsPanel) {
+            log('Removing settings panel...');
             settingsPanel.remove();
         }
-        
+
         // Reset submitting state before re-initializing
         state.isSubmitting = false;
         state.isInitialized = false;
-        
+
+        log('Setting up form opacity animation...');
         requestAnimationFrame(() => {
             if (newForm.style) {
                 newForm.style.opacity = '0';
@@ -1213,16 +1223,20 @@ async function restoreForm(currentElement) {
                 requestAnimationFrame(() => { newForm.style.opacity = '1'; });
             }
         });
-        
+
+        log('Re-initializing form...');
         // Re-initialize form to restore event handlers and reset button state
         initForm();
-        
+
         // Ensure button is in correct state
+        const mode = 'chart'; // Default to chart mode for form restoration
+        log('Setting busy state to false with mode:', mode);
         toggleBusy(false, mode);
-        
+
         log('Form restored successfully');
     } catch (err2) {
         err('Failed to restore form:', err2);
+        log('Error details:', err2.message, err2.stack);
         window.location.reload();
     }
 }

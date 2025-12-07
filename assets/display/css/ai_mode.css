@@ -69,11 +69,41 @@
 
 .ziwei-ai-toast {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
-  background: #0f172a;
-  color: #fff;
-  padding: 10px 14px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 16px 24px;
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.2);
+  font-size: 16px;
+  z-index: 10000;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  animation: ziwei-ai-toast-fadeIn 0.3s ease;
+}
+
+.ziwei-ai-toast.fade-out {
+  animation: ziwei-ai-toast-fadeOut 0.3s ease forwards;
+}
+
+@keyframes ziwei-ai-toast-fadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) translateY(0);
+  }
+}
+
+@keyframes ziwei-ai-toast-fadeOut {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) translateY(20px);
+  }
 }

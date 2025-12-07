@@ -304,7 +304,12 @@ async function copyPrompt() {
     toast.className = 'ziwei-ai-toast';
     toast.textContent = '已複製 AI 提示詞';
     document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 1600);
+
+    // Auto-remove after 1.6 seconds with fade out animation
+    setTimeout(() => {
+      toast.classList.add('fade-out');
+      setTimeout(() => toast.remove(), 300);
+    }, 1300);
 }
 
 function bindListeners() {

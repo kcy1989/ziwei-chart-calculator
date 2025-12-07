@@ -525,6 +525,10 @@
             e.stopPropagation();
             const chartElement = mountNode.querySelector('[data-ziwei-chart]');
             if (chartElement && window.ziweiForm && typeof window.ziweiForm.restoreForm === 'function') {
+                // Deactivate AI mode before restoring form to prevent interference
+                if (window.ziweiAiMode && typeof window.ziweiAiMode.deactivate === 'function') {
+                    window.ziweiAiMode.deactivate(chartElement);
+                }
                 window.ziweiForm.restoreForm(chartElement);
             }
         });
