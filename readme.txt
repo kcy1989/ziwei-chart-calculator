@@ -5,7 +5,7 @@ Tags: 紫微斗數, 命理, 排盤, 中州派, astrology
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -173,6 +173,9 @@ ziwei-cal/
 支援多種匯出格式：PNG圖片、PDF文件、JSON資料，可用於列印或進一步處理。
 
 == Changelog ==
+= 1.1.0 - 2025-12-07 =
+* 修正：分享連結無法排盤的錯誤
+
 = 1.1.0 - 2025-12-07 =
 * 新增：AI 模式功能
 * 更改：彈出訊息統一外觀

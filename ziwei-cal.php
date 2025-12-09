@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * Plugin Name: Ziwei Cal
  * Description: Ziwei Doushu Chart Calculator
- * Version: 1.1.0
+ * Version: 1.1.1
  * Author: kcy1989
  * License: GPL v2 or later
  * Text Domain: ziwei-cal
