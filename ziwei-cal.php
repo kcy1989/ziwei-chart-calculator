@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('ZIWEI_CAL_VERSION', '1.1.0'); // Bump version to force cache refresh
+define('ZIWEI_CAL_VERSION', '1.1.1'); // Bump version to force cache refresh
 define('ZIWEI_CAL_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('ZIWEI_CAL_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -29,23 +29,7 @@ function ziwei_cal_register_rest_routes(): void {
     register_rest_route('ziwei-cal/v1', '/calculate', [
         'methods' => WP_REST_Server::CREATABLE,  // POST
         'callback' => 'ziwei_cal_calculate_chart',
-        'permission_callback' => function($request) {
-            // Public endpoint but require X-WP-Nonce header for CSRF protection
-            $nonce = '';
-            if ($request instanceof WP_REST_Request) {
-                $nonce = $request->get_header('X-WP-Nonce') ?: $request->get_header('x-wp-nonce');
-            }
-            if (empty($nonce) && isset($_SERVER['HTTP_X_WP_NONCE'])) {
-                $nonce = $_SERVER['HTTP_X_WP_NONCE'];
-            }
-            if (empty($nonce)) {
-                return new WP_Error('rest_forbidden', 'Missing REST nonce', ['status' => 403]);
-            }
-            if (!wp_verify_nonce($nonce, 'wp_rest')) {
-                return new WP_Error('rest_forbidden', 'Invalid REST nonce', ['status' => 403]);
-            }
-            return true;
-        },
+        'permission_callback' => '__return_true', // Public endpoint for calculator
         'args' => [
             'name' => [
                 'required' => false,

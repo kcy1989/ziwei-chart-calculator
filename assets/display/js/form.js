@@ -901,8 +901,7 @@ async function handleSubmit(e, options = {}) {
             const resp = await fetch('/wp-json/ziwei-cal/v1/calculate', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'X-WP-Nonce': window.ziweiCalData.nonce
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     name: rawPayload.name,
