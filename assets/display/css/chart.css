@@ -178,6 +178,7 @@
     line-height: 1.8;
     text-align: center;
     writing-mode: horizontal-tb;
+    white-space: nowrap;
 }
 
 .ziwei-master-body-row {
@@ -757,6 +758,7 @@
     .ziwei-datetime {
         font-size: 13px;
         line-height: 1.4;
+        white-space: nowrap;
     }
 
     .ziwei-master-body-row {
@@ -922,6 +924,7 @@
     .ziwei-datetime {
         font-size: 12px;
         line-height: 1.3;
+        white-space: nowrap;
     }
 
     .ziwei-master-body-row {
