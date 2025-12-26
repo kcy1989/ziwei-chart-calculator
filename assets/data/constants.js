@@ -199,12 +199,12 @@
         ]
     });
 
-    // ============================================================================
-    // 15. Calculation Settings (affect cache key)
+    // = : 15. Calculation Settings (affect cache key)
     // ============================================================================
     const CALCULATION_SETTINGS = Object.freeze([
         'leapMonthHandling',
         'ziHourHandling',
+        'hour-change',
         'stemInterpretation_甲',
         'stemInterpretation_戊',
         'stemInterpretation_庚',

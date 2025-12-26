@@ -195,7 +195,7 @@
      */
     function handleHourChange(direction) {
         const adapter = getAdapterInstance();
-        if (!adapter || !adapter.normalizeInput) {
+        if (!adapter) {
             console.error('[ziweiControl] Data adapter not available');
             return;
         }
@@ -255,132 +255,17 @@
         rawInput.hour = String(newHour);
         rawInput.minute = String(newMinute);
 
-        // Include ziHourHandling from adapter settings when available so normalization
-        // computes lunar with the correct 子時換日 mode.
-        let ziHandling = null;
-        let leapHandling = null;
-        try {
-            ziHandling = getAdapterSettingValue('ziHourHandling');
-        } catch (e) {
-            ziHandling = null;
+        // Update storage so calculator can find it
+        if (adapter.storage && typeof adapter.storage.set === 'function') {
+            adapter.storage.set('formInput', rawInput);
         }
-        try {
-            leapHandling = getAdapterSettingValue('leapMonthHandling');
-        } catch (e) {
-            leapHandling = null;
-        }
-        if (!leapHandling && meta.leapMonthHandling) {
-            leapHandling = meta.leapMonthHandling;
-        }
-        if (!leapHandling) {
-            leapHandling = 'mid';
-        }
-
-        rawInput.leapMonthHandling = leapHandling;
-        rawInput.ziHourHandling = ziHandling || undefined;
-
-        // Ensure no null or empty values in rawInput to prevent validation failures
-        if (rawInput.name == null || rawInput.name === '') rawInput.name = '';
-        if (rawInput.gender == null || rawInput.gender === '') rawInput.gender = 'M';
-        if (rawInput.year == null || rawInput.year === '') rawInput.year = String(new Date().getFullYear());
-        if (rawInput.month == null || rawInput.month === '') rawInput.month = '1';
-        if (rawInput.day == null || rawInput.day === '') rawInput.day = '1';
-        if (rawInput.hour == null || rawInput.hour === '') rawInput.hour = '0';
-        if (rawInput.minute == null || rawInput.minute === '') rawInput.minute = '0';
-        if (rawInput.birthplace == null || rawInput.birthplace === '') rawInput.birthplace = '';
-        if (rawInput.calendarType == null || rawInput.calendarType === '') rawInput.calendarType = 'solar';
-        if (rawInput.leapMonth == null || rawInput.leapMonth === '') rawInput.leapMonth = '';
-        if (rawInput.leapMonthHandling == null || rawInput.leapMonthHandling === '') rawInput.leapMonthHandling = 'mid';
-        if (rawInput.ziHourHandling == null || rawInput.ziHourHandling === '') rawInput.ziHourHandling = '';
-
-
-
-
-        let normalized;
-        try {
-            normalized = adapter.normalizeInput(rawInput);
-        } catch (adapterError) {
-            console.error('[ziweiControl] Adapter normalization failed:', adapterError);
-            if (adapter.errors?.isAdapterError?.(adapterError) && window.ziweiForm?.handleAdapterError) {
-                window.ziweiForm.handleAdapterError(adapterError);
-            } else {
-                window.ziweiForm?.showError(adapterError.message || '資料轉換失敗，請稍後再試');
-            }
-            return;
-        }
-
-        // Perform full calculation to get proper adapterOutput with sections
-        // NOTE: adapter.calculate() expects raw input data, not normalized data
-        let adapterOutput;
-        try {
-            adapterOutput = adapter.calculate(rawInput);
-        } catch (calcError) {
-            console.error('[ziweiControl] Calculation failed:', calcError);
-            window.ziweiForm?.showError(calcError.message || '計算失敗，請稍後再試');
-            return;
-        }
-
-        const calcResult = {
-            success: true,
-            message: '命盤生成成功。',
-            data: {
-                name: normalized.meta.name,
-                gender: normalized.meta.gender,
-                birthdate: normalized.strings?.birthdate || '',
-                birthtime: normalized.strings?.birthtime || '',
-                birthplace: normalized.meta.birthplace || '',
-                lunar: normalized.lunar
-            }
-        };
-
-    // adapterOutput prepared and persisted to adapter.storage
-
-        // Persist the adjusted normalized / adapterOutput into adapter storage
-        try {
-            if (adapter && adapter.storage && typeof adapter.storage.set === 'function') {
-                adapter.storage.set('normalizedInput', normalized);
-                adapter.storage.set('adapterOutput', adapterOutput);
-                adapter.storage.set('calcResult', calcResult);
-                adapter.storage.set('formInput', normalized.raw ? normalized.raw : rawInput);
-                if (adapterOutput && adapterOutput.meta) {
-                    adapter.storage.set('meta', adapterOutput.meta);
-                }
-            }
-        } catch (e) {}
 
         // Dispatch setting changed event
+        // This will trigger re-calculation and re-rendering in calculator.js (for chart)
+        // and ai_mode.js (for AI prompts)
         document.dispatchEvent(new CustomEvent('ziwei-setting-changed', {
             detail: { setting: 'hour-change' }
         }));
-
-        // Reapply settings
-        const brightnessSetting = getAdapterSettingValue('starBrightness');
-        if (brightnessSetting) {
-            document.dispatchEvent(new CustomEvent('ziwei-starBrightness-changed', {
-                detail: { value: brightnessSetting }
-            }));
-        }
-
-        // Optionally validate with API in background (fire and forget)
-        setTimeout(() => {
-            const payload = {
-                name: normalized.meta.name,
-                gender: normalized.meta.gender,
-                year: normalized.solar.year,
-                month: normalized.solar.month,
-                day: normalized.solar.day,
-                hour: normalized.solar.hour,
-                minute: normalized.solar.minute,
-                birthplace: normalized.meta.birthplace || '',
-                calendarType: normalized.meta.calendarType,
-                leapMonth: normalized.meta.leapMonth,
-                lunar: normalized.lunar
-            };
-
-            window.submitToApi(payload).catch(error => {
-                // Non-critical - background validation failed silently
-            });
-        }, 0);
     }
 
     /**
@@ -537,7 +422,10 @@
         prevBtn.setAttribute('data-control', 'prev-hour');
         centerGroup.appendChild(prevBtn);
 
-        const modeBtn = createButton('看命盤', 'ziwei-control-mode-toggle');
+        const container = mountNode.closest('.ziwei-cal') || mountNode;
+        const currentMode = container.getAttribute('data-ziwei-mode') || 'chart';
+        const modeBtnLabel = currentMode === 'ai' ? '看命盤' : '看AI提示詞';
+        const modeBtn = createButton(modeBtnLabel, 'ziwei-control-mode-toggle');
         centerGroup.appendChild(modeBtn);
 
         const nextBtn = createButton('時辰 →', 'ziwei-control-next-hour');

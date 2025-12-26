@@ -514,14 +514,16 @@
         if (!storage || typeof storage.set !== 'function') return;
 
         const sanitizedNormalized = sanitizeFormForStorage(normalizedInput);
-        const sanitizedOutput = sanitizeAdapterOutput(adapterOutput);
+        // Use the full adapterOutput for internal storage to ensure modules like share.js 
+        // have access to all metadata (name, gender, etc.)
+        const storedOutput = adapterOutput;
 
         storage.set(ADAPTER_KEYS.NORMALIZED_INPUT, sanitizedNormalized);
-        storage.set(ADAPTER_KEYS.ADAPTER_OUTPUT, sanitizedOutput);
+        storage.set(ADAPTER_KEYS.ADAPTER_OUTPUT, storedOutput);
         storage.set(ADAPTER_KEYS.CALC_RESULT, calcResult);
         
-        if (sanitizedOutput?.meta) {
-            storage.set(ADAPTER_KEYS.META, sanitizedOutput.meta);
+        if (storedOutput?.meta) {
+            storage.set(ADAPTER_KEYS.META, storedOutput.meta);
         }
     }
 
@@ -568,14 +570,22 @@
     /**
      * Update display with new chart element
      * @param {HTMLElement} chartElement
+     * @param {Object} [options]
      * @returns {Promise<void>}
      */
     async function updateDisplay(chartElement, options = {}) {
         const renderMode = options.mode || 'chart';
+        const context = options.context || null;
         const form = document.getElementById('ziwei-cal-form');
 
         if (!form) {
             // Already in chart mode - replace in place
+            // Use ziweiControl.updateChartDisplay if available for robust replacement (reapplies settings)
+            if (window.ziweiControl && typeof window.ziweiControl.updateChartDisplay === 'function') {
+                window.ziweiControl.updateChartDisplay(chartElement, context);
+                return;
+            }
+
             const existingChart = document.querySelector('[data-ziwei-chart="1"]');
             if (existingChart?.parentNode) {
                 const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
@@ -728,35 +738,30 @@
                 console.log('[ziweiCalculator] Setting changed:', setting, 'AI mode active:', aiModeActive, 
                     '(Module:', moduleActive, 'DOM:', domModeAi, 'Panel:', hasAiPanel, 'Adapter:', adapterActive, ')');
 
-                // If AI mode is active, only update JSON text, don't redraw chart
-                if (aiModeActive) {
-                    console.log('[ziweiCalculator] AI mode active, updating JSON text only');
-                    
-                    // Update the existing chart data in adapter
-                    if (typeof adapter.setCurrentChart === 'function') {
-                        adapter.setCurrentChart(result.adapterOutput);
-                    }
-                    
-                    // Update JSON text in AI mode
+                // Update the existing chart data in adapter
+                const adapter = window.ziweiAdapter;
+                if (typeof adapter?.setCurrentChart === 'function') {
+                    adapter.setCurrentChart(result.adapterOutput);
+                }
+
+                // Always redraw chart to ensure DOM is up to date with new settings
+                // This ensures correct cycle buttons in DOM (used by export JSON) and correct state if user switches back to chart mode
+                chartElement = await showChart(result);
+                
+                const finalElement = (aiModeActive && window.ziweiAiMode?.activate)
+                    ? window.ziweiAiMode.activate(chartElement)
+                    : chartElement;
+                
+                await updateDisplay(finalElement, { mode: aiModeActive ? 'ai' : 'chart', context: result });
+
+                // Restore cycle state if needed
+                if (cycleState) {
+                    restoreCycleState(cycleState);
+                } else if (aiModeActive) {
+                    // If in AI mode and no cycle state to restore, manually update JSON text
                     if (window.ziweiAiMode?.updateJsonText) {
                         window.ziweiAiMode.updateJsonText();
                     }
-                    
-                    // Restore cycle state if needed
-                    if (cycleState) {
-                        restoreCycleState(cycleState);
-                    }
-                    
-                    // Sync lastRenderMode to AI mode
-                    lastRenderMode = 'ai';
-                } else {
-                    // Not in AI mode, redraw chart as normal
-                    console.log('[ziweiCalculator] Chart mode active, redrawing chart');
-                    chartElement = await showChart(result);
-                    const finalElement = (renderMode === 'ai' && window.ziweiAiMode?.activate)
-                        ? window.ziweiAiMode.activate(chartElement)
-                        : chartElement;
-                    await updateDisplay(finalElement, { mode: renderMode });
                 }
             } catch (err) {
                 console.error('[ziweiCalculator] Recomputation failed:', err);
@@ -821,7 +826,7 @@
                 const finalElement = (renderMode === 'ai' && window.ziweiAiMode?.activate)
                     ? window.ziweiAiMode.activate(chartElement)
                     : chartElement;
-                await updateDisplay(finalElement, { mode: renderMode });
+                await updateDisplay(finalElement, { mode: renderMode, context: result });
             } catch (error) {
                 console.error('[ziweiCalculator] Computation failed:', error);
                 if (window.ziweiForm?.handleAdapterError) {

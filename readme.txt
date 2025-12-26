@@ -5,7 +5,7 @@ Tags: 紫微斗數, 命理, 排盤, 中州派, astrology
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.1.2
+Stable tag: 1.1.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -173,6 +173,12 @@ ziwei-cal/
 支援多種匯出格式：PNG圖片、PDF文件、JSON資料，可用於列印或進一步處理。
 
 == Changelog ==
+= 1.1.3 - 2025-12-26 =
+* 修復：命盤模式下上一個/下一個時辰按鈕無反應問題
+* 修復：AI提示詞模式下時辰切換後JSON文字版命盤未更新問題
+* 修復：表單提交後控制列按鈕文字錯誤問題
+* 優化：統一時辰切換邏輯，確保兩個模式都使用Adapter層重新計算
+
 = 1.1.2 - 2025-12-20 =
 * 修復：PNG下載時西曆日期和時間換行問題，確保日期時間在一行顯示，不會與農曆重疊
 
